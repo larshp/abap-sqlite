@@ -247,8 +247,8 @@ matching `xstrlen` and the `INT4` block number in `ZSQLITE_FILES`.
 
 #### M1.7 Table VFS: file management
 
-- [ ] `exists`, `delete`, `list`, `rename`
-- [ ] `import( name, xstring )` / `export( name ) → xstring`
+- [x] `exists`, `delete`, `list`, `rename`
+- [x] `import( name, xstring )` / `export( name ) → xstring`
 
 **Done when:** a file can be imported, listed, renamed, exported byte-identical, and deleted.
 

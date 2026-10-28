@@ -8,6 +8,11 @@ CLASS zcl_sqlite_vfs_table DEFINITION
   PUBLIC SECTION.
     INTERFACES zif_sqlite_vfs.
 
+* an optional prefix isolates a store without changing the logical file
+* names seen through the VFS, it is used by the tests
+    METHODS constructor
+      IMPORTING iv_prefix TYPE string OPTIONAL.
+
 * helpers for ZCL_SQLITE_FILE_TABLE, not part of the VFS contract
     METHODS read_file
       IMPORTING iv_name          TYPE string
@@ -31,6 +36,17 @@ CLASS zcl_sqlite_vfs_table DEFINITION
       IMPORTING iv_name        TYPE string
       RETURNING VALUE(rv_size) TYPE i.
 
+* import replaces a file with the supplied bytes; export raises
+* cx_sy_file_access_error when the file does not exist
+    METHODS import
+      IMPORTING iv_name TYPE string
+                iv_data TYPE xstring.
+
+    METHODS export
+      IMPORTING iv_name        TYPE string
+      RETURNING VALUE(rv_data) TYPE xstring
+      RAISING   cx_sy_file_access_error.
+
   PRIVATE SECTION.
     CONSTANTS c_block_size TYPE i VALUE zcl_sqlite_files=>c_default_block_size.
 
@@ -42,6 +58,15 @@ CLASS zcl_sqlite_vfs_table DEFINITION
     TYPES ty_blocks TYPE HASHED TABLE OF ty_block WITH UNIQUE KEY name blockno.
 
     DATA mt_blocks TYPE ty_blocks.
+    DATA mv_prefix TYPE string.
+
+    METHODS db_name
+      IMPORTING iv_name        TYPE string
+      RETURNING VALUE(rv_name) TYPE zsqlite_files-filename.
+
+    METHODS logical_name
+      IMPORTING iv_db_name     TYPE zsqlite_files-filename
+      RETURNING VALUE(rv_name) TYPE string.
 
     METHODS zero_bytes
       IMPORTING iv_count        TYPE i
@@ -83,6 +108,41 @@ ENDCLASS.
 
 CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
 
+  METHOD constructor.
+    mv_prefix = iv_prefix.
+  ENDMETHOD.
+
+  METHOD db_name.
+    rv_name = mv_prefix && iv_name.
+  ENDMETHOD.
+
+  METHOD logical_name.
+    DATA lv_length TYPE i.
+    DATA lv_prefix_length TYPE i.
+
+    rv_name = iv_db_name.
+    lv_prefix_length = strlen( mv_prefix ).
+    IF lv_prefix_length = 0.
+      RETURN.
+    ENDIF.
+
+    IF strlen( rv_name ) < lv_prefix_length.
+      CLEAR rv_name.
+      RETURN.
+    ENDIF.
+    IF rv_name+0(lv_prefix_length) <> mv_prefix.
+      CLEAR rv_name.
+      RETURN.
+    ENDIF.
+
+    lv_length = strlen( rv_name ) - lv_prefix_length.
+    IF lv_length > 0.
+      rv_name = rv_name+lv_prefix_length(lv_length).
+    ELSE.
+      CLEAR rv_name.
+    ENDIF.
+  ENDMETHOD.
+
   METHOD zif_sqlite_vfs~open.
     ensure_file( iv_name ).
 
@@ -93,7 +153,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     DATA lv_count TYPE i.
     DATA lv_name TYPE zsqlite_files-filename.
 
-    lv_name = iv_name.
+    lv_name = db_name( iv_name ).
     SELECT COUNT(*) FROM zsqlite_files INTO @lv_count
       WHERE mandt = @sy-mandt AND filename = @lv_name.
     rv_exists = boolc( lv_count > 0 ).
@@ -105,6 +165,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
 
   METHOD zif_sqlite_vfs~list.
     DATA lt_names TYPE STANDARD TABLE OF zsqlite_files-filename WITH DEFAULT KEY.
+    DATA lv_logical TYPE string.
     DATA lv_name TYPE zsqlite_files-filename.
 
     SELECT DISTINCT filename FROM zsqlite_files INTO TABLE @lt_names
@@ -112,7 +173,10 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
       ORDER BY filename.
 
     LOOP AT lt_names INTO lv_name.
-      APPEND lv_name TO rt_names.
+      lv_logical = logical_name( lv_name ).
+      IF lv_logical IS NOT INITIAL.
+        APPEND lv_logical TO rt_names.
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
 
@@ -127,8 +191,8 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
       RAISE EXCEPTION TYPE cx_sy_file_access_error.
     ENDIF.
 
-    lv_old_name = iv_name.
-    lv_new_name = iv_new_name.
+    lv_old_name = db_name( iv_name ).
+    lv_new_name = db_name( iv_new_name ).
     UPDATE zsqlite_files SET filename = @lv_new_name
       WHERE mandt = @sy-mandt AND filename = @lv_old_name.
 
@@ -314,7 +378,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     DATA lv_data TYPE zsqlite_files-data.
     DATA lv_name TYPE zsqlite_files-filename.
 
-    lv_name = iv_name.
+    lv_name = db_name( iv_name ).
     SELECT MAX( blockno ) FROM zsqlite_files INTO @lv_blockno
       WHERE mandt = @sy-mandt AND filename = @lv_name.
     IF sy-subrc <> 0.
@@ -324,6 +388,29 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     SELECT SINGLE data FROM zsqlite_files INTO @lv_data
       WHERE mandt = @sy-mandt AND filename = @lv_name AND blockno = @lv_blockno.
     rv_size = lv_blockno * c_block_size + xstrlen( lv_data ).
+  ENDMETHOD.
+
+  METHOD import.
+    zif_sqlite_vfs~delete( iv_name ).
+    ensure_file( iv_name ).
+    write_file( iv_name = iv_name iv_offset = 0 iv_data = iv_data ).
+  ENDMETHOD.
+
+  METHOD export.
+    DATA ls_result TYPE zif_sqlite_file=>ty_read_result.
+    DATA lv_size TYPE i.
+
+    IF zif_sqlite_vfs~exists( iv_name ) = abap_false.
+      RAISE EXCEPTION TYPE cx_sy_file_access_error.
+    ENDIF.
+
+    lv_size = file_size( iv_name ).
+    IF lv_size = 0.
+      RETURN.
+    ENDIF.
+
+    ls_result = read_file( iv_name = iv_name iv_offset = 0 iv_amount = lv_size ).
+    rv_data = ls_result-data.
   ENDMETHOD.
 
   METHOD zero_bytes.
@@ -343,7 +430,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    lv_name = iv_name.
+    lv_name = db_name( iv_name ).
     SELECT SINGLE data FROM zsqlite_files INTO @lv_data
       WHERE mandt = @sy-mandt AND filename = @lv_name AND blockno = @iv_blockno.
     IF sy-subrc = 0.
@@ -363,7 +450,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     DATA ls_cache TYPE ty_block.
     DATA lv_name TYPE zsqlite_files-filename.
 
-    lv_name = iv_name.
+    lv_name = db_name( iv_name ).
     ls_block-mandt = sy-mandt.
     ls_block-filename = lv_name.
     ls_block-blockno = iv_blockno.
@@ -421,7 +508,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
   METHOD delete_blocks.
     DATA lv_name TYPE zsqlite_files-filename.
 
-    lv_name = iv_name.
+    lv_name = db_name( iv_name ).
     DELETE FROM zsqlite_files
       WHERE mandt = @sy-mandt AND filename = @lv_name AND blockno >= @iv_from.
     DELETE mt_blocks WHERE name = iv_name AND blockno >= iv_from.
