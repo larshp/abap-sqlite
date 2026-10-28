@@ -11,6 +11,9 @@ CLASS ltcl_files DEFINITION FINAL FOR TESTING
     METHODS roundtrip FOR TESTING.
     METHODS block_sizes FOR TESTING.
     METHODS modify_from_table FOR TESTING.
+    METHODS rollback_work FOR TESTING.
+    METHODS commit_work FOR TESTING.
+    METHODS select_for_update FOR TESTING.
 
     CLASS-METHODS build_block
       IMPORTING iv_size        TYPE i
@@ -30,6 +33,7 @@ CLASS ltcl_files IMPLEMENTATION.
     DATA lv_file TYPE string.
     lv_file = c_file.
     DELETE FROM zsqlite_files WHERE filename = @lv_file.
+    COMMIT WORK.
   ENDMETHOD.
 
   METHOD roundtrip.
@@ -135,6 +139,66 @@ CLASS ltcl_files IMPLEMENTATION.
       WHERE mandt = @sy-mandt AND filename = @c_file AND blockno = 0.
     cl_abap_unit_assert=>assert_subrc( exp = 0 ).
     cl_abap_unit_assert=>assert_equals( act = xstrlen( lv_data ) exp = 1024 ).
+  ENDMETHOD.
+
+  METHOD rollback_work.
+    DATA ls_file TYPE zsqlite_files.
+    DATA lv_count TYPE i.
+
+    ls_file-mandt = sy-mandt.
+    ls_file-filename = c_file.
+    ls_file-blockno = 0.
+    ls_file-data = build_block( 512 ).
+
+    INSERT zsqlite_files FROM @ls_file.
+    cl_abap_unit_assert=>assert_subrc( exp = 0 ).
+
+    ROLLBACK WORK.
+
+    SELECT COUNT(*) FROM zsqlite_files INTO @lv_count
+      WHERE mandt = @sy-mandt AND filename = @c_file.
+    cl_abap_unit_assert=>assert_equals( act = lv_count exp = 0 ).
+  ENDMETHOD.
+
+  METHOD commit_work.
+    DATA ls_file TYPE zsqlite_files.
+    DATA lv_count TYPE i.
+
+    ls_file-mandt = sy-mandt.
+    ls_file-filename = c_file.
+    ls_file-blockno = 0.
+    ls_file-data = build_block( 512 ).
+
+    INSERT zsqlite_files FROM @ls_file.
+    cl_abap_unit_assert=>assert_subrc( exp = 0 ).
+
+    COMMIT WORK.
+* the row is committed, a later rollback must not remove it
+    ROLLBACK WORK.
+
+    SELECT COUNT(*) FROM zsqlite_files INTO @lv_count
+      WHERE mandt = @sy-mandt AND filename = @c_file.
+    cl_abap_unit_assert=>assert_equals( act = lv_count exp = 1 ).
+  ENDMETHOD.
+
+  METHOD select_for_update.
+* ANORMALY: SELECT FOR UPDATE is silently dropped by the transpiler, the
+* statement succeeds but locks nothing, see ANORMALIES.md. Locking itself is
+* only verified on a real database, see D5.
+    DATA ls_file TYPE zsqlite_files.
+
+    ls_file-mandt = sy-mandt.
+    ls_file-filename = c_file.
+    ls_file-blockno = 0.
+    ls_file-data = build_block( 512 ).
+    INSERT zsqlite_files FROM @ls_file.
+    cl_abap_unit_assert=>assert_subrc( exp = 0 ).
+
+    SELECT SINGLE FOR UPDATE mandt, filename, blockno, data FROM zsqlite_files
+      INTO @ls_file
+      WHERE mandt = @sy-mandt AND filename = @c_file AND blockno = 0.
+    cl_abap_unit_assert=>assert_subrc( exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_file-blockno exp = 0 ).
   ENDMETHOD.
 
   METHOD build_block.

@@ -34,7 +34,37 @@ Rules:
 
 ## Open entries
 
-None yet.
+## SELECT ... FOR UPDATE is silently dropped by the transpiler
+
+- **Component:** transpiler
+- **Version:** @abaplint/transpiler-cli 2.14.13
+- **Found in:** M0.5 `src/vfs/zcl_sqlite_files.clas.testclasses.abap`
+- **Status:** open
+- **Upstream:** none yet
+
+```abap
+DATA ls_file TYPE zsqlite_files.
+SELECT SINGLE FOR UPDATE mandt, filename, blockno, data
+  FROM zsqlite_files
+  INTO @ls_file
+  WHERE mandt = @sy-mandt AND filename = @c_file AND blockno = 0.
+```
+
+Expected: the selected row is locked until `COMMIT WORK` / `ROLLBACK WORK`, or the statement fails
+where the backend cannot lock. Actual: the statement succeeds and the generated JavaScript has no
+`FOR UPDATE` clause at all:
+
+```js
+await abap.statements.select(ls_file, {select: "SELECT \"mandt\", ... FROM "
+  + abap.buildDbTableName("zsqlite_files") + " WHERE ... UP TO 1 ROWS", primaryKey: [...]});
+```
+
+SQLite has no `FOR UPDATE`, so the clause cannot be honoured. Because the transpiler drops it
+silently, locking bugs are invisible in the transpiler.
+
+**Workaround:** the transpiler tests only document that the syntax is accepted
+(`src/vfs/zcl_sqlite_files.clas.testclasses.abap`, search tag `ANORMALY:`). Locking is verified on a
+real SAP system only (D5, M9.2).
 
 ## Closed entries
 

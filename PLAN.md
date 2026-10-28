@@ -63,9 +63,9 @@ database table**. No application server file system, no kernel calls, no native 
 |---|----------|-----------|
 | D1 | **Iterator-model executor over a plan tree**, not a VDBE bytecode VM | Much less code, easier to debug in ABAP. A VDBE can come later if needed. |
 | D2 | **Storage unit = block, with block size = page size, at most 65536 bytes** | One page write becomes one row `MODIFY`. Partial page I/O never needs read-modify-write across rows. 64 KiB is SQLite's maximum page size, so any SQLite page fits in one block; M0.4 verified blocks from 512 B to 64 KiB. |
-| D3 | **Atomicity comes from the ABAP database LUW, not a rollback journal** | The pager keeps dirty pages in memory and flushes them all in one go when SQLite commits. The flush is made durable by the caller's `COMMIT WORK` (or by the `auto_commit_work` option). This behaves like `journal_mode=MEMORY`. A crash before the DB commit leaves the table untouched. |
+| D3 | **Atomicity comes from the ABAP database LUW, not a rollback journal** | The pager keeps dirty pages in memory and flushes them all in one go when SQLite commits. The flush is made durable by the caller's `COMMIT WORK` (or by the `auto_commit_work` option). This behaves like `journal_mode=MEMORY`. A crash before the DB commit leaves the table untouched. Confirmed in M0.5: `ROLLBACK WORK` discards uncommitted rows, and a row that was committed survives a later rollback. |
 | D4 | **Header field byte 18/19 = 1 (legacy rollback journal)**, never WAL | So that real SQLite opens exported files without expecting a WAL. |
-| D5 | **Write locking via `SELECT ... FOR UPDATE` on block 0 of the file**, plus an optional enqueue | Works on any DB and in the transpiler. Readers check the file change counter (header offset 24) to invalidate a stale page cache. |
+| D5 | **Write locking via `SELECT ... FOR UPDATE` on block 0 of the file**, plus an optional enqueue | Works on a real SAP database, which is where sessions share a file. The transpiler accepts `SELECT SINGLE ... FOR UPDATE` but drops the clause ([ANORMALIES.md](ANORMALIES.md)), so locking cannot be tested there; M0.5 only documents the syntax. Readers check the file change counter (header offset 24) to invalidate a stale page cache. |
 | D6 | **The 64-bit integer type is `int8`** | SQLite rowids and INTEGER values are signed 64-bit. Verified in M0.6. |
 | D7 | **Text is UTF-8 only at first** (`PRAGMA encoding = 'UTF-8'`) | Conversion uses `CL_ABAP_CONV_CODEPAGE` (present in open-abap-core). UTF-16 databases are readable in a later milestone. |
 | D8 | **Object prefix `ZCL_SQLITE_` / `ZIF_SQLITE_` / `ZCX_SQLITE_`** | Customer namespace, so it can be installed with abapGit anywhere. |
@@ -175,7 +175,7 @@ any engine code exists. Any gap found goes into `ANORMALIES.md`.
 
 #### M0.5 Transaction and locking spike
 
-- [ ] ABAP Unit: `SELECT ... FOR UPDATE`, `COMMIT WORK`, `ROLLBACK WORK` behaviour in the
+- [x] ABAP Unit: `SELECT ... FOR UPDATE`, `COMMIT WORK`, `ROLLBACK WORK` behaviour in the
       transpiler
 
 **Done when:** the behaviour is documented in tests, and D3/D5 are confirmed or revised.
