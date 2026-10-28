@@ -7,6 +7,7 @@
   "scripts": {
     "lint": "abaplint",
     "unit": "rimraf output && abap_transpile && node output/index.mjs",
+    "benchmark": "rimraf output && abap_transpile && node test/benchmark.mjs",
     "test": "npm run lint && npm run unit"
   },
   "dependencies": {

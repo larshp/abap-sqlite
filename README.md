@@ -42,6 +42,26 @@ Set `SQLITE_TRACE=1` to log every statement the transpiler sends to its SQLite d
 SQLITE_TRACE=1 npm run unit
 ```
 
+## Performance baseline
+
+M0.7 measures the transpiler and the SQLite client, not the engine yet. Runs on
+Node v22.18.0, Windows 11 (x64), in-memory SQLite:
+
+| Operation | Count | Total | Per operation |
+|-----------|-------|-------|---------------|
+| `xstring` slice, 4 bytes (`lv_data+off(4)`) | 10,000 | 13–18 ms | 1.3–1.8 µs |
+| table row write, 512 bytes (`MODIFY ... FROM TABLE`) | 1,000 | 29–31 ms | ~30 µs |
+| table row read, 512 bytes (`SELECT ... INTO TABLE`) | 1,000 | 7–9 ms | 7–9 µs |
+
+```sh
+npm run benchmark
+```
+
+reproduces the numbers from `zcl_sqlite_benchmark`. The loops are ABAP, the timing uses
+`GET RUN TIME FIELD` around the operation only: building the 1,000 input rows, `COMMIT WORK`
+and the cleanup are outside the measured section. Run-to-run noise is around ±20%; treat these
+as order-of-magnitude numbers for Phase 8.
+
 ## CI
 
 `.github/workflows/test.yml` runs `npm ci` and `npm test` on every push and pull request.

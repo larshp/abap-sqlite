@@ -192,7 +192,7 @@ or an upstream issue.
 
 #### M0.7 Performance baseline
 
-- [ ] Small benchmark: 10k xstring slice operations, 1k table row writes, 1k row reads
+- [x] Small benchmark: 10k xstring slice operations, 1k table row writes, 1k row reads
 
 **Done when:** the numbers are written into the README or `ANORMALIES.md`, as a baseline for Phase 8.
 
