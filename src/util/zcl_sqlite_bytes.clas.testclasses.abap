@@ -19,6 +19,10 @@ CLASS ltcl_bytes DEFINITION FINAL FOR TESTING
     METHODS read_out_of_bounds FOR TESTING.
     METHODS write_out_of_bounds FOR TESTING.
     METHODS unsigned_range FOR TESTING.
+    METHODS varint_vectors FOR TESTING.
+    METHODS varint_offset FOR TESTING.
+    METHODS varint_non_canonical FOR TESTING.
+    METHODS varint_truncated FOR TESTING.
 ENDCLASS.
 
 
@@ -337,6 +341,112 @@ CLASS ltcl_bytes IMPLEMENTATION.
         zcl_sqlite_bytes=>write_u48( iv_data = lv_data iv_offset = 0 iv_value = 281474976710656 ).
         cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
+* expected
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD varint_vectors.
+    DATA lt_cases TYPE STANDARD TABLE OF ty_case WITH DEFAULT KEY.
+    DATA ls_case TYPE ty_case.
+
+    lt_cases = VALUE #(
+      ( value = 0                     hex = '00' )
+      ( value = 1                     hex = '01' )
+      ( value = 127                   hex = '7F' )
+      ( value = 128                   hex = '8100' )
+      ( value = 129                   hex = '8101' )
+      ( value = 16383                 hex = 'FF7F' )
+      ( value = 16384                 hex = '818000' )
+      ( value = 2097151               hex = 'FFFF7F' )
+      ( value = 2097152               hex = '81808000' )
+      ( value = 268435455             hex = 'FFFFFF7F' )
+      ( value = 268435456             hex = '8180808000' )
+      ( value = 34359738367           hex = 'FFFFFFFF7F' )
+      ( value = 34359738368           hex = '818080808000' )
+      ( value = 4398046511103         hex = 'FFFFFFFFFF7F' )
+      ( value = 4398046511104         hex = '81808080808000' )
+      ( value = 562949953421311       hex = 'FFFFFFFFFFFF7F' )
+      ( value = 562949953421312       hex = '8180808080808000' )
+      ( value = 72057594037927935     hex = 'FFFFFFFFFFFFFF7F' )
+      ( value = 72057594037927936     hex = '80C080808080808000' )
+      ( value = 9223372036854775807   hex = 'BFFFFFFFFFFFFFFFFF' )
+      ( value = -9223372036854775808  hex = 'C08080808080808000' )
+      ( value = -1                    hex = 'FFFFFFFFFFFFFFFFFF' )
+      ( value = -2                    hex = 'FFFFFFFFFFFFFFFFFE' ) ).
+
+    LOOP AT lt_cases INTO ls_case.
+      cl_abap_unit_assert=>assert_equals(
+        act = zcl_sqlite_bytes=>write_varint( ls_case-value )
+        exp = ls_case-hex ).
+      cl_abap_unit_assert=>assert_equals(
+        act = zcl_sqlite_bytes=>varint_length( iv_data = ls_case-hex iv_offset = 0 )
+        exp = xstrlen( ls_case-hex ) ).
+      cl_abap_unit_assert=>assert_equals(
+        act = zcl_sqlite_bytes=>read_varint( iv_data = ls_case-hex iv_offset = 0 )
+        exp = ls_case-value ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD varint_offset.
+    DATA lv_varint TYPE xstring.
+    DATA lv_data TYPE xstring.
+
+    lv_varint = zcl_sqlite_bytes=>write_varint( 128 ).
+    lv_data = 'AABB' && lv_varint && 'CCDD'.
+
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 2 ) exp = 128 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 2 ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 ) exp = 170 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 4 ) exp = 204 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 5 ) exp = 221 ).
+  ENDMETHOD.
+
+  METHOD varint_non_canonical.
+    DATA lv_data TYPE xstring.
+
+    lv_data = '8000'.
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 ) exp = 0 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 0 ) exp = 2 ).
+
+    lv_data = '808000'.
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 ) exp = 0 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 0 ) exp = 3 ).
+  ENDMETHOD.
+
+  METHOD varint_truncated.
+    DATA lv_data TYPE xstring.
+
+    lv_data = 'FFFFFFFFFFFFFFFF'.
+
+    TRY.
+        zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 ).
+        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+      CATCH cx_sy_range_out_of_bounds.
+* expected
+    ENDTRY.
+
+    TRY.
+        zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 0 ).
+        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+      CATCH cx_sy_range_out_of_bounds.
+* expected
+    ENDTRY.
+
+    lv_data = ''.
+
+    TRY.
+        zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 ).
+        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+      CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
   ENDMETHOD.

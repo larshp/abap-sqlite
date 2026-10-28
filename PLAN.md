@@ -206,7 +206,7 @@ or an upstream issue.
 
 #### M1.2 Varints
 
-- [ ] SQLite varint encode/decode (1–9 bytes, the 9th byte uses all 8 bits), and varint length
+- [x] SQLite varint encode/decode (1–9 bytes, the 9th byte uses all 8 bits), and varint length
 
 **Done when:** the known vectors from the SQLite docs pass, including negative numbers (9 bytes).
 
