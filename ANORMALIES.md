@@ -199,7 +199,8 @@ table rejects it with `sy-subrc = 4`, so the update is lost. The table key is no
 `modifyInternal`.
 
 **Workaround:** delete the row by its key and insert the updated work area (`put_file` and
-`put_block` in `zcl_sqlite_vfs_memory`, search tag `ANORMALY:`).
+`put_block` in `zcl_sqlite_vfs_memory`, `put_cache` in `zcl_sqlite_pager`, search tag
+`ANORMALY:`).
 
 ## xstring substring is rejected in method argument positions
 

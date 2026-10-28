@@ -275,7 +275,8 @@ a bad page size raise errors.
 
 #### M2.3 Read-only pager
 
-- [ ] `ZCL_SQLITE_PAGER`: fetch a page by number, LRU page cache, page 1 offset quirk (100 bytes)
+- [x] `ZCL_SQLITE_PAGER`: fetch a page by number, LRU page cache, page 1 offset quirk (100 bytes);
+      `three_pages.db` fixture for cache eviction tests
 
 **Done when:** pages can be fetched, and cache hits and evictions are tested.
 

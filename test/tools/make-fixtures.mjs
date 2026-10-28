@@ -127,6 +127,19 @@ function smallDatabase() {
   return db;
 }
 
+function threePagesDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 4096");
+  db.run("CREATE TABLE items (id INTEGER PRIMARY KEY, value TEXT NOT NULL)");
+
+  const insert = db.prepare("INSERT INTO items (id, value) VALUES (?, ?)");
+  for (let id = 1; id <= 200; id++) {
+    insert.run([id, `value-${String(id).padStart(3, "0")}-${"x".repeat(40)}`]);
+  }
+  insert.free();
+  return db;
+}
+
 async function writeFixture(name, db) {
   const bytes = db.export();
   db.close();
@@ -151,3 +164,4 @@ await mkdir(fixturesDir, {recursive: true});
 
 await writeFixture("empty", emptyDatabase());
 await writeFixture("small", smallDatabase());
+await writeFixture("three_pages", threePagesDatabase());
