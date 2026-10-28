@@ -8,6 +8,18 @@ CLASS ltcl_bytes DEFINITION FINAL FOR TESTING
              hex   TYPE xstring,
            END OF ty_case.
 
+    TYPES: BEGIN OF ty_float_bits,
+             hex      TYPE xstring,
+             sign     TYPE i,
+             exponent TYPE i,
+             mantissa TYPE int8,
+           END OF ty_float_bits.
+
+    TYPES: BEGIN OF ty_float_f,
+             text TYPE string,
+             hex  TYPE xstring,
+           END OF ty_float_f.
+
     METHODS u8 FOR TESTING.
     METHODS u16 FOR TESTING.
     METHODS u24 FOR TESTING.
@@ -23,6 +35,13 @@ CLASS ltcl_bytes DEFINITION FINAL FOR TESTING
     METHODS varint_offset FOR TESTING.
     METHODS varint_non_canonical FOR TESTING.
     METHODS varint_truncated FOR TESTING.
+    METHODS f64_bits FOR TESTING.
+    METHODS f64_from_f FOR TESTING.
+    METHODS f64_to_f FOR TESTING.
+    METHODS f64_read_offset FOR TESTING.
+    METHODS f64_invalid_bits FOR TESTING.
+    METHODS f64_special_to_f FOR TESTING.
+    METHODS f64_subnormal FOR TESTING.
 ENDCLASS.
 
 
@@ -449,6 +468,206 @@ CLASS ltcl_bytes IMPLEMENTATION.
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD f64_bits.
+    DATA lt_cases TYPE STANDARD TABLE OF ty_float_bits WITH DEFAULT KEY.
+    DATA ls_case TYPE ty_float_bits.
+    DATA ls_bits TYPE zcl_sqlite_bytes=>ty_float64.
+
+    lt_cases = VALUE #(
+      ( hex = '0000000000000000' sign = 0 exponent = 0    mantissa = 0 )
+      ( hex = '8000000000000000' sign = 1 exponent = 0    mantissa = 0 )
+      ( hex = '3FF0000000000000' sign = 0 exponent = 1023 mantissa = 0 )
+      ( hex = 'BFF0000000000000' sign = 1 exponent = 1023 mantissa = 0 )
+      ( hex = '3FF8000000000000' sign = 0 exponent = 1023 mantissa = 2251799813685248 )
+      ( hex = '4000000000000000' sign = 0 exponent = 1024 mantissa = 0 )
+      ( hex = '3FB999999999999A' sign = 0 exponent = 1019 mantissa = 2702159776422298 )
+      ( hex = '7FEFFFFFFFFFFFFF' sign = 0 exponent = 2046 mantissa = 4503599627370495 )
+      ( hex = '0010000000000000' sign = 0 exponent = 1    mantissa = 0 )
+      ( hex = '0000000000000001' sign = 0 exponent = 0    mantissa = 1 )
+      ( hex = '000FFFFFFFFFFFFF' sign = 0 exponent = 0    mantissa = 4503599627370495 )
+      ( hex = '0000000000000002' sign = 0 exponent = 0    mantissa = 2 )
+      ( hex = '7FF0000000000000' sign = 0 exponent = 2047 mantissa = 0 )
+      ( hex = 'FFF0000000000000' sign = 1 exponent = 2047 mantissa = 0 )
+      ( hex = '7FF8000000000000' sign = 0 exponent = 2047 mantissa = 2251799813685248 )
+      ( hex = '7FF8000000000001' sign = 0 exponent = 2047 mantissa = 2251799813685249 )
+      ( hex = '7FF0000000000001' sign = 0 exponent = 2047 mantissa = 1 ) ).
+
+    LOOP AT lt_cases INTO ls_case.
+      ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = ls_case-hex iv_offset = 0 ).
+      cl_abap_unit_assert=>assert_equals( act = ls_bits-sign exp = ls_case-sign ).
+      cl_abap_unit_assert=>assert_equals( act = ls_bits-exponent exp = ls_case-exponent ).
+      cl_abap_unit_assert=>assert_equals( act = ls_bits-mantissa exp = ls_case-mantissa ).
+      cl_abap_unit_assert=>assert_equals(
+        act = zcl_sqlite_bytes=>write_f64( ls_bits ) exp = ls_case-hex ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD f64_from_f.
+    DATA lt_cases TYPE STANDARD TABLE OF ty_float_f WITH DEFAULT KEY.
+    DATA ls_case TYPE ty_float_f.
+    DATA lv_value TYPE f.
+    DATA ls_bits TYPE zcl_sqlite_bytes=>ty_float64.
+
+    lt_cases = VALUE #(
+      ( text = '0.0E+00'                  hex = '0000000000000000' )
+      ( text = '1.0E+00'                  hex = '3FF0000000000000' )
+      ( text = '-1.0E+00'                 hex = 'BFF0000000000000' )
+      ( text = '1.5E+00'                  hex = '3FF8000000000000' )
+      ( text = '1.0E-01'                  hex = '3FB999999999999A' )
+      ( text = '-1.0E-01'                 hex = 'BFB999999999999A' )
+      ( text = '2.0E+00'                  hex = '4000000000000000' )
+      ( text = '3.141592653589793E+00'    hex = '400921FB54442D18' )
+      ( text = '1.0E+300'                 hex = '7E37E43C8800759C' )
+      ( text = '1.0E-300'                 hex = '01A56E1FC2F8F359' )
+      ( text = '1.7976931348623157E+308'  hex = '7FEFFFFFFFFFFFFF' )
+      ( text = '2.2250738585072014E-308'  hex = '0010000000000000' ) ).
+
+    LOOP AT lt_cases INTO ls_case.
+      lv_value = ls_case-text.
+      ls_bits = zcl_sqlite_bytes=>f64_from_f( lv_value ).
+      cl_abap_unit_assert=>assert_equals(
+        act = zcl_sqlite_bytes=>write_f64( ls_bits ) exp = ls_case-hex ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD f64_to_f.
+    DATA lt_hex TYPE STANDARD TABLE OF xstring WITH DEFAULT KEY.
+    DATA lv_hex TYPE xstring.
+    DATA lv_value TYPE f.
+    DATA ls_bits TYPE zcl_sqlite_bytes=>ty_float64.
+
+    lt_hex = VALUE #(
+      ( '0000000000000000' )
+      ( '3FF0000000000000' )
+      ( 'BFF0000000000000' )
+      ( '3FF8000000000000' )
+      ( '4000000000000000' )
+      ( '3FB999999999999A' )
+      ( '7FEFFFFFFFFFFFFF' )
+      ( '0010000000000000' )
+      ( '7E37E43C8800759C' )
+      ( '01A56E1FC2F8F359' ) ).
+
+    LOOP AT lt_hex INTO lv_hex.
+      ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = lv_hex iv_offset = 0 ).
+      lv_value = zcl_sqlite_bytes=>f64_to_f( ls_bits ).
+      cl_abap_unit_assert=>assert_equals(
+        act = zcl_sqlite_bytes=>write_f64( zcl_sqlite_bytes=>f64_from_f( lv_value ) )
+        exp = lv_hex ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD f64_read_offset.
+    DATA lv_data TYPE xstring.
+    DATA ls_bits TYPE zcl_sqlite_bytes=>ty_float64.
+
+    lv_data = 'AABB3FF0000000000000CC'.
+    ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = lv_data iv_offset = 2 ).
+
+    cl_abap_unit_assert=>assert_equals( act = ls_bits-sign exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_bits-exponent exp = 1023 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_bits-mantissa exp = 0 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 ) exp = 170 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 10 ) exp = 204 ).
+  ENDMETHOD.
+
+  METHOD f64_invalid_bits.
+    DATA ls_bits TYPE zcl_sqlite_bytes=>ty_float64.
+
+    ls_bits-sign = 2.
+    TRY.
+        zcl_sqlite_bytes=>write_f64( ls_bits ).
+        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+      CATCH cx_sy_conversion_overflow.
+* expected
+    ENDTRY.
+
+    ls_bits-sign = 0.
+    ls_bits-exponent = 2048.
+    TRY.
+        zcl_sqlite_bytes=>write_f64( ls_bits ).
+        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+      CATCH cx_sy_conversion_overflow.
+* expected
+    ENDTRY.
+
+    ls_bits-exponent = -1.
+    TRY.
+        zcl_sqlite_bytes=>write_f64( ls_bits ).
+        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+      CATCH cx_sy_conversion_overflow.
+* expected
+    ENDTRY.
+
+    ls_bits-exponent = 0.
+    ls_bits-mantissa = -1.
+    TRY.
+        zcl_sqlite_bytes=>write_f64( ls_bits ).
+        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+      CATCH cx_sy_conversion_overflow.
+* expected
+    ENDTRY.
+
+    ls_bits-mantissa = 4503599627370496.
+    TRY.
+        zcl_sqlite_bytes=>write_f64( ls_bits ).
+        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+      CATCH cx_sy_conversion_overflow.
+* expected
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD f64_special_to_f.
+    DATA lv_value TYPE f.
+    DATA ls_bits TYPE zcl_sqlite_bytes=>ty_float64.
+
+    ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = '7FF0000000000000' iv_offset = 0 ).
+    TRY.
+        lv_value = zcl_sqlite_bytes=>f64_to_f( ls_bits ).
+        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+      CATCH cx_sy_conversion_overflow.
+* expected
+    ENDTRY.
+
+    ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = '7FF8000000000000' iv_offset = 0 ).
+    TRY.
+        lv_value = zcl_sqlite_bytes=>f64_to_f( ls_bits ).
+        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+      CATCH cx_sy_conversion_overflow.
+* expected
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD f64_subnormal.
+    DATA lt_hex TYPE STANDARD TABLE OF xstring WITH DEFAULT KEY.
+    DATA lv_hex TYPE xstring.
+    DATA ls_bits TYPE zcl_sqlite_bytes=>ty_float64.
+    DATA lv_value TYPE f.
+
+    lt_hex = VALUE #(
+      ( '0000000000000001' )
+      ( '000FFFFFFFFFFFFF' ) ).
+
+    LOOP AT lt_hex INTO lv_hex.
+      ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = lv_hex iv_offset = 0 ).
+
+      TRY.
+          lv_value = zcl_sqlite_bytes=>f64_to_f( ls_bits ).
+        CATCH cx_sy_arithmetic_overflow.
+* the platform does not represent subnormals
+          RETURN.
+      ENDTRY.
+
+      IF lv_value > 0.
+        cl_abap_unit_assert=>assert_equals(
+          act = zcl_sqlite_bytes=>write_f64( zcl_sqlite_bytes=>f64_from_f( lv_value ) )
+          exp = lv_hex ).
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 
 ENDCLASS.

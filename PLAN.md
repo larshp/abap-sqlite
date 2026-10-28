@@ -212,7 +212,7 @@ or an upstream issue.
 
 #### M1.3 Float64
 
-- [ ] IEEE 754 float64 ↔ `f` conversion (big-endian), handling ±0, ±inf, NaN and subnormals
+- [x] IEEE 754 float64 ↔ `f` conversion (big-endian), handling ±0, ±inf, NaN and subnormals
 
 **Done when:** test vectors produced by sql.js/Node (`DataView`) pass.
 

@@ -142,6 +142,32 @@ explicitly rejects xstrings and strings in writer position.
 (`write_bytes` in `zcl_sqlite_bytes`, search tag `ANORMALY:`). Reading with a variable offset and
 length works.
 
+## Mixed int8 and f arithmetic is calculated as int8
+
+- **Component:** runtime
+- **Version:** @abaplint/runtime 2.14.13
+- **Found in:** M1.3 `src/util/zcl_sqlite_bytes.clas.abap`
+- **Status:** open
+- **Upstream:** none
+
+```abap
+DATA lv_mantissa TYPE int8.
+DATA lv_two_pow_52 TYPE f.
+DATA lv_fraction TYPE f.
+
+lv_mantissa = 2251799813685248.
+lv_two_pow_52 = '4.503599627370496E+15'.
+lv_fraction = lv_mantissa / lv_two_pow_52.
+```
+
+Expected (ABAP calculation type rules): `0.5`, because one operand is `f`. Actual: `0`, the
+runtime's operators take the integer branch whenever either operand is `Integer8` and convert the
+other operand with `BigInt(parse(...))`, so the division is truncated. The same applies to `+`, `-`
+and `*`, which return `Integer8` and can overflow.
+
+**Workaround:** convert the `int8` operand to `f` in a separate assignment before calculating
+(`f64_to_f` in `zcl_sqlite_bytes`, search tag `ANORMALY:`).
+
 ## Closed entries
 
 None yet.
