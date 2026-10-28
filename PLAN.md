@@ -200,7 +200,7 @@ or an upstream issue.
 
 #### M1.1 Big-endian integers
 
-- [ ] `ZCL_SQLITE_BYTES`: read/write u8, u16, u24, u32, u48, i64 from/to `xstring` at an offset
+- [x] `ZCL_SQLITE_BYTES`: read/write u8, u16, u24, u32, u48, i64 from/to `xstring` at an offset
 
 **Done when:** round trips and boundary values are tested.
 

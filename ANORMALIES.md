@@ -116,6 +116,32 @@ int8 to `x LENGTH n`.
 (`int8_to_hex` in the spike test, search tag `ANORMALY:`). That is always eight bytes, which is
 what the fixed-width i64 record format needs.
 
+## xstring substring assignment with variable offset/length is rejected
+
+- **Component:** abaplint and transpiler
+- **Version:** @abaplint/cli 2.120.90, @abaplint/transpiler-cli 2.14.13
+- **Found in:** M1.1 `src/util/zcl_sqlite_bytes.clas.abap`
+- **Status:** open, deliberate limitation in the toolchain
+- **Upstream:** none
+
+```abap
+DATA lv_data TYPE xstring.
+DATA lv_offset TYPE i VALUE 2.
+DATA lv_length TYPE i VALUE 2.
+DATA lv_hex TYPE xstring.
+
+lv_hex = 'AABB'.
+lv_data+lv_offset(lv_length) = lv_hex.
+```
+
+Expected: valid ABAP, the section is replaced. Actual: abaplint `check_syntax` and the transpiler
+both report `xstring/string offset/length in writer position not possible`; the syntax check
+explicitly rejects xstrings and strings in writer position.
+
+**Workaround:** concatenate the part before the section, the replacement and the part after
+(`write_bytes` in `zcl_sqlite_bytes`, search tag `ANORMALY:`). Reading with a variable offset and
+length works.
+
 ## Closed entries
 
 None yet.
