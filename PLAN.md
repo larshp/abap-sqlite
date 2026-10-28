@@ -151,8 +151,8 @@ any engine code exists. Any gap found goes into `ANORMALIES.md`.
 
 #### M0.2 abaplint
 
-- [ ] Add `@abaplint/cli`. Scripts `lint`: `abaplint`, `test`: `npm run lint && npm run unit`
-- [ ] `abaplint.jsonc`: `syntax.version = "open-abap"`, a dependency on open-abap-core, and a
+- [x] Add `@abaplint/cli`. Scripts `lint`: `abaplint`, `test`: `npm run lint && npm run unit`
+- [x] `abaplint.jsonc`: `syntax.version = "open-abap"`, a dependency on open-abap-core, and a
       strict rule set (start from open-abap-bal's config). Target-version checks come in M9.1.
 
 **Done when:** `npm test` passes locally.
