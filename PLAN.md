@@ -256,10 +256,11 @@ matching `xstrlen` and the `INT4` block number in `ZSQLITE_FILES`.
 
 #### M2.1 Fixture pipeline
 
-- [ ] `test/tools/make-fixtures.mjs` (uses sql.js) writes `.db` files and the expected contents as
+- [x] `test/tools/make-fixtures.mjs` (uses sql.js) writes `.db` files and the expected contents as
       JSON. Start with two fixtures: an empty DB and one small table.
-- [ ] `test/setup.mjs` loads the fixtures into `ZSQLITE_FILES` (split into blocks) before the tests run
-- [ ] Decide whether the fixtures are committed or regenerated in CI
+- [x] `test/setup.mjs` loads the fixtures into `ZSQLITE_FILES` (split into blocks) before the tests run
+- [x] Fixtures are committed under `test/fixtures`; CI uses the checked-in files. Run
+      `npm run fixtures` to regenerate them.
 
 **Done when:** an ABAP Unit test can `export( )` a fixture, and its bytes equal the `.db` file.
 

@@ -1,0 +1,55 @@
+{
+  "page_size": 4096,
+  "page_count": 2,
+  "encoding": "UTF-8",
+  "tables": [
+    {
+      "name": "items",
+      "sql": "CREATE TABLE items (\n      id INTEGER PRIMARY KEY,\n      name TEXT NOT NULL,\n      price REAL\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 1
+        },
+        {
+          "cid": 1,
+          "name": "name",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "price",
+          "type": "REAL",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "alpha",
+          1.5
+        ],
+        [
+          2,
+          "beta",
+          2.25
+        ],
+        [
+          3,
+          "gamma",
+          null
+        ]
+      ]
+    }
+  ],
+  "indexes": []
+}
