@@ -138,14 +138,14 @@ any engine code exists. Any gap found goes into `ANORMALIES.md`.
 
 #### M0.1 npm project and transpiler
 
-- [ ] `package.json` with `@abaplint/transpiler-cli`, `@abaplint/runtime`,
+- [x] `package.json` with `@abaplint/transpiler-cli`, `@abaplint/runtime`,
       `@abaplint/database-sqlite`, `rimraf`. Script `unit`:
       `rimraf output && abap_transpile && node output/index.mjs`
-- [ ] `.npmrc` (`ignore-scripts=true`), `.gitignore` (`node_modules`, `output`)
-- [ ] `abap_transpile.json`: `input_folder` `{src,test}`, `write_unit_tests: true`,
+- [x] `.npmrc` (`ignore-scripts=true`), `.gitignore` (`node_modules`, `output`)
+- [x] `abap_transpile.json`: `input_folder` `{src,test}`, `write_unit_tests: true`,
       `write_source_map: true`, the open-abap-core lib, and `setup` → `test/setup.mjs`
-- [ ] `test/setup.mjs`: connect `SQLiteDatabaseClient` as `DEFAULT`, create the schemas, insert data
-- [ ] Package `src/zsqlite.devc.xml` and one trivial class with one ABAP Unit test
+- [x] `test/setup.mjs`: connect `SQLiteDatabaseClient` as `DEFAULT`, create the schemas, insert data
+- [x] Package `src/zsqlite.devc.xml` and one trivial class with one ABAP Unit test
 
 **Done when:** `npm run unit` runs the trivial test locally and it passes.
 
