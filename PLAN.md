@@ -218,7 +218,7 @@ or an upstream issue.
 
 #### M1.4 UTF-8
 
-- [ ] `ZCL_SQLITE_UTF8`: string ↔ UTF-8 xstring and byte length
+- [x] `ZCL_SQLITE_UTF8`: string ↔ UTF-8 xstring and byte length
 
 **Done when:** ASCII, multi-byte and 4-byte (surrogate pair) characters round-trip.
 
