@@ -62,7 +62,7 @@ database table**. No application server file system, no kernel calls, no native 
 | # | Decision | Rationale |
 |---|----------|-----------|
 | D1 | **Iterator-model executor over a plan tree**, not a VDBE bytecode VM | Much less code, easier to debug in ABAP. A VDBE can come later if needed. |
-| D2 | **Storage unit = block, with block size = page size** | One page write becomes one row `MODIFY`. Partial page I/O never needs read-modify-write across rows. |
+| D2 | **Storage unit = block, with block size = page size, at most 65536 bytes** | One page write becomes one row `MODIFY`. Partial page I/O never needs read-modify-write across rows. 64 KiB is SQLite's maximum page size, so any SQLite page fits in one block; M0.4 verified blocks from 512 B to 64 KiB. |
 | D3 | **Atomicity comes from the ABAP database LUW, not a rollback journal** | The pager keeps dirty pages in memory and flushes them all in one go when SQLite commits. The flush is made durable by the caller's `COMMIT WORK` (or by the `auto_commit_work` option). This behaves like `journal_mode=MEMORY`. A crash before the DB commit leaves the table untouched. |
 | D4 | **Header field byte 18/19 = 1 (legacy rollback journal)**, never WAL | So that real SQLite opens exported files without expecting a WAL. |
 | D5 | **Write locking via `SELECT ... FOR UPDATE` on block 0 of the file**, plus an optional enqueue | Works on any DB and in the transpiler. Readers check the file change counter (header offset 24) to invalidate a stale page cache. |
@@ -167,8 +167,8 @@ any engine code exists. Any gap found goes into `ANORMALIES.md`.
 
 #### M0.4 Persistence table spike
 
-- [ ] `ZSQLITE_FILES` table definition (`.tabl.xml`)
-- [ ] ABAP Unit: `INSERT` / `MODIFY` / `SELECT` / `DELETE` of `RAWSTRING` rows, block sizes
+- [x] `ZSQLITE_FILES` table definition (`.tabl.xml`)
+- [x] ABAP Unit: `INSERT` / `MODIFY` / `SELECT` / `DELETE` of `RAWSTRING` rows, block sizes
       512 B up to 64 KiB, `MODIFY ... FROM TABLE` for many rows
 
 **Done when:** the tests pass, and the maximum block size is decided and written into D2.
