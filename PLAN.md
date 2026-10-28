@@ -282,8 +282,9 @@ a bad page size raise errors.
 
 #### M2.4 B-tree pages
 
-- [ ] `ZCL_SQLITE_PAGE`: b-tree page header, cell pointer array, the 4 page types
-      (table/index × leaf/interior), right-most pointer, freeblocks
+- [x] `ZCL_SQLITE_PAGE`: b-tree page header, cell pointer array, the 4 page types
+      (table/index × leaf/interior), right-most pointer, freeblocks; `indexed.db`
+      fixture covers all 4 page types
 
 **Done when:** every page in the fixtures is classified and its cell count is correct.
 
