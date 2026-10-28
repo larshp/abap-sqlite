@@ -1,0 +1,186 @@
+{
+  "pragmas": {
+    "page_size": 4096,
+    "page_count": 2,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "serial_types",
+      "sql": "CREATE TABLE serial_types (\n      c_null,\n      c_int8,\n      c_int16,\n      c_int24,\n      c_int32,\n      c_int48,\n      c_int64,\n      c_real,\n      c_zero,\n      c_one,\n      c_blob0,\n      c_text0,\n      c_blob3,\n      c_text3,\n      c_text\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "c_null",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "c_int8",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "c_int16",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 3,
+          "name": "c_int24",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 4,
+          "name": "c_int32",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 5,
+          "name": "c_int48",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 6,
+          "name": "c_int64",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 7,
+          "name": "c_real",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 8,
+          "name": "c_zero",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 9,
+          "name": "c_one",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 10,
+          "name": "c_blob0",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 11,
+          "name": "c_text0",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 12,
+          "name": "c_blob3",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 13,
+          "name": "c_text3",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 14,
+          "name": "c_text",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          null,
+          -1,
+          -129,
+          -32769,
+          -8388609,
+          -2147483649,
+          -140737488355329,
+          1.5,
+          0,
+          1,
+          {
+            "$blob": ""
+          },
+          "",
+          {
+            "$blob": "010203"
+          },
+          "abc",
+          "hello"
+        ],
+        [
+          null,
+          127,
+          32767,
+          8388607,
+          2147483647,
+          140737488355327,
+          140737488355328,
+          -1.5,
+          0,
+          1,
+          {
+            "$blob": ""
+          },
+          "",
+          {
+            "$blob": "040506"
+          },
+          "xyz",
+          "world"
+        ]
+      ]
+    }
+  ],
+  "indexes": []
+}

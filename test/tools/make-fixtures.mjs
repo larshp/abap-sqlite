@@ -154,6 +154,40 @@ function indexedDatabase() {
   return db;
 }
 
+function serialTypesDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 4096");
+  db.run(`
+    CREATE TABLE serial_types (
+      c_null,
+      c_int8,
+      c_int16,
+      c_int24,
+      c_int32,
+      c_int48,
+      c_int64,
+      c_real,
+      c_zero,
+      c_one,
+      c_blob0,
+      c_text0,
+      c_blob3,
+      c_text3,
+      c_text
+    )`);
+  db.run(`
+    INSERT INTO serial_types VALUES (
+      NULL, -1, -129, -32769, -8388609, -2147483649, -140737488355329,
+      1.5, 0, 1, x'', '', x'010203', 'abc', 'hello'
+    )`);
+  db.run(`
+    INSERT INTO serial_types VALUES (
+      NULL, 127, 32767, 8388607, 2147483647, 140737488355327, 140737488355328,
+      -1.5, 0, 1, x'', '', x'040506', 'xyz', 'world'
+    )`);
+  return db;
+}
+
 async function writeFixture(name, db) {
   const bytes = db.export();
   db.close();
@@ -180,3 +214,4 @@ await writeFixture("empty", emptyDatabase());
 await writeFixture("small", smallDatabase());
 await writeFixture("three_pages", threePagesDatabase());
 await writeFixture("indexed", indexedDatabase());
+await writeFixture("serial_types", serialTypesDatabase());

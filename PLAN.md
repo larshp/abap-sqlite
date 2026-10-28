@@ -290,8 +290,8 @@ a bad page size raise errors.
 
 #### M2.5 Records and values
 
-- [ ] `ZCL_SQLITE_VALUE`: dynamic value type (NULL / INTEGER / REAL / TEXT / BLOB)
-- [ ] `ZCL_SQLITE_RECORD`: decode the record header and serial types 0–9, ≥12 (blob), ≥13 (text)
+- [x] `ZCL_SQLITE_VALUE`: dynamic value type (NULL / INTEGER / REAL / TEXT / BLOB)
+- [x] `ZCL_SQLITE_RECORD`: decode the record header and serial types 0–9, ≥12 (blob), ≥13 (text)
 
 **Done when:** a fixture with every serial type decodes correctly.
 
