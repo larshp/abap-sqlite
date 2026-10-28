@@ -159,9 +159,9 @@ any engine code exists. Any gap found goes into `ANORMALIES.md`.
 
 #### M0.3 CI and project docs
 
-- [ ] GitHub Actions workflow `test.yml`: checkout, setup-node, `npm install`, `npm test`
-- [ ] README: how to run the tests locally
-- [ ] Create `ANORMALIES.md` (see [Tooling bugs](#tooling-bugs-anormaliesmd))
+- [x] GitHub Actions workflow `test.yml`: checkout, setup-node, `npm install`, `npm test`
+- [x] README: how to run the tests locally
+- [x] Create `ANORMALIES.md` (see [Tooling bugs](#tooling-bugs-anormaliesmd))
 
 **Done when:** CI is green on a PR.
 
