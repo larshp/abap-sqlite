@@ -188,6 +188,21 @@ function serialTypesDatabase() {
   return db;
 }
 
+function tenThousandDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 512");
+  db.run("CREATE TABLE items (value TEXT NOT NULL)");
+
+  const insert = db.prepare("INSERT INTO items (value) VALUES (?)");
+  db.run("BEGIN");
+  for (let id = 1; id <= 10000; id++) {
+    insert.run([`row-${String(id).padStart(5, "0")}`]);
+  }
+  insert.free();
+  db.run("COMMIT");
+  return db;
+}
+
 async function writeFixture(name, db) {
   const bytes = db.export();
   db.close();
@@ -215,3 +230,4 @@ await writeFixture("small", smallDatabase());
 await writeFixture("three_pages", threePagesDatabase());
 await writeFixture("indexed", indexedDatabase());
 await writeFixture("serial_types", serialTypesDatabase());
+await writeFixture("ten_thousand", tenThousandDatabase());

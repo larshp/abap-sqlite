@@ -257,6 +257,26 @@ SQLite writes 3, and reopening the exported sql.js file also reports 1.
 the expected contents from that copy (`writeFixture` in `test/tools/make-fixtures.mjs`, search tag
 `ANORMALY:`).
 
+## Integer to string conversion leaves a trailing blank
+
+- **Component:** runtime
+- **Version:** @abaplint/runtime 2.14.13
+- **Found in:** M2.6 `src/btree/zcl_sqlite_cursor.clas.testclasses.abap`
+- **Status:** open
+- **Upstream:** none yet
+
+```abap
+DATA lv_text TYPE string.
+
+lv_text = 1.
+```
+
+Expected: `lv_text` is `'1'`, length 1, like on a real SAP system. Actual: `lv_text` is `'1 '`,
+length 2. The trailing blank makes padding and string comparisons wrong.
+
+**Workaround:** call `CONDENSE` after the assignment before padding or comparing
+(`expected_value` in the cursor tests, search tag `ANORMALY:`).
+
 ## Closed entries
 
 None yet.

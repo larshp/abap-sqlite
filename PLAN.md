@@ -297,7 +297,7 @@ a bad page size raise errors.
 
 #### M2.6 Table cursor
 
-- [ ] `ZCL_SQLITE_CURSOR` for table b-trees: `first`, `next`, `seek( rowid )`, across
+- [x] `ZCL_SQLITE_CURSOR` for table b-trees: `first`, `next`, `seek( rowid )`, across
       multi-level trees (no overflow yet)
 
 **Done when:** a 10k-row fixture is scanned in rowid order, and point seeks work.
