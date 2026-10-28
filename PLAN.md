@@ -240,7 +240,7 @@ matching `xstrlen` and the `INT4` block number in `ZSQLITE_FILES`.
 
 #### M1.6 Table VFS: file I/O
 
-- [ ] `ZCL_SQLITE_VFS_TABLE` on top of `ZSQLITE_FILES`: read, write, truncate, size, with a block
+- [x] `ZCL_SQLITE_VFS_TABLE` on top of `ZSQLITE_FILES`: read, write, truncate, size, with a block
       cache. Writes that cross block boundaries are split.
 
 **Done when:** the table VFS passes the same contract tests.

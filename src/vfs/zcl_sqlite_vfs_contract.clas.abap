@@ -250,6 +250,16 @@ CLASS zcl_sqlite_vfs_contract IMPLEMENTATION.
     check_read_result(
       io_file = lo_file iv_offset = 0 iv_amount = 8
       iv_data = 'AABBCCDDEEFF0011' iv_short = abap_false iv_msg = 'longer write replaced the data' ).
+
+* a write starting in a later block must zero fill the blocks before it
+    lo_file = lo_vfs->open( 'sparse' ).
+    lo_file->write( iv_offset = 4100 iv_data = 'AABB' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_file->size( ) exp = 4102 msg = 'sparse write size' ).
+    check_read_result(
+      io_file = lo_file iv_offset = 4094 iv_amount = 8
+      iv_data = '000000000000AABB'
+      iv_short = abap_false iv_msg = 'sparse write is zero filled across blocks' ).
   ENDMETHOD.
 
   METHOD check_large.
