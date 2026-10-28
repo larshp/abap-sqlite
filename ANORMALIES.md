@@ -66,6 +66,56 @@ silently, locking bugs are invisible in the transpiler.
 (`src/vfs/zcl_sqlite_files.clas.testclasses.abap`, search tag `ANORMALY:`). Locking is verified on a
 real SAP system only (D5, M9.2).
 
+## int8 arithmetic does not raise CX_SY_ARITHMETIC_OVERFLOW
+
+- **Component:** runtime
+- **Version:** @abaplint/runtime 2.14.13
+- **Found in:** M0.6 `src/util/zcl_sqlite_language_spike.clas.testclasses.abap`
+- **Status:** reported
+- **Upstream:** https://github.com/abaplint/transpiler/issues/2042
+
+```abap
+DATA lv_max TYPE int8.
+DATA lv_one TYPE int8 VALUE 1.
+DATA lv_result TYPE int8.
+
+lv_max = 9223372036854775807.
+lv_result = lv_max + lv_one.
+```
+
+Expected: `CX_SY_ARITHMETIC_OVERFLOW`, like ABAP. Actual: the arithmetic operators use unbounded
+BigInt values without a range check, so `lv_result` becomes `9223372036854775808`. The same
+happens at the lower boundary (`-2^63 - 1`).
+
+**Workaround:** none in the spike test, it accepts both behaviours. Engine code must check values
+that can leave the int8 range before doing arithmetic on them (M1.1 i64 decode, M2.5/M5.4 record
+sizes).
+
+## int8 to xstring assignment crashes
+
+- **Component:** runtime
+- **Version:** @abaplint/runtime 2.14.13
+- **Found in:** M0.6 `src/util/zcl_sqlite_language_spike.clas.testclasses.abap`
+- **Status:** open
+- **Upstream:** https://github.com/abaplint/transpiler/issues/1963
+
+```abap
+DATA lv_value TYPE int8.
+DATA lv_data TYPE xstring.
+
+lv_value = 255.
+lv_data = lv_value.
+```
+
+Expected (ABAP 7.58): minimal big endian bytes for non-negative values, so `'FF'` here. Actual:
+`TypeError: value.get is not a function`. `XString.set` handles `number` and `XString`, but not the
+BigInt that `Integer8.get()` returns. The upstream issue also covers the different padding of
+int8 to `x LENGTH n`.
+
+**Workaround:** assign through a `TYPE x LENGTH 8` field first and then to the xstring
+(`int8_to_hex` in the spike test, search tag `ANORMALY:`). That is always eight bytes, which is
+what the fixed-width i64 record format needs.
+
 ## Closed entries
 
 None yet.

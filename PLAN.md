@@ -182,10 +182,10 @@ any engine code exists. Any gap found goes into `ANORMALIES.md`.
 
 #### M0.6 Language feature spike
 
-- [ ] `int8` arithmetic around ±2^63 boundaries and overflow behaviour
-- [ ] `xstring` slicing (`xstr+off(len)`), `CONCATENATE ... IN BYTE MODE`, `BIT-AND`/`BIT-OR`/`BIT-SHIFT`
+- [x] `int8` arithmetic around ±2^63 boundaries and overflow behaviour
+- [x] `xstring` slicing (`xstr+off(len)`), `CONCATENATE ... IN BYTE MODE`, `BIT-AND`/`BIT-OR`/`BIT-SHIFT`
       equivalents, hex ↔ int conversion
-- [ ] UTF-8 encode/decode with `CL_ABAP_CONV_CODEPAGE`
+- [x] UTF-8 encode/decode with `CL_ABAP_CONV_CODEPAGE`
 
 **Done when:** every feature works, or its gap is recorded in `ANORMALIES.md` with a workaround
 or an upstream issue.
