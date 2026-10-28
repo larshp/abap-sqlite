@@ -224,12 +224,17 @@ or an upstream issue.
 
 #### M1.5 VFS interfaces and memory VFS
 
-- [ ] `ZIF_SQLITE_VFS`: `open( name ) → file`, `exists`, `delete`, `list`, `rename`
-- [ ] `ZIF_SQLITE_FILE`: `read( offset, amount ) → xstring` (short reads are zero-filled and
+- [x] `ZIF_SQLITE_VFS`: `open( name ) → file`, `exists`, `delete`, `list`, `rename`
+- [x] `ZIF_SQLITE_FILE`: `read( offset, amount ) → xstring` (short reads are zero-filled and
       flagged), `write( offset, data )`, `truncate( size )`, `size( )`, `sync( )`,
       `lock( level )` / `unlock( level )`, `close( )`
-- [ ] `ZCL_SQLITE_VFS_MEMORY`: blocks in an internal table. `lock` does nothing.
-- [ ] A shared VFS contract test suite (an abstract test class that any VFS can reuse)
+- [x] `ZCL_SQLITE_VFS_MEMORY`: blocks in an internal table. `lock` does nothing.
+- [x] A shared VFS contract test suite (an abstract test class that any VFS can reuse)
+
+`read` returns `ZIF_SQLITE_FILE=>TY_READ_RESULT` (`data` and `short`) so the zero-filled bytes and
+the short-read flag travel together. The shared suite is `ZCL_SQLITE_VFS_CONTRACT`; a VFS test
+class inherits it and implements `CREATE_VFS`. Offsets and sizes are `i` (a 2 GB file limit),
+matching `xstrlen` and the `INT4` block number in `ZSQLITE_FILES`.
 
 **Done when:** the memory VFS passes the contract tests.
 
