@@ -1,7 +1,15 @@
 {
-  "page_size": 4096,
-  "page_count": 2,
-  "encoding": "UTF-8",
+  "pragmas": {
+    "page_size": 4096,
+    "page_count": 2,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
   "tables": [
     {
       "name": "items",

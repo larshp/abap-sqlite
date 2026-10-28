@@ -266,8 +266,8 @@ matching `xstrlen` and the `INT4` block number in `ZSQLITE_FILES`.
 
 #### M2.2 Database header
 
-- [ ] `ZCX_SQLITE_ERROR` with SQLite-like result codes (`SQLITE_NOTADB`, `SQLITE_CORRUPT`, …)
-- [ ] `ZCL_SQLITE_HEADER`: parse and validate the 100-byte header (magic, page size encoding
+- [x] `ZCX_SQLITE_ERROR` with SQLite-like result codes (`SQLITE_NOTADB`, `SQLITE_CORRUPT`, …)
+- [x] `ZCL_SQLITE_HEADER`: parse and validate the 100-byte header (magic, page size encoding
       `1 = 65536`, reserved bytes, change counter, schema cookie, text encoding, freelist, …)
 
 **Done when:** the fixture headers parse to the values `PRAGMA`s report in sql.js. Bad magic and

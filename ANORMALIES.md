@@ -227,6 +227,35 @@ entry above: assigning the same substring to a local variable works.
 **Workaround:** copy the substring to a local variable and pass that (`write_file` in
 `zcl_sqlite_vfs_memory` and `check_large` in `zcl_sqlite_vfs_contract`, search tag `ANORMALY:`).
 
+## sql.js export resets the schema version
+
+- **Component:** database-sqlite / sql.js
+- **Version:** sql.js 1.15.2
+- **Found in:** M2.2 `test/tools/make-fixtures.mjs`
+- **Status:** open
+- **Upstream:** none yet
+
+```js
+import initSqlJs from "sql.js";
+
+const SQL = await initSqlJs();
+const db = new SQL.Database();
+db.run("CREATE TABLE scratch (value)");
+db.run("DROP TABLE scratch");
+db.run("VACUUM");
+console.log(db.exec("PRAGMA schema_version")[0].values[0][0]); // 3
+const bytes = db.export();
+console.log(Buffer.from(bytes).readUInt32BE(40));              // 1
+```
+
+Expected: the schema cookie in the exported header is the value `PRAGMA schema_version` reports
+before the export. Actual: sql.js reports 3 in the live database, but writes 1 to the file. Native
+SQLite writes 3, and reopening the exported sql.js file also reports 1.
+
+**Workaround:** write the fixture, reopen the exported bytes in a new `SQL.Database`, and derive
+the expected contents from that copy (`writeFixture` in `test/tools/make-fixtures.mjs`, search tag
+`ANORMALY:`).
+
 ## Closed entries
 
 None yet.

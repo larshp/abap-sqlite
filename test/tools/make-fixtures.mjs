@@ -66,20 +66,29 @@ function indexes(db) {
   });
 }
 
+function pragma(db, name) {
+  return db.exec(`PRAGMA ${name}`)[0].values[0][0];
+}
+
 function expectedContents(db) {
   const tables = db.exec(`
     SELECT name, sql
     FROM sqlite_master
     WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
     ORDER BY name`);
-  const pageSize = db.exec("PRAGMA page_size")[0].values[0][0];
-  const pageCount = db.exec("PRAGMA page_count")[0].values[0][0];
-  const encoding = db.exec("PRAGMA encoding")[0].values[0][0];
 
   return {
-    page_size: pageSize,
-    page_count: pageCount,
-    encoding,
+    pragmas: {
+      page_size: pragma(db, "page_size"),
+      page_count: pragma(db, "page_count"),
+      encoding: pragma(db, "encoding"),
+      freelist_count: pragma(db, "freelist_count"),
+      schema_version: pragma(db, "schema_version"),
+      user_version: pragma(db, "user_version"),
+      application_id: pragma(db, "application_id"),
+      auto_vacuum: pragma(db, "auto_vacuum"),
+      journal_mode: pragma(db, "journal_mode"),
+    },
     tables: tables.length === 0
       ? []
       : tables[0].values.map(([name, sql]) => ({
@@ -119,17 +128,22 @@ function smallDatabase() {
 }
 
 async function writeFixture(name, db) {
-  const contents = expectedContents(db);
   const bytes = db.export();
+  db.close();
+
+  // ANORMALY: sql.js export resets the schema version, inspect the exported
+  // file so the expectations match the on-disk header
+  const reopened = new SQL.Database(bytes);
+  const contents = expectedContents(reopened);
+  reopened.close();
 
   await writeFile(path.join(fixturesDir, `${name}.db`), bytes);
   await writeFile(
     path.join(fixturesDir, `${name}.json`),
     `${JSON.stringify(contents, null, 2)}\n`,
   );
-  db.close();
 
-  console.log(`${name}.db: ${bytes.length} bytes, ${contents.page_count} pages, ${contents.tables.length} table(s)`);
+  console.log(`${name}.db: ${bytes.length} bytes, ${contents.pragmas.page_count} pages, ${contents.tables.length} table(s)`);
 }
 
 await rm(fixturesDir, {recursive: true, force: true});
