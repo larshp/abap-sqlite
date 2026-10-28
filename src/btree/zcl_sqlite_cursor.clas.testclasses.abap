@@ -4,12 +4,15 @@ CLASS ltcl_cursor DEFINITION FINAL FOR TESTING
 
   PRIVATE SECTION.
     CONSTANTS c_empty TYPE string VALUE 'fixtures/empty.db'.
+    CONSTANTS c_overflow TYPE string VALUE 'fixtures/overflow.db'.
+    CONSTANTS c_overflow_root TYPE i VALUE 2.
     CONSTANTS c_ten_thousand TYPE string VALUE 'fixtures/ten_thousand.db'.
     CONSTANTS c_ten_thousand_root TYPE i VALUE 2.
 
     METHODS scan_all FOR TESTING RAISING zcx_sqlite_error.
     METHODS seek_points FOR TESTING RAISING zcx_sqlite_error.
     METHODS empty_tree FOR TESTING RAISING zcx_sqlite_error.
+    METHODS overflow_payloads FOR TESTING RAISING zcx_sqlite_error.
 
     METHODS open_cursor
       IMPORTING iv_name          TYPE string
@@ -18,6 +21,18 @@ CLASS ltcl_cursor DEFINITION FINAL FOR TESTING
     METHODS expected_value
       IMPORTING iv_number       TYPE i
       RETURNING VALUE(rv_value) TYPE string.
+    METHODS assert_text_row
+      IMPORTING io_cursor   TYPE REF TO zcl_sqlite_cursor
+                iv_rowid    TYPE int8
+                iv_name     TYPE string
+                iv_expected TYPE string
+      RAISING   zcx_sqlite_error.
+    METHODS assert_blob_row
+      IMPORTING io_cursor   TYPE REF TO zcl_sqlite_cursor
+                iv_rowid    TYPE int8
+                iv_name     TYPE string
+                iv_expected TYPE xstring
+      RAISING   zcx_sqlite_error.
 ENDCLASS.
 
 
@@ -140,6 +155,57 @@ CLASS ltcl_cursor IMPLEMENTATION.
       act = lo_cursor->next( ) exp = abap_false ).
   ENDMETHOD.
 
+  METHOD overflow_payloads.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lv_blob_near TYPE xstring.
+    DATA lv_blob_multi TYPE xstring.
+
+    lv_blob_near = repeat( val = 'AB' occ = 4100 ).
+    lv_blob_multi = repeat(
+      val = '00112233445566778899AABBCCDDEEFF' occ = 750 ).
+
+    lo_cursor = open_cursor(
+      iv_name = c_overflow
+      iv_root_page = c_overflow_root ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->first( ) exp = abap_true ).
+    assert_text_row(
+      io_cursor = lo_cursor
+      iv_rowid = 1
+      iv_name = 'text_near'
+      iv_expected = repeat( val = 'T' occ = 4100 ) ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->next( ) exp = abap_true ).
+    assert_blob_row(
+      io_cursor = lo_cursor
+      iv_rowid = 2
+      iv_name = 'blob_near'
+      iv_expected = lv_blob_near ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->next( ) exp = abap_true ).
+    assert_text_row(
+      io_cursor = lo_cursor
+      iv_rowid = 3
+      iv_name = 'text_multi'
+      iv_expected = repeat( val = '0123456789' occ = 1200 ) ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->next( ) exp = abap_true ).
+    assert_blob_row(
+      io_cursor = lo_cursor
+      iv_rowid = 4
+      iv_name = 'blob_multi'
+      iv_expected = lv_blob_multi ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->next( ) exp = abap_false ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->is_valid( ) exp = abap_false ).
+  ENDMETHOD.
+
   METHOD open_cursor.
     DATA lo_vfs TYPE REF TO zif_sqlite_vfs.
     DATA lo_file TYPE REF TO zif_sqlite_file.
@@ -169,6 +235,56 @@ CLASS ltcl_cursor IMPLEMENTATION.
       lv_number = |0{ lv_number }|.
     ENDWHILE.
     rv_value = |row-{ lv_number }|.
+  ENDMETHOD.
+
+  METHOD assert_text_row.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_name TYPE REF TO zcl_sqlite_value.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+
+    cl_abap_unit_assert=>assert_equals(
+      act = io_cursor->rowid( ) exp = iv_rowid ).
+    cl_abap_unit_assert=>assert_equals(
+      act = io_cursor->is_valid( ) exp = abap_true ).
+
+    lt_values = io_cursor->values( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lt_values ) exp = 2 ).
+    READ TABLE lt_values INTO lo_name INDEX 1.
+    READ TABLE lt_values INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_name->value_type( ) exp = zcl_sqlite_value=>c_text ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_name->as_text( ) exp = iv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_text ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = iv_expected ).
+  ENDMETHOD.
+
+  METHOD assert_blob_row.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_name TYPE REF TO zcl_sqlite_value.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+
+    cl_abap_unit_assert=>assert_equals(
+      act = io_cursor->rowid( ) exp = iv_rowid ).
+    cl_abap_unit_assert=>assert_equals(
+      act = io_cursor->is_valid( ) exp = abap_true ).
+
+    lt_values = io_cursor->values( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lt_values ) exp = 2 ).
+    READ TABLE lt_values INTO lo_name INDEX 1.
+    READ TABLE lt_values INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_name->value_type( ) exp = zcl_sqlite_value=>c_text ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_name->as_text( ) exp = iv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_blob ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_blob( ) exp = iv_expected ).
   ENDMETHOD.
 
 ENDCLASS.

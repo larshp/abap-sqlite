@@ -203,6 +203,25 @@ function tenThousandDatabase() {
   return db;
 }
 
+function overflowDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 4096");
+  db.run("CREATE TABLE payloads (name TEXT NOT NULL, value)");
+
+  const blobMulti = new Uint8Array(Buffer.from(
+    "00112233445566778899AABBCCDDEEFF".repeat(750),
+    "hex",
+  ));
+
+  const insert = db.prepare("INSERT INTO payloads (name, value) VALUES (?, ?)");
+  insert.run(["text_near", "T".repeat(4100)]);
+  insert.run(["blob_near", new Uint8Array(4100).fill(0xAB)]);
+  insert.run(["text_multi", "0123456789".repeat(1200)]);
+  insert.run(["blob_multi", blobMulti]);
+  insert.free();
+  return db;
+}
+
 async function writeFixture(name, db) {
   const bytes = db.export();
   db.close();
@@ -231,3 +250,4 @@ await writeFixture("three_pages", threePagesDatabase());
 await writeFixture("indexed", indexedDatabase());
 await writeFixture("serial_types", serialTypesDatabase());
 await writeFixture("ten_thousand", tenThousandDatabase());
+await writeFixture("overflow", overflowDatabase());

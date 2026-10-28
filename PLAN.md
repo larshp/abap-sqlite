@@ -304,7 +304,7 @@ a bad page size raise errors.
 
 #### M2.7 Overflow pages
 
-- [ ] Local payload size calculation (`X`, `M`, `K` formulas from the spec), overflow chain reassembly
+- [x] Local payload size calculation (`X`, `M`, `K` formulas from the spec), overflow chain reassembly
 
 **Done when:** fixtures with large TEXT/BLOB values (just over the threshold and multi-page) decode correctly.
 

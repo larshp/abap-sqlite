@@ -3,7 +3,7 @@
 *
 * seek( ) positions at the first row whose rowid is greater than or equal to
 * iv_rowid. The caller can compare rowid( ) with the requested value to find out
-* whether the row exists. Overflow payloads are not supported yet.
+* whether the row exists. Overflow payloads are reassembled by zcl_sqlite_btree.
 CLASS zcl_sqlite_cursor DEFINITION
   PUBLIC
   FINAL
@@ -49,6 +49,7 @@ CLASS zcl_sqlite_cursor DEFINITION
 
     DATA mo_pager TYPE REF TO zcl_sqlite_pager.
     DATA mv_root_page TYPE i.
+    DATA mv_usable_size TYPE i.
     DATA mt_frames TYPE ty_frames.
     DATA mv_leaf_number TYPE i.
     DATA ms_leaf_data TYPE xstring.
@@ -92,11 +93,19 @@ ENDCLASS.
 CLASS zcl_sqlite_cursor IMPLEMENTATION.
 
   METHOD constructor.
+    DATA ls_header TYPE zcl_sqlite_header=>ty_header.
+
     IF io_pager IS NOT BOUND OR iv_root_page < 1.
       fail( 'table cursor needs a pager and a root page' ).
     ENDIF.
     mo_pager = io_pager.
     mv_root_page = iv_root_page.
+
+    ls_header = io_pager->header( ).
+    mv_usable_size = ls_header-page_size - ls_header-reserved_bytes.
+    IF mv_usable_size < zcl_sqlite_btree=>c_min_usable_size.
+      fail( 'table cursor usable page size is too small' ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD first.
@@ -317,11 +326,9 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
 
   METHOD load_current.
     DATA lv_cell_offset TYPE i.
-    DATA lv_payload_length_i8 TYPE int8.
-    DATA lv_payload_length TYPE i.
+    DATA lv_payload_length TYPE int8.
     DATA lv_rowid_offset TYPE i.
     DATA lv_payload_offset TYPE i.
-    DATA lv_payload TYPE xstring.
 
     READ TABLE ms_leaf_page-cell_offsets INTO lv_cell_offset
       INDEX mv_cell_index.
@@ -330,7 +337,7 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
     ENDIF.
 
     TRY.
-        lv_payload_length_i8 = zcl_sqlite_bytes=>read_varint(
+        lv_payload_length = zcl_sqlite_bytes=>read_varint(
           iv_data = ms_leaf_data iv_offset = lv_cell_offset ).
         lv_rowid_offset = lv_cell_offset + zcl_sqlite_bytes=>varint_length(
           iv_data = ms_leaf_data iv_offset = lv_cell_offset ).
@@ -342,13 +349,16 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
         fail( 'table cell header is truncated' ).
     ENDTRY.
 
-    IF lv_payload_length_i8 < 0
-        OR lv_payload_length_i8 > xstrlen( ms_leaf_data ) - lv_payload_offset.
-      fail( 'table cell payload is truncated or uses overflow' ).
+    IF lv_payload_length < 0.
+      fail( 'table cell payload size is negative' ).
     ENDIF.
-    lv_payload_length = lv_payload_length_i8.
-    lv_payload = ms_leaf_data+lv_payload_offset(lv_payload_length).
-    mt_values = zcl_sqlite_record=>decode( lv_payload ).
+    mt_values = zcl_sqlite_record=>decode(
+      zcl_sqlite_btree=>read_payload(
+        io_pager          = mo_pager
+        iv_page_data      = ms_leaf_data
+        iv_payload_offset = lv_payload_offset
+        iv_payload_size   = lv_payload_length
+        iv_usable_size    = mv_usable_size ) ).
     mv_valid = abap_true.
   ENDMETHOD.
 
