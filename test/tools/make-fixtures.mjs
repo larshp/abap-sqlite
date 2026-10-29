@@ -55,13 +55,24 @@ function indexes(db) {
   }
   return result[0].values.map(([name, table, sql]) => {
     const info = db.exec(`PRAGMA index_info(${quoteIdentifier(name)})`);
+    const columns = info.length === 0
+      ? []
+      : info[0].values.map(([, , column]) => column);
+    const order = [...columns, "rowid"]
+      .map(quoteIdentifier)
+      .join(", ");
+    const entries = columns.length === 0
+      ? []
+      : db.exec(
+        `SELECT ${order} FROM ${quoteIdentifier(table)} ORDER BY ${order}`,
+      )[0]?.values.map((row) => row.map(jsonValue)) ?? [];
+
     return {
       name,
       table,
       sql,
-      columns: info.length === 0
-        ? []
-        : info[0].values.map(([, , column]) => column),
+      columns,
+      entries,
     };
   });
 }

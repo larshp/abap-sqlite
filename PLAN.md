@@ -108,7 +108,7 @@ abap-sqlite/
 │  ├─ vfs/        zif_sqlite_vfs, zif_sqlite_file, zcl_sqlite_vfs_table, zcl_sqlite_vfs_memory
 │  ├─ util/       zcl_sqlite_bytes (BE ints, varint, float64), zcl_sqlite_utf8
 │  ├─ pager/      zcl_sqlite_pager, zcl_sqlite_header
-│  ├─ btree/      zcl_sqlite_btree, zcl_sqlite_cursor, zcl_sqlite_page, zcl_sqlite_freelist
+│  ├─ btree/      zcl_sqlite_btree, zcl_sqlite_cursor, zcl_sqlite_index_cursor, zcl_sqlite_page, zcl_sqlite_freelist
 │  ├─ record/     zcl_sqlite_record, zcl_sqlite_value
 │  ├─ schema/     zcl_sqlite_schema, zcl_sqlite_catalog
 │  ├─ sql/        zcl_sqlite_tokenizer, zcl_sqlite_parser, zcl_sqlite_ast_*
@@ -310,7 +310,7 @@ a bad page size raise errors.
 
 #### M2.8 Index cursor
 
-- [ ] Index b-tree traversal: `first`, `next`, `seek( key prefix )`. Record comparison uses
+- [x] Index b-tree traversal: `first`, `next`, `seek( key prefix )`. Record comparison uses
       BINARY collation for now.
 
 **Done when:** index entries from the fixtures match the JSON and come back in index order.
