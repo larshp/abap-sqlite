@@ -317,7 +317,7 @@ a bad page size raise errors.
 
 #### M2.9 Raw schema
 
-- [ ] Read `sqlite_schema` (page 1) into a raw catalog: type, name, tbl_name, rootpage, sql
+- [x] Read `sqlite_schema` (page 1) into a raw catalog: type, name, tbl_name, rootpage, sql
 
 **Done when:** the raw catalog equals `SELECT * FROM sqlite_schema` from sql.js for all fixtures.
 

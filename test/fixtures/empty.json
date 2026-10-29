@@ -11,5 +11,6 @@
     "journal_mode": "delete"
   },
   "tables": [],
-  "indexes": []
+  "indexes": [],
+  "schema": []
 }

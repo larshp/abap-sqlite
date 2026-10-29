@@ -847,5 +847,21 @@
         ]
       ]
     }
+  ],
+  "schema": [
+    {
+      "type": "table",
+      "name": "items",
+      "tbl_name": "items",
+      "rootpage": 2,
+      "sql": "CREATE TABLE items (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
+    },
+    {
+      "type": "index",
+      "name": "items_value",
+      "tbl_name": "items",
+      "rootpage": 3,
+      "sql": "CREATE INDEX items_value ON items(value)"
+    }
   ]
 }

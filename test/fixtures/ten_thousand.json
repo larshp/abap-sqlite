@@ -30028,5 +30028,14 @@
       ]
     }
   ],
-  "indexes": []
+  "indexes": [],
+  "schema": [
+    {
+      "type": "table",
+      "name": "items",
+      "tbl_name": "items",
+      "rootpage": 2,
+      "sql": "CREATE TABLE items (value TEXT NOT NULL)"
+    }
+  ]
 }

@@ -59,5 +59,14 @@
       ]
     }
   ],
-  "indexes": []
+  "indexes": [],
+  "schema": [
+    {
+      "type": "table",
+      "name": "items",
+      "tbl_name": "items",
+      "rootpage": 2,
+      "sql": "CREATE TABLE items (\n      id INTEGER PRIMARY KEY,\n      name TEXT NOT NULL,\n      price REAL\n    )"
+    }
+  ]
 }

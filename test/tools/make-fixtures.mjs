@@ -81,6 +81,23 @@ function pragma(db, name) {
   return db.exec(`PRAGMA ${name}`)[0].values[0][0];
 }
 
+function rawSchema(db) {
+  const result = db.exec(`
+    SELECT type, name, tbl_name, rootpage, sql
+    FROM sqlite_schema
+    ORDER BY rowid`);
+  if (result.length === 0) {
+    return [];
+  }
+  return result[0].values.map(([type, name, tblName, rootpage, sql]) => ({
+    type,
+    name,
+    tbl_name: tblName,
+    rootpage,
+    sql,
+  }));
+}
+
 function expectedContents(db) {
   const tables = db.exec(`
     SELECT name, sql
@@ -109,6 +126,7 @@ function expectedContents(db) {
         rows: tableRows(db, name),
       })),
     indexes: indexes(db),
+    schema: rawSchema(db),
   };
 }
 

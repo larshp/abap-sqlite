@@ -182,5 +182,14 @@
       ]
     }
   ],
-  "indexes": []
+  "indexes": [],
+  "schema": [
+    {
+      "type": "table",
+      "name": "serial_types",
+      "tbl_name": "serial_types",
+      "rootpage": 2,
+      "sql": "CREATE TABLE serial_types (\n      c_null,\n      c_int8,\n      c_int16,\n      c_int24,\n      c_int32,\n      c_int48,\n      c_int64,\n      c_real,\n      c_zero,\n      c_one,\n      c_blob0,\n      c_text0,\n      c_blob3,\n      c_text3,\n      c_text\n    )"
+    }
+  ]
 }

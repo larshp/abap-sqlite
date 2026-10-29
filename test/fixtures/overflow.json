@@ -56,5 +56,14 @@
       ]
     }
   ],
-  "indexes": []
+  "indexes": [],
+  "schema": [
+    {
+      "type": "table",
+      "name": "payloads",
+      "tbl_name": "payloads",
+      "rootpage": 2,
+      "sql": "CREATE TABLE payloads (name TEXT NOT NULL, value)"
+    }
+  ]
 }
