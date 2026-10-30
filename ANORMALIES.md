@@ -277,6 +277,54 @@ length 2. The trailing blank makes padding and string comparisons wrong.
 **Workaround:** call `CONDENSE` after the assignment before padding or comparing
 (`expected_value` in the cursor tests, search tag `ANORMALY:`).
 
+## Nested inline table constructors are rejected by the parser
+
+- **Component:** abaplint
+- **Version:** @abaplint/cli 2.120.90, @abaplint/transpiler-cli 2.14.13
+- **Found in:** M2.10 `src/schema/zcl_sqlite_catalog.clas.testclasses.abap`
+- **Status:** open
+- **Upstream:** none yet
+
+```abap
+TYPES: BEGIN OF ty_inner,
+         value TYPE i,
+       END OF ty_inner.
+TYPES: BEGIN OF ty_row,
+         c1 TYPE ty_inner,
+       END OF ty_row.
+TYPES ty_rows TYPE STANDARD TABLE OF ty_row WITH DEFAULT KEY.
+DATA lt_rows TYPE ty_rows.
+
+lt_rows = VALUE #( ( c1 = VALUE #( value = 1 ) ) ).
+```
+
+Expected: the table constructor is accepted. Actual: abaplint's parser reports a syntax error
+at the assignment (`Statement does not exist ... "lt_rows"`), and the generated code is not
+produced. The same happens when the inner values come from method calls.
+
+**Workaround:** build one work area with a single-row `VALUE #( ... )` and `APPEND` it, instead of
+nesting a table constructor (`ltcl_fixture_breadth` in the catalog tests, search tag `ANORMALY:`).
+
+## Numeric and hex literals are rejected as method arguments
+
+- **Component:** abaplint
+- **Version:** @abaplint/cli 2.120.90, @abaplint/transpiler-cli 2.14.13
+- **Found in:** M2.10 `src/schema/zcl_sqlite_catalog.clas.testclasses.abap`
+- **Status:** open
+- **Upstream:** none yet
+
+```abap
+some_method( 1.5 ).
+some_method( x'01' ).
+```
+
+Expected: decimal and hexadecimal literals are valid actual parameters. Actual: abaplint's parser
+stops at the decimal point (`"5"` is reported as the unexpected token) or at the whole statement
+for the hex literal.
+
+**Workaround:** pass quoted character literals and let the formal parameter convert them
+(`real_value( '1.5' )`, `blob_value( '01' )` in the catalog tests, search tag `ANORMALY:`).
+
 ## Closed entries
 
 None yet.

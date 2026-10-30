@@ -323,7 +323,7 @@ a bad page size raise errors.
 
 #### M2.10 Fixture breadth
 
-- [ ] Add fixtures: page sizes 512…65536, freelist pages, auto-vacuum (ptrmap pages),
+- [x] Add fixtures: page sizes 512…65536, freelist pages, auto-vacuum (ptrmap pages),
       `WITHOUT ROWID` tables, NULLs, many indexes
 
 **Done when:** for every fixture, all rows of all tables and indexes decode and match the JSON.

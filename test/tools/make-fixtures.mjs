@@ -44,6 +44,24 @@ function tableRows(db, name) {
   return rows;
 }
 
+function indexColumns(db, name) {
+  const result = db.exec(`PRAGMA index_xinfo(${quoteIdentifier(name)})`);
+  if (result.length === 0) {
+    return {columns: [], auxiliary: []};
+  }
+
+  const columns = [];
+  const auxiliary = [];
+  for (const [, , column, , , key] of result[0].values) {
+    if (key === 1) {
+      columns.push(column);
+    } else if (column !== null) {
+      auxiliary.push(column);
+    }
+  }
+  return {columns, auxiliary};
+}
+
 function indexes(db) {
   const result = db.exec(`
     SELECT name, tbl_name, sql
@@ -54,11 +72,11 @@ function indexes(db) {
     return [];
   }
   return result[0].values.map(([name, table, sql]) => {
-    const info = db.exec(`PRAGMA index_info(${quoteIdentifier(name)})`);
-    const columns = info.length === 0
-      ? []
-      : info[0].values.map(([, , column]) => column);
-    const order = [...columns, "rowid"]
+    const {columns, auxiliary} = indexColumns(db, name);
+    const entryColumns = auxiliary.length === 0
+      ? [...columns, "rowid"]
+      : [...columns, ...auxiliary];
+    const order = entryColumns
       .map(quoteIdentifier)
       .join(", ");
     const entries = columns.length === 0
@@ -232,6 +250,151 @@ function tenThousandDatabase() {
   return db;
 }
 
+function pageSizeDatabase(pageSize) {
+  const db = new SQL.Database();
+  db.run(`PRAGMA page_size = ${pageSize}`);
+  db.run("CREATE TABLE items (id INTEGER NOT NULL, value TEXT NOT NULL)");
+  db.run("CREATE INDEX items_value ON items(value)");
+
+  const insert = db.prepare("INSERT INTO items (id, value) VALUES (?, ?)");
+  db.run("BEGIN");
+  for (let id = 1; id <= 40; id++) {
+    insert.run([
+      id,
+      `page-${String(pageSize).padStart(5, "0")}-${String(id).padStart(3, "0")}-${"x".repeat(20)}`,
+    ]);
+  }
+  insert.free();
+  db.run("COMMIT");
+  return db;
+}
+
+function freelistDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 512");
+  db.run("CREATE TABLE keep (id INTEGER NOT NULL, value TEXT NOT NULL)");
+  db.run("CREATE INDEX keep_value ON keep(value)");
+
+  const keep = db.prepare("INSERT INTO keep (id, value) VALUES (?, ?)");
+  db.run("BEGIN");
+  for (let id = 1; id <= 20; id++) {
+    keep.run([id, `keep-${String(id).padStart(3, "0")}`]);
+  }
+  keep.free();
+  db.run("COMMIT");
+
+  db.run("CREATE TABLE dropme (value TEXT)");
+  const drop = db.prepare("INSERT INTO dropme (value) VALUES (?)");
+  db.run("BEGIN");
+  for (let id = 1; id <= 500; id++) {
+    drop.run([`drop-${id}-${"y".repeat(20)}`]);
+  }
+  drop.free();
+  db.run("COMMIT");
+  db.run("DROP TABLE dropme");
+  return db;
+}
+
+function autoVacuumDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 512");
+  db.run("PRAGMA auto_vacuum = FULL");
+  db.run("CREATE TABLE keep (id INTEGER NOT NULL, value TEXT NOT NULL)");
+  db.run("CREATE INDEX keep_value ON keep(value)");
+
+  const keep = db.prepare("INSERT INTO keep (id, value) VALUES (?, ?)");
+  db.run("BEGIN");
+  for (let id = 1; id <= 20; id++) {
+    keep.run([id, `auto-${String(id).padStart(3, "0")}`]);
+  }
+  keep.free();
+  db.run("COMMIT");
+
+  db.run("CREATE TABLE dropme (value TEXT)");
+  const drop = db.prepare("INSERT INTO dropme (value) VALUES (?)");
+  db.run("BEGIN");
+  for (let id = 1; id <= 300; id++) {
+    drop.run([`drop-${id}-${"y".repeat(20)}`]);
+  }
+  drop.free();
+  db.run("COMMIT");
+  db.run("DROP TABLE dropme");
+  return db;
+}
+
+function withoutRowidDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 512");
+  db.run(`
+    CREATE TABLE wr (
+      k TEXT PRIMARY KEY,
+      v TEXT,
+      n INTEGER
+    ) WITHOUT ROWID`);
+  db.run("CREATE INDEX wr_v ON wr(v)");
+
+  const insert = db.prepare("INSERT INTO wr (k, v, n) VALUES (?, ?, ?)");
+  db.run("BEGIN");
+  for (let id = 1; id <= 40; id++) {
+    insert.run([
+      `key-${String(id).padStart(3, "0")}`,
+      `value-${String(id).padStart(3, "0")}`,
+      id,
+    ]);
+  }
+  insert.free();
+  db.run("COMMIT");
+  return db;
+}
+
+function nullsDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 512");
+  db.run(`
+    CREATE TABLE nulls (
+      id INTEGER NOT NULL,
+      a TEXT,
+      b INTEGER,
+      c BLOB
+    )`);
+  db.run("CREATE INDEX nulls_a ON nulls(a)");
+  db.run("CREATE INDEX nulls_ab ON nulls(a, b)");
+  db.run(`
+    INSERT INTO nulls (id, a, b, c) VALUES
+      (1, 'a', 1, x'01'),
+      (2, NULL, 2, NULL),
+      (3, 'a', NULL, x''),
+      (4, NULL, NULL, x'03'),
+      (5, 'b', 2, NULL)`);
+  return db;
+}
+
+function manyIndexesDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 512");
+  db.run(`
+    CREATE TABLE m (
+      id INTEGER NOT NULL,
+      a TEXT NOT NULL,
+      b INTEGER NOT NULL,
+      c TEXT NOT NULL
+    )`);
+  db.run("CREATE INDEX m_a ON m(a)");
+  db.run("CREATE INDEX m_ab ON m(a, b)");
+  db.run("CREATE INDEX m_ba ON m(b, a)");
+  db.run("CREATE INDEX m_b ON m(b)");
+  db.run("CREATE INDEX m_c ON m(c)");
+  db.run(`
+    INSERT INTO m (id, a, b, c) VALUES
+      (1, 'a', 1, 'c1'),
+      (2, 'a', 2, 'c2'),
+      (3, 'b', 1, 'c3'),
+      (4, 'b', 2, 'c4'),
+      (5, 'a', 1, 'c5'),
+      (6, 'b', 2, 'c6')`);
+  return db;
+}
+
 function overflowDatabase() {
   const db = new SQL.Database();
   db.run("PRAGMA page_size = 4096");
@@ -280,3 +443,11 @@ await writeFixture("indexed", indexedDatabase());
 await writeFixture("serial_types", serialTypesDatabase());
 await writeFixture("ten_thousand", tenThousandDatabase());
 await writeFixture("overflow", overflowDatabase());
+for (const pageSize of [512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]) {
+  await writeFixture(`page_${pageSize}`, pageSizeDatabase(pageSize));
+}
+await writeFixture("freelist", freelistDatabase());
+await writeFixture("auto_vacuum", autoVacuumDatabase());
+await writeFixture("without_rowid", withoutRowidDatabase());
+await writeFixture("nulls", nullsDatabase());
+await writeFixture("many_indexes", manyIndexesDatabase());
