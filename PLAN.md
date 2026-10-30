@@ -340,8 +340,8 @@ a bad page size raise errors.
 
 #### M3.2 Expressions
 
-- [ ] AST node classes and a debug dump (normalized text form)
-- [ ] `ZCL_SQLITE_PARSER`: hand-written Pratt parser for expressions, following SQLite operator
+- [x] AST node classes and a debug dump (normalized text form)
+- [x] `ZCL_SQLITE_PARSER`: hand-written Pratt parser for expressions, following SQLite operator
       precedence: literals, columns (`schema.table.col`), unary/binary ops, `||`, `IS [NOT]`,
       `[NOT] IN (list)`, `[NOT] BETWEEN`, `[NOT] LIKE/GLOB [ESCAPE]`, `CASE`, `CAST`, function
       calls with `DISTINCT` / `*`, `COLLATE`, parameters

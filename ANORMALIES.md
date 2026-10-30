@@ -348,6 +348,26 @@ comparison is false.
 **Workaround:** compare with a string literal (`| |` or a backtick literal). Search tag
 `ANORMALY:` in `zcl_sqlite_tokenizer`.
 
+## Character literals lose trailing blanks when concatenated
+
+- **Component:** @abaplint/runtime
+- **Version:** @abaplint/runtime 2.14.13
+- **Found in:** M3.2 `src/sql/zcl_sqlite_ast_node.clas.abap`
+- **Status:** open
+- **Upstream:** none yet
+
+```abap
+DATA lv_text TYPE string.
+lv_text = 'a' && ', ' && 'b'.
+```
+
+Expected: `lv_text` is `a, b`. Actual: `lv_text` is `a,b`; `abap.operators.concat` calls
+`getTrimEnd()` for a `Character` operand, so the trailing blank in `', '` is removed.
+
+**Workaround:** use string template literals for fragments that end in a blank, for example
+`|, |` and `| |`. Search tag `ANORMALY:` in the AST dump classes and the parser's type-name
+normalizer.
+
 ## Closed entries
 
 None yet.
