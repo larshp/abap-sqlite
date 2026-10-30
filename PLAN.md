@@ -62,10 +62,10 @@ database table**. No application server file system, no kernel calls, no native 
 | # | Decision | Rationale |
 |---|----------|-----------|
 | D1 | **Iterator-model executor over a plan tree**, not a VDBE bytecode VM | Much less code, easier to debug in ABAP. A VDBE can come later if needed. |
-| D2 | **Storage unit = block, with block size = page size** | One page write becomes one row `MODIFY`. Partial page I/O never needs read-modify-write across rows. |
-| D3 | **Atomicity comes from the ABAP database LUW, not a rollback journal** | The pager keeps dirty pages in memory and flushes them all in one go when SQLite commits. The flush is made durable by the caller's `COMMIT WORK` (or by the `auto_commit_work` option). This behaves like `journal_mode=MEMORY`. A crash before the DB commit leaves the table untouched. |
+| D2 | **Storage unit = block, with block size = page size, at most 65536 bytes** | One page write becomes one row `MODIFY`. Partial page I/O never needs read-modify-write across rows. 64 KiB is SQLite's maximum page size, so any SQLite page fits in one block; M0.4 verified blocks from 512 B to 64 KiB. |
+| D3 | **Atomicity comes from the ABAP database LUW, not a rollback journal** | The pager keeps dirty pages in memory and flushes them all in one go when SQLite commits. The flush is made durable by the caller's `COMMIT WORK` (or by the `auto_commit_work` option). This behaves like `journal_mode=MEMORY`. A crash before the DB commit leaves the table untouched. Confirmed in M0.5: `ROLLBACK WORK` discards uncommitted rows, and a row that was committed survives a later rollback. |
 | D4 | **Header field byte 18/19 = 1 (legacy rollback journal)**, never WAL | So that real SQLite opens exported files without expecting a WAL. |
-| D5 | **Write locking via `SELECT ... FOR UPDATE` on block 0 of the file**, plus an optional enqueue | Works on any DB and in the transpiler. Readers check the file change counter (header offset 24) to invalidate a stale page cache. |
+| D5 | **Write locking via `SELECT ... FOR UPDATE` on block 0 of the file**, plus an optional enqueue | Works on a real SAP database, which is where sessions share a file. The transpiler accepts `SELECT SINGLE ... FOR UPDATE` but drops the clause ([ANORMALIES.md](ANORMALIES.md)), so locking cannot be tested there; M0.5 only documents the syntax. Readers check the file change counter (header offset 24) to invalidate a stale page cache. |
 | D6 | **The 64-bit integer type is `int8`** | SQLite rowids and INTEGER values are signed 64-bit. Verified in M0.6. |
 | D7 | **Text is UTF-8 only at first** (`PRAGMA encoding = 'UTF-8'`) | Conversion uses `CL_ABAP_CONV_CODEPAGE` (present in open-abap-core). UTF-16 databases are readable in a later milestone. |
 | D8 | **Object prefix `ZCL_SQLITE_` / `ZIF_SQLITE_` / `ZCX_SQLITE_`** | Customer namespace, so it can be installed with abapGit anywhere. |
@@ -108,7 +108,7 @@ abap-sqlite/
 │  ├─ vfs/        zif_sqlite_vfs, zif_sqlite_file, zcl_sqlite_vfs_table, zcl_sqlite_vfs_memory
 │  ├─ util/       zcl_sqlite_bytes (BE ints, varint, float64), zcl_sqlite_utf8
 │  ├─ pager/      zcl_sqlite_pager, zcl_sqlite_header
-│  ├─ btree/      zcl_sqlite_btree, zcl_sqlite_cursor, zcl_sqlite_page, zcl_sqlite_freelist
+│  ├─ btree/      zcl_sqlite_btree, zcl_sqlite_cursor, zcl_sqlite_index_cursor, zcl_sqlite_page, zcl_sqlite_freelist
 │  ├─ record/     zcl_sqlite_record, zcl_sqlite_value
 │  ├─ schema/     zcl_sqlite_schema, zcl_sqlite_catalog
 │  ├─ sql/        zcl_sqlite_tokenizer, zcl_sqlite_parser, zcl_sqlite_ast_*
@@ -138,61 +138,61 @@ any engine code exists. Any gap found goes into `ANORMALIES.md`.
 
 #### M0.1 npm project and transpiler
 
-- [ ] `package.json` with `@abaplint/transpiler-cli`, `@abaplint/runtime`,
+- [x] `package.json` with `@abaplint/transpiler-cli`, `@abaplint/runtime`,
       `@abaplint/database-sqlite`, `rimraf`. Script `unit`:
       `rimraf output && abap_transpile && node output/index.mjs`
-- [ ] `.npmrc` (`ignore-scripts=true`), `.gitignore` (`node_modules`, `output`)
-- [ ] `abap_transpile.json`: `input_folder` `{src,test}`, `write_unit_tests: true`,
+- [x] `.npmrc` (`ignore-scripts=true`), `.gitignore` (`node_modules`, `output`)
+- [x] `abap_transpile.json`: `input_folder` `{src,test}`, `write_unit_tests: true`,
       `write_source_map: true`, the open-abap-core lib, and `setup` → `test/setup.mjs`
-- [ ] `test/setup.mjs`: connect `SQLiteDatabaseClient` as `DEFAULT`, create the schemas, insert data
-- [ ] Package `src/zsqlite.devc.xml` and one trivial class with one ABAP Unit test
+- [x] `test/setup.mjs`: connect `SQLiteDatabaseClient` as `DEFAULT`, create the schemas, insert data
+- [x] Package `src/zsqlite.devc.xml` and one trivial class with one ABAP Unit test
 
 **Done when:** `npm run unit` runs the trivial test locally and it passes.
 
 #### M0.2 abaplint
 
-- [ ] Add `@abaplint/cli`. Scripts `lint`: `abaplint`, `test`: `npm run lint && npm run unit`
-- [ ] `abaplint.jsonc`: `syntax.version = "open-abap"`, a dependency on open-abap-core, and a
+- [x] Add `@abaplint/cli`. Scripts `lint`: `abaplint`, `test`: `npm run lint && npm run unit`
+- [x] `abaplint.jsonc`: `syntax.version = "open-abap"`, a dependency on open-abap-core, and a
       strict rule set (start from open-abap-bal's config). Target-version checks come in M9.1.
 
 **Done when:** `npm test` passes locally.
 
 #### M0.3 CI and project docs
 
-- [ ] GitHub Actions workflow `test.yml`: checkout, setup-node, `npm install`, `npm test`
-- [ ] README: how to run the tests locally
-- [ ] Create `ANORMALIES.md` (see [Tooling bugs](#tooling-bugs-anormaliesmd))
+- [x] GitHub Actions workflow `test.yml`: checkout, setup-node, `npm install`, `npm test`
+- [x] README: how to run the tests locally
+- [x] Create `ANORMALIES.md` (see [Tooling bugs](#tooling-bugs-anormaliesmd))
 
 **Done when:** CI is green on a PR.
 
 #### M0.4 Persistence table spike
 
-- [ ] `ZSQLITE_FILES` table definition (`.tabl.xml`)
-- [ ] ABAP Unit: `INSERT` / `MODIFY` / `SELECT` / `DELETE` of `RAWSTRING` rows, block sizes
+- [x] `ZSQLITE_FILES` table definition (`.tabl.xml`)
+- [x] ABAP Unit: `INSERT` / `MODIFY` / `SELECT` / `DELETE` of `RAWSTRING` rows, block sizes
       512 B up to 64 KiB, `MODIFY ... FROM TABLE` for many rows
 
 **Done when:** the tests pass, and the maximum block size is decided and written into D2.
 
 #### M0.5 Transaction and locking spike
 
-- [ ] ABAP Unit: `SELECT ... FOR UPDATE`, `COMMIT WORK`, `ROLLBACK WORK` behaviour in the
+- [x] ABAP Unit: `SELECT ... FOR UPDATE`, `COMMIT WORK`, `ROLLBACK WORK` behaviour in the
       transpiler
 
 **Done when:** the behaviour is documented in tests, and D3/D5 are confirmed or revised.
 
 #### M0.6 Language feature spike
 
-- [ ] `int8` arithmetic around ±2^63 boundaries and overflow behaviour
-- [ ] `xstring` slicing (`xstr+off(len)`), `CONCATENATE ... IN BYTE MODE`, `BIT-AND`/`BIT-OR`/`BIT-SHIFT`
+- [x] `int8` arithmetic around ±2^63 boundaries and overflow behaviour
+- [x] `xstring` slicing (`xstr+off(len)`), `CONCATENATE ... IN BYTE MODE`, `BIT-AND`/`BIT-OR`/`BIT-SHIFT`
       equivalents, hex ↔ int conversion
-- [ ] UTF-8 encode/decode with `CL_ABAP_CONV_CODEPAGE`
+- [x] UTF-8 encode/decode with `CL_ABAP_CONV_CODEPAGE`
 
 **Done when:** every feature works, or its gap is recorded in `ANORMALIES.md` with a workaround
 or an upstream issue.
 
 #### M0.7 Performance baseline
 
-- [ ] Small benchmark: 10k xstring slice operations, 1k table row writes, 1k row reads
+- [x] Small benchmark: 10k xstring slice operations, 1k table row writes, 1k row reads
 
 **Done when:** the numbers are written into the README or `ANORMALIES.md`, as a baseline for Phase 8.
 
@@ -200,50 +200,55 @@ or an upstream issue.
 
 #### M1.1 Big-endian integers
 
-- [ ] `ZCL_SQLITE_BYTES`: read/write u8, u16, u24, u32, u48, i64 from/to `xstring` at an offset
+- [x] `ZCL_SQLITE_BYTES`: read/write u8, u16, u24, u32, u48, i64 from/to `xstring` at an offset
 
 **Done when:** round trips and boundary values are tested.
 
 #### M1.2 Varints
 
-- [ ] SQLite varint encode/decode (1–9 bytes, the 9th byte uses all 8 bits), and varint length
+- [x] SQLite varint encode/decode (1–9 bytes, the 9th byte uses all 8 bits), and varint length
 
 **Done when:** the known vectors from the SQLite docs pass, including negative numbers (9 bytes).
 
 #### M1.3 Float64
 
-- [ ] IEEE 754 float64 ↔ `f` conversion (big-endian), handling ±0, ±inf, NaN and subnormals
+- [x] IEEE 754 float64 ↔ `f` conversion (big-endian), handling ±0, ±inf, NaN and subnormals
 
 **Done when:** test vectors produced by sql.js/Node (`DataView`) pass.
 
 #### M1.4 UTF-8
 
-- [ ] `ZCL_SQLITE_UTF8`: string ↔ UTF-8 xstring and byte length
+- [x] `ZCL_SQLITE_UTF8`: string ↔ UTF-8 xstring and byte length
 
 **Done when:** ASCII, multi-byte and 4-byte (surrogate pair) characters round-trip.
 
 #### M1.5 VFS interfaces and memory VFS
 
-- [ ] `ZIF_SQLITE_VFS`: `open( name ) → file`, `exists`, `delete`, `list`, `rename`
-- [ ] `ZIF_SQLITE_FILE`: `read( offset, amount ) → xstring` (short reads are zero-filled and
+- [x] `ZIF_SQLITE_VFS`: `open( name ) → file`, `exists`, `delete`, `list`, `rename`
+- [x] `ZIF_SQLITE_FILE`: `read( offset, amount ) → xstring` (short reads are zero-filled and
       flagged), `write( offset, data )`, `truncate( size )`, `size( )`, `sync( )`,
       `lock( level )` / `unlock( level )`, `close( )`
-- [ ] `ZCL_SQLITE_VFS_MEMORY`: blocks in an internal table. `lock` does nothing.
-- [ ] A shared VFS contract test suite (an abstract test class that any VFS can reuse)
+- [x] `ZCL_SQLITE_VFS_MEMORY`: blocks in an internal table. `lock` does nothing.
+- [x] A shared VFS contract test suite (an abstract test class that any VFS can reuse)
+
+`read` returns `ZIF_SQLITE_FILE=>TY_READ_RESULT` (`data` and `short`) so the zero-filled bytes and
+the short-read flag travel together. The shared suite is `ZCL_SQLITE_VFS_CONTRACT`; a VFS test
+class inherits it and implements `CREATE_VFS`. Offsets and sizes are `i` (a 2 GB file limit),
+matching `xstrlen` and the `INT4` block number in `ZSQLITE_FILES`.
 
 **Done when:** the memory VFS passes the contract tests.
 
 #### M1.6 Table VFS: file I/O
 
-- [ ] `ZCL_SQLITE_VFS_TABLE` on top of `ZSQLITE_FILES`: read, write, truncate, size, with a block
+- [x] `ZCL_SQLITE_VFS_TABLE` on top of `ZSQLITE_FILES`: read, write, truncate, size, with a block
       cache. Writes that cross block boundaries are split.
 
 **Done when:** the table VFS passes the same contract tests.
 
 #### M1.7 Table VFS: file management
 
-- [ ] `exists`, `delete`, `list`, `rename`
-- [ ] `import( name, xstring )` / `export( name ) → xstring`
+- [x] `exists`, `delete`, `list`, `rename`
+- [x] `import( name, xstring )` / `export( name ) → xstring`
 
 **Done when:** a file can be imported, listed, renamed, exported byte-identical, and deleted.
 
@@ -251,17 +256,18 @@ or an upstream issue.
 
 #### M2.1 Fixture pipeline
 
-- [ ] `test/tools/make-fixtures.mjs` (uses sql.js) writes `.db` files and the expected contents as
+- [x] `test/tools/make-fixtures.mjs` (uses sql.js) writes `.db` files and the expected contents as
       JSON. Start with two fixtures: an empty DB and one small table.
-- [ ] `test/setup.mjs` loads the fixtures into `ZSQLITE_FILES` (split into blocks) before the tests run
-- [ ] Decide whether the fixtures are committed or regenerated in CI
+- [x] `test/setup.mjs` loads the fixtures into `ZSQLITE_FILES` (split into blocks) before the tests run
+- [x] Fixtures are committed under `test/fixtures`; CI uses the checked-in files. Run
+      `npm run fixtures` to regenerate them.
 
 **Done when:** an ABAP Unit test can `export( )` a fixture, and its bytes equal the `.db` file.
 
 #### M2.2 Database header
 
-- [ ] `ZCX_SQLITE_ERROR` with SQLite-like result codes (`SQLITE_NOTADB`, `SQLITE_CORRUPT`, …)
-- [ ] `ZCL_SQLITE_HEADER`: parse and validate the 100-byte header (magic, page size encoding
+- [x] `ZCX_SQLITE_ERROR` with SQLite-like result codes (`SQLITE_NOTADB`, `SQLITE_CORRUPT`, …)
+- [x] `ZCL_SQLITE_HEADER`: parse and validate the 100-byte header (magic, page size encoding
       `1 = 65536`, reserved bytes, change counter, schema cookie, text encoding, freelist, …)
 
 **Done when:** the fixture headers parse to the values `PRAGMA`s report in sql.js. Bad magic and
@@ -269,53 +275,55 @@ a bad page size raise errors.
 
 #### M2.3 Read-only pager
 
-- [ ] `ZCL_SQLITE_PAGER`: fetch a page by number, LRU page cache, page 1 offset quirk (100 bytes)
+- [x] `ZCL_SQLITE_PAGER`: fetch a page by number, LRU page cache, page 1 offset quirk (100 bytes);
+      `three_pages.db` fixture for cache eviction tests
 
 **Done when:** pages can be fetched, and cache hits and evictions are tested.
 
 #### M2.4 B-tree pages
 
-- [ ] `ZCL_SQLITE_PAGE`: b-tree page header, cell pointer array, the 4 page types
-      (table/index × leaf/interior), right-most pointer, freeblocks
+- [x] `ZCL_SQLITE_PAGE`: b-tree page header, cell pointer array, the 4 page types
+      (table/index × leaf/interior), right-most pointer, freeblocks; `indexed.db`
+      fixture covers all 4 page types
 
 **Done when:** every page in the fixtures is classified and its cell count is correct.
 
 #### M2.5 Records and values
 
-- [ ] `ZCL_SQLITE_VALUE`: dynamic value type (NULL / INTEGER / REAL / TEXT / BLOB)
-- [ ] `ZCL_SQLITE_RECORD`: decode the record header and serial types 0–9, ≥12 (blob), ≥13 (text)
+- [x] `ZCL_SQLITE_VALUE`: dynamic value type (NULL / INTEGER / REAL / TEXT / BLOB)
+- [x] `ZCL_SQLITE_RECORD`: decode the record header and serial types 0–9, ≥12 (blob), ≥13 (text)
 
 **Done when:** a fixture with every serial type decodes correctly.
 
 #### M2.6 Table cursor
 
-- [ ] `ZCL_SQLITE_CURSOR` for table b-trees: `first`, `next`, `seek( rowid )`, across
+- [x] `ZCL_SQLITE_CURSOR` for table b-trees: `first`, `next`, `seek( rowid )`, across
       multi-level trees (no overflow yet)
 
 **Done when:** a 10k-row fixture is scanned in rowid order, and point seeks work.
 
 #### M2.7 Overflow pages
 
-- [ ] Local payload size calculation (`X`, `M`, `K` formulas from the spec), overflow chain reassembly
+- [x] Local payload size calculation (`X`, `M`, `K` formulas from the spec), overflow chain reassembly
 
 **Done when:** fixtures with large TEXT/BLOB values (just over the threshold and multi-page) decode correctly.
 
 #### M2.8 Index cursor
 
-- [ ] Index b-tree traversal: `first`, `next`, `seek( key prefix )`. Record comparison uses
+- [x] Index b-tree traversal: `first`, `next`, `seek( key prefix )`. Record comparison uses
       BINARY collation for now.
 
 **Done when:** index entries from the fixtures match the JSON and come back in index order.
 
 #### M2.9 Raw schema
 
-- [ ] Read `sqlite_schema` (page 1) into a raw catalog: type, name, tbl_name, rootpage, sql
+- [x] Read `sqlite_schema` (page 1) into a raw catalog: type, name, tbl_name, rootpage, sql
 
 **Done when:** the raw catalog equals `SELECT * FROM sqlite_schema` from sql.js for all fixtures.
 
 #### M2.10 Fixture breadth
 
-- [ ] Add fixtures: page sizes 512…65536, freelist pages, auto-vacuum (ptrmap pages),
+- [x] Add fixtures: page sizes 512…65536, freelist pages, auto-vacuum (ptrmap pages),
       `WITHOUT ROWID` tables, NULLs, many indexes
 
 **Done when:** for every fixture, all rows of all tables and indexes decode and match the JSON.
@@ -324,7 +332,7 @@ a bad page size raise errors.
 
 #### M3.1 Tokenizer
 
-- [ ] `ZCL_SQLITE_TOKENIZER`: the full SQLite token set (keywords, identifiers in `"…"`, `[…]`
+- [x] `ZCL_SQLITE_TOKENIZER`: the full SQLite token set (keywords, identifiers in `"…"`, `[…]`
       and `` `…` ``, string/blob literals `X'…'`, numbers including hex, comments, parameters
       `?`, `?NNN`, `:name`, `@name`, `$name`), with token positions
 
@@ -332,8 +340,8 @@ a bad page size raise errors.
 
 #### M3.2 Expressions
 
-- [ ] AST node classes and a debug dump (normalized text form)
-- [ ] `ZCL_SQLITE_PARSER`: hand-written Pratt parser for expressions, following SQLite operator
+- [x] AST node classes and a debug dump (normalized text form)
+- [x] `ZCL_SQLITE_PARSER`: hand-written Pratt parser for expressions, following SQLite operator
       precedence: literals, columns (`schema.table.col`), unary/binary ops, `||`, `IS [NOT]`,
       `[NOT] IN (list)`, `[NOT] BETWEEN`, `[NOT] LIKE/GLOB [ESCAPE]`, `CASE`, `CAST`, function
       calls with `DISTINCT` / `*`, `COLLATE`, parameters

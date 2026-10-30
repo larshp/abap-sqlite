@@ -1,0 +1,387 @@
+{
+  "pragmas": {
+    "page_size": 65536,
+    "page_count": 3,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "items",
+      "sql": "CREATE TABLE items (id INTEGER NOT NULL, value TEXT NOT NULL)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "value",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "page-65536-001-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          2,
+          "page-65536-002-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          3,
+          "page-65536-003-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          4,
+          "page-65536-004-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          5,
+          "page-65536-005-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          6,
+          "page-65536-006-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          7,
+          "page-65536-007-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          8,
+          "page-65536-008-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          9,
+          "page-65536-009-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          10,
+          "page-65536-010-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          11,
+          "page-65536-011-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          12,
+          "page-65536-012-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          13,
+          "page-65536-013-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          14,
+          "page-65536-014-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          15,
+          "page-65536-015-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          16,
+          "page-65536-016-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          17,
+          "page-65536-017-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          18,
+          "page-65536-018-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          19,
+          "page-65536-019-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          20,
+          "page-65536-020-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          21,
+          "page-65536-021-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          22,
+          "page-65536-022-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          23,
+          "page-65536-023-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          24,
+          "page-65536-024-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          25,
+          "page-65536-025-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          26,
+          "page-65536-026-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          27,
+          "page-65536-027-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          28,
+          "page-65536-028-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          29,
+          "page-65536-029-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          30,
+          "page-65536-030-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          31,
+          "page-65536-031-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          32,
+          "page-65536-032-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          33,
+          "page-65536-033-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          34,
+          "page-65536-034-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          35,
+          "page-65536-035-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          36,
+          "page-65536-036-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          37,
+          "page-65536-037-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          38,
+          "page-65536-038-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          39,
+          "page-65536-039-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          40,
+          "page-65536-040-xxxxxxxxxxxxxxxxxxxx"
+        ]
+      ]
+    }
+  ],
+  "indexes": [
+    {
+      "name": "items_value",
+      "table": "items",
+      "sql": "CREATE INDEX items_value ON items(value)",
+      "columns": [
+        "value"
+      ],
+      "entries": [
+        [
+          "page-65536-001-xxxxxxxxxxxxxxxxxxxx",
+          1
+        ],
+        [
+          "page-65536-002-xxxxxxxxxxxxxxxxxxxx",
+          2
+        ],
+        [
+          "page-65536-003-xxxxxxxxxxxxxxxxxxxx",
+          3
+        ],
+        [
+          "page-65536-004-xxxxxxxxxxxxxxxxxxxx",
+          4
+        ],
+        [
+          "page-65536-005-xxxxxxxxxxxxxxxxxxxx",
+          5
+        ],
+        [
+          "page-65536-006-xxxxxxxxxxxxxxxxxxxx",
+          6
+        ],
+        [
+          "page-65536-007-xxxxxxxxxxxxxxxxxxxx",
+          7
+        ],
+        [
+          "page-65536-008-xxxxxxxxxxxxxxxxxxxx",
+          8
+        ],
+        [
+          "page-65536-009-xxxxxxxxxxxxxxxxxxxx",
+          9
+        ],
+        [
+          "page-65536-010-xxxxxxxxxxxxxxxxxxxx",
+          10
+        ],
+        [
+          "page-65536-011-xxxxxxxxxxxxxxxxxxxx",
+          11
+        ],
+        [
+          "page-65536-012-xxxxxxxxxxxxxxxxxxxx",
+          12
+        ],
+        [
+          "page-65536-013-xxxxxxxxxxxxxxxxxxxx",
+          13
+        ],
+        [
+          "page-65536-014-xxxxxxxxxxxxxxxxxxxx",
+          14
+        ],
+        [
+          "page-65536-015-xxxxxxxxxxxxxxxxxxxx",
+          15
+        ],
+        [
+          "page-65536-016-xxxxxxxxxxxxxxxxxxxx",
+          16
+        ],
+        [
+          "page-65536-017-xxxxxxxxxxxxxxxxxxxx",
+          17
+        ],
+        [
+          "page-65536-018-xxxxxxxxxxxxxxxxxxxx",
+          18
+        ],
+        [
+          "page-65536-019-xxxxxxxxxxxxxxxxxxxx",
+          19
+        ],
+        [
+          "page-65536-020-xxxxxxxxxxxxxxxxxxxx",
+          20
+        ],
+        [
+          "page-65536-021-xxxxxxxxxxxxxxxxxxxx",
+          21
+        ],
+        [
+          "page-65536-022-xxxxxxxxxxxxxxxxxxxx",
+          22
+        ],
+        [
+          "page-65536-023-xxxxxxxxxxxxxxxxxxxx",
+          23
+        ],
+        [
+          "page-65536-024-xxxxxxxxxxxxxxxxxxxx",
+          24
+        ],
+        [
+          "page-65536-025-xxxxxxxxxxxxxxxxxxxx",
+          25
+        ],
+        [
+          "page-65536-026-xxxxxxxxxxxxxxxxxxxx",
+          26
+        ],
+        [
+          "page-65536-027-xxxxxxxxxxxxxxxxxxxx",
+          27
+        ],
+        [
+          "page-65536-028-xxxxxxxxxxxxxxxxxxxx",
+          28
+        ],
+        [
+          "page-65536-029-xxxxxxxxxxxxxxxxxxxx",
+          29
+        ],
+        [
+          "page-65536-030-xxxxxxxxxxxxxxxxxxxx",
+          30
+        ],
+        [
+          "page-65536-031-xxxxxxxxxxxxxxxxxxxx",
+          31
+        ],
+        [
+          "page-65536-032-xxxxxxxxxxxxxxxxxxxx",
+          32
+        ],
+        [
+          "page-65536-033-xxxxxxxxxxxxxxxxxxxx",
+          33
+        ],
+        [
+          "page-65536-034-xxxxxxxxxxxxxxxxxxxx",
+          34
+        ],
+        [
+          "page-65536-035-xxxxxxxxxxxxxxxxxxxx",
+          35
+        ],
+        [
+          "page-65536-036-xxxxxxxxxxxxxxxxxxxx",
+          36
+        ],
+        [
+          "page-65536-037-xxxxxxxxxxxxxxxxxxxx",
+          37
+        ],
+        [
+          "page-65536-038-xxxxxxxxxxxxxxxxxxxx",
+          38
+        ],
+        [
+          "page-65536-039-xxxxxxxxxxxxxxxxxxxx",
+          39
+        ],
+        [
+          "page-65536-040-xxxxxxxxxxxxxxxxxxxx",
+          40
+        ]
+      ]
+    }
+  ],
+  "schema": [
+    {
+      "type": "table",
+      "name": "items",
+      "tbl_name": "items",
+      "rootpage": 2,
+      "sql": "CREATE TABLE items (id INTEGER NOT NULL, value TEXT NOT NULL)"
+    },
+    {
+      "type": "index",
+      "name": "items_value",
+      "tbl_name": "items",
+      "rootpage": 3,
+      "sql": "CREATE INDEX items_value ON items(value)"
+    }
+  ]
+}
