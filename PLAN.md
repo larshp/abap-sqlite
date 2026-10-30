@@ -332,7 +332,7 @@ a bad page size raise errors.
 
 #### M3.1 Tokenizer
 
-- [ ] `ZCL_SQLITE_TOKENIZER`: the full SQLite token set (keywords, identifiers in `"…"`, `[…]`
+- [x] `ZCL_SQLITE_TOKENIZER`: the full SQLite token set (keywords, identifiers in `"…"`, `[…]`
       and `` `…` ``, string/blob literals `X'…'`, numbers including hex, comments, parameters
       `?`, `?NNN`, `:name`, `@name`, `$name`), with token positions
 

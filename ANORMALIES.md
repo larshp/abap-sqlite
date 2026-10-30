@@ -325,6 +325,29 @@ for the hex literal.
 **Workaround:** pass quoted character literals and let the formal parameter convert them
 (`real_value( '1.5' )`, `blob_value( '01' )` in the catalog tests, search tag `ANORMALY:`).
 
+## String and character literal comparison trims blanks
+
+- **Component:** @abaplint/runtime
+- **Version:** @abaplint/runtime 2.14.13, open-abap-core f735eed652288c8ed85b3083a187cc3e7e4a9b97
+- **Found in:** M3.1 `src/sql/zcl_sqlite_tokenizer.clas.abap`
+- **Status:** open
+- **Upstream:** none yet
+
+```abap
+DATA lv_char TYPE string.
+lv_char = | |.
+IF lv_char = ' '.
+  " not reached in the transpiler
+ENDIF.
+```
+
+Expected: a string containing one space equals the character literal `' '`. Actual: `eq` compares
+the string with `getTrimEnd()` of the character operand, so the right side becomes empty and the
+comparison is false.
+
+**Workaround:** compare with a string literal (`| |` or a backtick literal). Search tag
+`ANORMALY:` in `zcl_sqlite_tokenizer`.
+
 ## Closed entries
 
 None yet.
