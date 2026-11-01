@@ -364,7 +364,7 @@ a bad page size raise errors.
 
 #### M3.5 SELECT advanced
 
-- [ ] Compound selects, `WITH [RECURSIVE]` CTEs, subqueries in expressions (`IN (SELECT …)`,
+- [x] Compound selects, `WITH [RECURSIVE]` CTEs, subqueries in expressions (`IN (SELECT …)`,
       `EXISTS`, scalar) and in `FROM`
 
 **Done when:** an advanced corpus parses to the expected dumps.

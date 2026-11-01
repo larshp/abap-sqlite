@@ -8,8 +8,9 @@ CLASS zcl_sqlite_ast_in DEFINITION
   PUBLIC SECTION.
     METHODS constructor
       IMPORTING io_expression TYPE REF TO zcl_sqlite_ast_node
-                it_values     TYPE zcl_sqlite_ast_node=>ty_nodes
-                iv_negated    TYPE abap_bool DEFAULT abap_false.
+                it_values     TYPE zcl_sqlite_ast_node=>ty_nodes OPTIONAL
+                iv_negated    TYPE abap_bool DEFAULT abap_false
+                io_select     TYPE REF TO zcl_sqlite_ast_node OPTIONAL.
 
     METHODS dump REDEFINITION.
 
@@ -17,6 +18,7 @@ CLASS zcl_sqlite_ast_in DEFINITION
     DATA mo_expression TYPE REF TO zcl_sqlite_ast_node.
     DATA mt_values     TYPE zcl_sqlite_ast_node=>ty_nodes.
     DATA mv_negated    TYPE abap_bool.
+    DATA mo_select     TYPE REF TO zcl_sqlite_ast_node.
 
 ENDCLASS.
 
@@ -27,6 +29,7 @@ CLASS zcl_sqlite_ast_in IMPLEMENTATION.
     mo_expression = io_expression.
     mt_values = it_values.
     mv_negated = iv_negated.
+    mo_select = io_select.
   ENDMETHOD.
 
   METHOD dump.
@@ -39,7 +42,11 @@ CLASS zcl_sqlite_ast_in IMPLEMENTATION.
       lv_operator = 'IN'.
     ENDIF.
 
-    lv_values = dump_nodes( mt_values ).
+    IF mo_select IS BOUND.
+      lv_values = mo_select->dump( ).
+    ELSE.
+      lv_values = dump_nodes( mt_values ).
+    ENDIF.
     rv_text = |{ lv_operator }({ mo_expression->dump( ) }|.
     IF lv_values IS NOT INITIAL.
       " ANORMALY: character literals lose trailing blanks when concatenated

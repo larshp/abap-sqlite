@@ -20,6 +20,10 @@ CLASS ltcl_parser DEFINITION FINAL FOR TESTING
     METHODS select_joins FOR TESTING RAISING zcx_sqlite_error.
     METHODS select_values FOR TESTING RAISING zcx_sqlite_error.
     METHODS select_errors FOR TESTING.
+    METHODS select_compound FOR TESTING RAISING zcx_sqlite_error.
+    METHODS select_with FOR TESTING RAISING zcx_sqlite_error.
+    METHODS select_subqueries FOR TESTING RAISING zcx_sqlite_error.
+    METHODS select_advanced_errors FOR TESTING.
 
     METHODS assert_parse
       IMPORTING iv_sql      TYPE string
@@ -450,6 +454,126 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_error( |VALUES (1| ).
     assert_statement_error( |VALUES (1,)| ).
     assert_statement_error( |VALUES (1) (2)| ).
+  ENDMETHOD.
+
+  METHOD select_compound.
+    assert_statement_parse(
+      iv_sql = |SELECT 1 UNION SELECT 2|
+      iv_expected = |SELECT INTEGER(1) UNION SELECT INTEGER(2)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT 1 UNION ALL SELECT 2 INTERSECT SELECT 3 EXCEPT SELECT 4|
+      iv_expected = |SELECT INTEGER(1) UNION ALL SELECT INTEGER(2) INTERSECT SELECT INTEGER(3) EXCEPT SELECT INTEGER(4)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT a FROM t UNION SELECT a FROM u ORDER BY a DESC LIMIT 5 OFFSET 2|
+      iv_expected = |SELECT COLUMN(a) FROM t UNION SELECT COLUMN(a) FROM u ORDER BY COLUMN(a) DESC LIMIT INTEGER(5) OFFSET INTEGER(2)| ).
+    assert_statement_parse(
+      iv_sql = |(SELECT 1 UNION SELECT 2) EXCEPT SELECT 3|
+      iv_expected = |(SELECT INTEGER(1) UNION SELECT INTEGER(2)) EXCEPT SELECT INTEGER(3)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT 1 UNION (SELECT 2 ORDER BY 1 LIMIT 1)|
+      iv_expected = |SELECT INTEGER(1) UNION (SELECT INTEGER(2) ORDER BY INTEGER(1) LIMIT INTEGER(1))| ).
+    assert_statement_parse(
+      iv_sql = |VALUES (1) UNION SELECT 2|
+      iv_expected = |VALUES (INTEGER(1)) UNION SELECT INTEGER(2)| ).
+    assert_statement_parse(
+      iv_sql = |VALUES (1), (2) ORDER BY 1|
+      iv_expected = |VALUES (INTEGER(1)), (INTEGER(2)) ORDER BY INTEGER(1)| ).
+    assert_statement_parse(
+      iv_sql = |VALUES (1) LIMIT 2|
+      iv_expected = |VALUES (INTEGER(1)) LIMIT INTEGER(2)| ).
+  ENDMETHOD.
+
+  METHOD select_with.
+    assert_statement_parse(
+      iv_sql = |WITH cte AS (SELECT 1) SELECT * FROM cte|
+      iv_expected = |WITH cte AS (SELECT INTEGER(1)) SELECT STAR FROM cte| ).
+    assert_statement_parse(
+      iv_sql = |WITH cte(x, y) AS (SELECT 1, 2) SELECT x FROM cte|
+      iv_expected = |WITH cte (x, y) AS (SELECT INTEGER(1), INTEGER(2)) SELECT COLUMN(x) FROM cte| ).
+    assert_statement_parse(
+      iv_sql = |WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM cnt WHERE x < 10) SELECT x FROM cnt|
+      iv_expected = |WITH RECURSIVE cnt (x) AS (SELECT INTEGER(1) UNION ALL SELECT BINARY(+, COLUMN(x), INTEGER(1)) FROM cnt WHERE BINARY(<, COLUMN(x), INTEGER(10))) SELECT COLUMN(x) FROM cnt| ).
+    assert_statement_parse(
+      iv_sql = |WITH a AS (SELECT 1), b AS (SELECT 2) SELECT * FROM a, b|
+      iv_expected = |WITH a AS (SELECT INTEGER(1)), b AS (SELECT INTEGER(2)) SELECT STAR FROM a, b| ).
+    assert_statement_parse(
+      iv_sql = |WITH cte AS NOT MATERIALIZED (SELECT 1) SELECT * FROM cte|
+      iv_expected = |WITH cte AS NOT MATERIALIZED (SELECT INTEGER(1)) SELECT STAR FROM cte| ).
+    assert_statement_parse(
+      iv_sql = |WITH cte AS (SELECT 1 UNION SELECT 2) SELECT * FROM cte|
+      iv_expected = |WITH cte AS (SELECT INTEGER(1) UNION SELECT INTEGER(2)) SELECT STAR FROM cte| ).
+    assert_statement_parse(
+      iv_sql = |WITH a AS (WITH b AS (SELECT 1) SELECT * FROM b) SELECT * FROM a|
+      iv_expected = |WITH a AS (WITH b AS (SELECT INTEGER(1)) SELECT STAR FROM b) SELECT STAR FROM a| ).
+  ENDMETHOD.
+
+  METHOD select_subqueries.
+    assert_statement_parse(
+      iv_sql = |SELECT (SELECT max(x) FROM t) AS m|
+      iv_expected = |SELECT SUBQUERY(SELECT FUNCTION(max, COLUMN(x)) FROM t) AS m| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM t WHERE a IN (SELECT b FROM u)|
+      iv_expected = |SELECT STAR FROM t WHERE IN(COLUMN(a), SELECT COLUMN(b) FROM u)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM t WHERE a NOT IN (SELECT b FROM u WHERE c = 1)|
+      iv_expected = |SELECT STAR FROM t WHERE NOT_IN(COLUMN(a), SELECT COLUMN(b) FROM u WHERE BINARY(=, COLUMN(c), INTEGER(1)))| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM t WHERE EXISTS (SELECT 1 FROM u)|
+      iv_expected = |SELECT STAR FROM t WHERE EXISTS(SELECT INTEGER(1) FROM u)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM t WHERE NOT EXISTS (SELECT 1)|
+      iv_expected = |SELECT STAR FROM t WHERE UNARY(NOT, EXISTS(SELECT INTEGER(1)))| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM (SELECT a FROM t) AS x|
+      iv_expected = |SELECT STAR FROM (SELECT COLUMN(a) FROM t) AS x| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM (SELECT a FROM t) x JOIN u ON x.a = u.a|
+      iv_expected = |SELECT STAR FROM (SELECT COLUMN(a) FROM t) AS x INNER JOIN u ON BINARY(=, COLUMN(x.a), COLUMN(u.a))| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM (SELECT 1 UNION SELECT 2) AS x|
+      iv_expected = |SELECT STAR FROM (SELECT INTEGER(1) UNION SELECT INTEGER(2)) AS x| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM (WITH cte AS (SELECT 1) SELECT * FROM cte) AS x|
+      iv_expected = |SELECT STAR FROM (WITH cte AS (SELECT INTEGER(1)) SELECT STAR FROM cte) AS x| ).
+    assert_statement_parse(
+      iv_sql = |SELECT (SELECT 1 UNION SELECT 2)|
+      iv_expected = |SELECT SUBQUERY(SELECT INTEGER(1) UNION SELECT INTEGER(2))| ).
+    assert_statement_parse(
+      iv_sql = |SELECT (VALUES (1))|
+      iv_expected = |SELECT SUBQUERY(VALUES (INTEGER(1)))| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM t WHERE a IN (WITH cte AS (SELECT b FROM u) SELECT b FROM cte)|
+      iv_expected = |SELECT STAR FROM t WHERE IN(COLUMN(a), WITH cte AS (SELECT COLUMN(b) FROM u) SELECT COLUMN(b) FROM cte)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM t WHERE EXISTS (SELECT 1 UNION SELECT 2)|
+      iv_expected = |SELECT STAR FROM t WHERE EXISTS(SELECT INTEGER(1) UNION SELECT INTEGER(2))| ).
+  ENDMETHOD.
+
+  METHOD select_advanced_errors.
+    assert_statement_error( |SELECT 1 UNION| ).
+    assert_statement_error( |SELECT 1 UNION ALL| ).
+    assert_statement_error( |SELECT 1 UNION DISTINCT SELECT 2| ).
+    assert_statement_error( |SELECT 1 INTERSECT| ).
+    assert_statement_error( |SELECT 1 UNION (SELECT 2| ).
+    assert_statement_error( |SELECT 1 UNION ()| ).
+    assert_statement_error( |WITH| ).
+    assert_statement_error( |WITH RECURSIVE| ).
+    assert_statement_error( |WITH cte AS| ).
+    assert_statement_error( |WITH cte AS ()| ).
+    assert_statement_error( |WITH cte AS (SELECT 1)| ).
+    assert_statement_error( |WITH cte AS (SELECT 1), SELECT 2| ).
+    assert_statement_error( |WITH cte(x,) AS (SELECT 1) SELECT * FROM cte| ).
+    assert_statement_error( |WITH cte AS MATERIALIZED SELECT 1| ).
+    assert_statement_error( |WITH cte AS NOT (SELECT 1) SELECT * FROM cte| ).
+    assert_statement_error( |SELECT * FROM (SELECT 1| ).
+    assert_statement_error( |SELECT * FROM ()| ).
+    assert_statement_error( |SELECT * FROM (SELECT 1) AS| ).
+    assert_statement_error( |SELECT (SELECT 1| ).
+    assert_statement_error( |SELECT EXISTS| ).
+    assert_statement_error( |SELECT EXISTS (1)| ).
+    assert_statement_error( |SELECT * FROM t WHERE a IN (SELECT 1| ).
+    assert_statement_error( |VALUES (1) ORDER| ).
+    assert_statement_error( |VALUES (1) LIMIT| ).
   ENDMETHOD.
 
   METHOD assert_parse.

@@ -24,6 +24,12 @@ CLASS zcl_sqlite_ast_select DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS with_tail
+      IMPORTING it_order_by      TYPE ty_order_by OPTIONAL
+                io_limit         TYPE REF TO zcl_sqlite_ast_node OPTIONAL
+                io_offset        TYPE REF TO zcl_sqlite_ast_node OPTIONAL
+      RETURNING VALUE(ro_select) TYPE REF TO zcl_sqlite_ast_select.
+
   PRIVATE SECTION.
     DATA mv_distinct TYPE abap_bool.
     DATA mt_columns  TYPE ty_columns.
@@ -56,6 +62,19 @@ CLASS zcl_sqlite_ast_select IMPLEMENTATION.
     mt_order_by = it_order_by.
     mo_limit = io_limit.
     mo_offset = io_offset.
+  ENDMETHOD.
+
+  METHOD with_tail.
+    ro_select = NEW zcl_sqlite_ast_select(
+      iv_distinct = mv_distinct
+      it_columns  = mt_columns
+      it_from     = mt_from
+      io_where    = mo_where
+      it_group_by = mt_group_by
+      io_having   = mo_having
+      it_order_by = it_order_by
+      io_limit    = io_limit
+      io_offset   = io_offset ).
   ENDMETHOD.
 
   METHOD dump.

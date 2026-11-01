@@ -41,6 +41,12 @@ CLASS zcl_sqlite_parser DEFINITION
       c_prec_collate    TYPE i VALUE 10,
       c_prec_unary      TYPE i VALUE 11.
 
+    TYPES: BEGIN OF ty_select_tail,
+             mt_order_by TYPE zcl_sqlite_ast_order_by=>ty_list,
+             mo_limit    TYPE REF TO zcl_sqlite_ast_node,
+             mo_offset   TYPE REF TO zcl_sqlite_ast_node,
+           END OF ty_select_tail.
+
     DATA mt_tokens TYPE zcl_sqlite_tokenizer=>ty_tokens.
     DATA mv_index TYPE i.
 
@@ -61,6 +67,10 @@ CLASS zcl_sqlite_parser DEFINITION
       RAISING   zcx_sqlite_error.
 
     METHODS parse_parenthesized
+      RETURNING VALUE(ro_node) TYPE REF TO zcl_sqlite_ast_node
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_exists
       RETURNING VALUE(ro_node) TYPE REF TO zcl_sqlite_ast_node
       RAISING   zcx_sqlite_error.
 
@@ -145,9 +155,32 @@ CLASS zcl_sqlite_parser DEFINITION
       RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_drop
       RAISING   zcx_sqlite_error.
 
-    METHODS parse_select
+    METHODS parse_select_statement
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_select_core
       RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_select
       RAISING   zcx_sqlite_error.
+
+    METHODS parse_select_tail
+      RETURNING VALUE(rs_tail) TYPE ty_select_tail
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_parenthesized_select
+      RETURNING VALUE(ro_ref) TYPE REF TO zcl_sqlite_ast_subquery_ref
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_with
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_with
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_cte
+      RETURNING VALUE(ro_cte) TYPE REF TO zcl_sqlite_ast_cte
+      RAISING   zcx_sqlite_error.
+
+    METHODS is_select_start
+      RETURNING VALUE(rv_result) TYPE abap_bool.
 
     METHODS parse_values
       RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_values
@@ -182,7 +215,7 @@ CLASS zcl_sqlite_parser DEFINITION
       RAISING   zcx_sqlite_error.
 
     METHODS parse_table_ref
-      RETURNING VALUE(ro_ref) TYPE REF TO zcl_sqlite_ast_table_ref
+      RETURNING VALUE(ro_ref) TYPE REF TO zcl_sqlite_ast_node
       RAISING   zcx_sqlite_error.
 
     METHODS parse_join
@@ -384,12 +417,13 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       ro_statement = lo_parser->parse_create( ).
     ELSEIF lo_parser->is_keyword( 'DROP' ) = abap_true.
       ro_statement = lo_parser->parse_drop( ).
-    ELSEIF lo_parser->is_keyword( 'SELECT' ) = abap_true.
-      ro_statement = lo_parser->parse_select( ).
-    ELSEIF lo_parser->is_keyword( 'VALUES' ) = abap_true.
-      ro_statement = lo_parser->parse_values( ).
+    ELSEIF lo_parser->is_keyword( 'SELECT' ) = abap_true
+        OR lo_parser->is_keyword( 'VALUES' ) = abap_true
+        OR lo_parser->is_keyword( 'WITH' ) = abap_true
+        OR lo_parser->is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      ro_statement = lo_parser->parse_select_statement( ).
     ELSE.
-      lo_parser->fail( 'expected CREATE, DROP, SELECT or VALUES' ).
+      lo_parser->fail( 'expected CREATE, DROP, SELECT, VALUES or WITH' ).
     ENDIF.
 
     WHILE lo_parser->is_kind( zcl_sqlite_tokenizer=>c_semicolon ) = abap_true.
@@ -550,16 +584,101 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       iv_if_exists   = lv_if_exists ).
   ENDMETHOD.
 
-  METHOD parse_select.
+  METHOD parse_select_statement.
+    DATA lo_select   TYPE REF TO zcl_sqlite_ast_select.
+    DATA lo_values   TYPE REF TO zcl_sqlite_ast_values.
+    DATA lo_body     TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_right    TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_compound TYPE REF TO zcl_sqlite_ast_compound.
+    DATA lv_kind     TYPE string.
+    DATA lv_operator TYPE string.
+    DATA lv_all      TYPE abap_bool.
+    DATA ls_tail     TYPE ty_select_tail.
+
+    IF is_keyword( 'WITH' ) = abap_true.
+      ro_statement = parse_with( ).
+      RETURN.
+    ENDIF.
+
+    IF is_keyword( 'SELECT' ) = abap_true.
+      lo_select = parse_select_core( ).
+      lo_body = lo_select.
+      lv_kind = 'SELECT'.
+    ELSEIF is_keyword( 'VALUES' ) = abap_true.
+      lo_values = parse_values( ).
+      lo_body = lo_values.
+      lv_kind = 'VALUES'.
+    ELSEIF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      lo_body = parse_parenthesized_select( ).
+      lv_kind = 'PAREN'.
+    ELSE.
+      fail( 'expected SELECT or VALUES' ).
+    ENDIF.
+
+    WHILE is_keyword( 'UNION' ) = abap_true
+        OR is_keyword( 'INTERSECT' ) = abap_true
+        OR is_keyword( 'EXCEPT' ) = abap_true.
+      lv_operator = current( )-value.
+      lv_all = abap_false.
+      advance( ).
+      IF lv_operator = 'UNION' AND is_keyword( 'ALL' ) = abap_true.
+        lv_all = abap_true.
+        advance( ).
+      ENDIF.
+
+      IF is_keyword( 'SELECT' ) = abap_true.
+        lo_right = parse_select_core( ).
+      ELSEIF is_keyword( 'VALUES' ) = abap_true.
+        lo_right = parse_values( ).
+      ELSEIF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+        lo_right = parse_parenthesized_select( ).
+      ELSE.
+        fail( 'expected SELECT or VALUES after compound operator' ).
+      ENDIF.
+
+      lo_compound = NEW zcl_sqlite_ast_compound(
+        io_left     = lo_body
+        iv_operator = lv_operator
+        iv_all      = lv_all
+        io_right    = lo_right ).
+      lo_body = lo_compound.
+      lv_kind = 'COMPOUND'.
+    ENDWHILE.
+
+    ls_tail = parse_select_tail( ).
+    CASE lv_kind.
+      WHEN 'SELECT'.
+        ro_statement = lo_select->with_tail(
+          it_order_by = ls_tail-mt_order_by
+          io_limit    = ls_tail-mo_limit
+          io_offset   = ls_tail-mo_offset ).
+      WHEN 'VALUES'.
+        ro_statement = lo_values->with_tail(
+          it_order_by = ls_tail-mt_order_by
+          io_limit    = ls_tail-mo_limit
+          io_offset   = ls_tail-mo_offset ).
+      WHEN 'COMPOUND'.
+        ro_statement = lo_compound->with_tail(
+          it_order_by = ls_tail-mt_order_by
+          io_limit    = ls_tail-mo_limit
+          io_offset   = ls_tail-mo_offset ).
+      WHEN OTHERS.
+        IF lines( ls_tail-mt_order_by ) > 0
+            OR ls_tail-mo_limit IS BOUND
+            OR ls_tail-mo_offset IS BOUND.
+          fail( 'unexpected ORDER BY or LIMIT after parenthesized select' ).
+        ENDIF.
+        ro_statement = lo_body.
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD parse_select_core.
     DATA lv_distinct TYPE abap_bool.
     DATA lt_columns  TYPE zcl_sqlite_ast_result_column=>ty_list.
     DATA lt_from     TYPE zcl_sqlite_ast_node=>ty_nodes.
     DATA lo_where    TYPE REF TO zcl_sqlite_ast_node.
     DATA lt_group_by TYPE zcl_sqlite_ast_node=>ty_nodes.
     DATA lo_having   TYPE REF TO zcl_sqlite_ast_node.
-    DATA lt_order_by TYPE zcl_sqlite_ast_order_by=>ty_list.
-    DATA lo_limit    TYPE REF TO zcl_sqlite_ast_node.
-    DATA lo_offset   TYPE REF TO zcl_sqlite_ast_node.
 
     expect_keyword( 'SELECT' ).
     IF is_keyword( 'DISTINCT' ) = abap_true.
@@ -588,24 +707,6 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       advance( ).
       lo_having = parse_expression_internal( 0 ).
     ENDIF.
-    IF is_keyword( 'ORDER' ) = abap_true.
-      advance( ).
-      expect_keyword( 'BY' ).
-      lt_order_by = parse_order_by_list( ).
-    ENDIF.
-    IF is_keyword( 'LIMIT' ) = abap_true.
-      advance( ).
-      lo_limit = parse_expression_internal( 0 ).
-      IF is_kind( zcl_sqlite_tokenizer=>c_comma ) = abap_true.
-        advance( ).
-        lo_offset = lo_limit.
-        lo_limit = parse_expression_internal( 0 ).
-      ENDIF.
-      IF is_keyword( 'OFFSET' ) = abap_true.
-        advance( ).
-        lo_offset = parse_expression_internal( 0 ).
-      ENDIF.
-    ENDIF.
 
     ro_statement = NEW zcl_sqlite_ast_select(
       iv_distinct = lv_distinct
@@ -613,10 +714,109 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       it_from     = lt_from
       io_where    = lo_where
       it_group_by = lt_group_by
-      io_having   = lo_having
-      it_order_by = lt_order_by
-      io_limit    = lo_limit
-      io_offset   = lo_offset ).
+      io_having   = lo_having ).
+  ENDMETHOD.
+
+  METHOD parse_select_tail.
+    IF is_keyword( 'ORDER' ) = abap_true.
+      advance( ).
+      expect_keyword( 'BY' ).
+      rs_tail-mt_order_by = parse_order_by_list( ).
+    ENDIF.
+    IF is_keyword( 'LIMIT' ) = abap_true.
+      advance( ).
+      rs_tail-mo_limit = parse_expression_internal( 0 ).
+      IF is_kind( zcl_sqlite_tokenizer=>c_comma ) = abap_true.
+        advance( ).
+        rs_tail-mo_offset = rs_tail-mo_limit.
+        rs_tail-mo_limit = parse_expression_internal( 0 ).
+      ENDIF.
+      IF is_keyword( 'OFFSET' ) = abap_true.
+        advance( ).
+        rs_tail-mo_offset = parse_expression_internal( 0 ).
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_parenthesized_select.
+    DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
+
+    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    lo_statement = parse_select_statement( ).
+    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+
+    ro_ref = NEW zcl_sqlite_ast_subquery_ref( io_statement = lo_statement ).
+  ENDMETHOD.
+
+  METHOD parse_with.
+    DATA lv_recursive TYPE abap_bool.
+    DATA lt_ctes      TYPE zcl_sqlite_ast_cte=>ty_list.
+    DATA lo_cte       TYPE REF TO zcl_sqlite_ast_cte.
+    DATA lo_body      TYPE REF TO zcl_sqlite_ast_node.
+
+    expect_keyword( 'WITH' ).
+    IF is_keyword( 'RECURSIVE' ) = abap_true.
+      lv_recursive = abap_true.
+      advance( ).
+    ENDIF.
+
+    DO.
+      lo_cte = parse_cte( ).
+      APPEND lo_cte TO lt_ctes.
+      IF is_kind( zcl_sqlite_tokenizer=>c_comma ) = abap_true.
+        advance( ).
+        CONTINUE.
+      ENDIF.
+      EXIT.
+    ENDDO.
+
+    lo_body = parse_select_statement( ).
+    ro_statement = NEW zcl_sqlite_ast_with(
+      iv_recursive = lv_recursive
+      it_ctes      = lt_ctes
+      io_statement = lo_body ).
+  ENDMETHOD.
+
+  METHOD parse_cte.
+    DATA lv_name         TYPE string.
+    DATA lv_materialized TYPE string.
+    DATA lt_columns      TYPE zcl_sqlite_ast_node=>ty_names.
+    DATA lo_statement    TYPE REF TO zcl_sqlite_ast_node.
+
+    lv_name = parse_identifier( ).
+    IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      advance( ).
+      lt_columns = parse_name_list( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    ENDIF.
+    expect_keyword( 'AS' ).
+
+    IF is_word( 'NOT' ) = abap_true
+        AND is_word_at( iv_ahead = 1 iv_word = 'MATERIALIZED' ) = abap_true.
+      lv_materialized = 'NOT MATERIALIZED'.
+      advance( ).
+      advance( ).
+    ELSEIF is_word( 'MATERIALIZED' ) = abap_true.
+      lv_materialized = 'MATERIALIZED'.
+      advance( ).
+    ENDIF.
+
+    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    lo_statement = parse_select_statement( ).
+    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+
+    ro_cte = NEW zcl_sqlite_ast_cte(
+      iv_name         = lv_name
+      it_columns      = lt_columns
+      io_statement    = lo_statement
+      iv_materialized = lv_materialized ).
+  ENDMETHOD.
+
+  METHOD is_select_start.
+    rv_result = boolc(
+      is_keyword( 'SELECT' ) = abap_true
+      OR is_keyword( 'VALUES' ) = abap_true
+      OR is_keyword( 'WITH' ) = abap_true ).
   ENDMETHOD.
 
   METHOD parse_values.
@@ -726,8 +926,20 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD parse_table_ref.
-    DATA lv_name  TYPE string.
-    DATA lv_alias TYPE string.
+    DATA lv_name      TYPE string.
+    DATA lv_alias     TYPE string.
+    DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
+
+    IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      advance( ).
+      lo_statement = parse_select_statement( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      lv_alias = parse_optional_alias( ).
+      ro_ref = NEW zcl_sqlite_ast_subquery_ref(
+        io_statement = lo_statement
+        iv_alias     = lv_alias ).
+      RETURN.
+    ENDIF.
 
     lv_name = parse_object_name( ).
     IF is_keyword( 'AS' ) = abap_true.
@@ -745,7 +957,7 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
 
   METHOD parse_join.
     DATA lv_join_type TYPE string.
-    DATA lo_right     TYPE REF TO zcl_sqlite_ast_table_ref.
+    DATA lo_right     TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_on        TYPE REF TO zcl_sqlite_ast_node.
     DATA lt_using     TYPE zcl_sqlite_ast_join=>ty_using.
 
@@ -1572,6 +1784,9 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     ELSEIF ls_token-kind = zcl_sqlite_tokenizer=>c_keyword
         AND ls_token-value = 'CAST'.
       ro_node = parse_cast( ).
+    ELSEIF ls_token-kind = zcl_sqlite_tokenizer=>c_keyword
+        AND ls_token-value = 'EXISTS'.
+      ro_node = parse_exists( ).
     ELSE.
       ro_node = parse_primary( ).
     ENDIF.
@@ -1641,9 +1856,28 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD parse_parenthesized.
+    DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
+
     expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
-    ro_node = parse_expression_internal( 0 ).
+    IF is_select_start( ) = abap_true.
+      lo_statement = parse_select_statement( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      ro_node = NEW zcl_sqlite_ast_subquery( io_statement = lo_statement ).
+    ELSE.
+      ro_node = parse_expression_internal( 0 ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_exists.
+    DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
+
+    expect_keyword( 'EXISTS' ).
+    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    lo_statement = parse_select_statement( ).
     expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+
+    ro_node = NEW zcl_sqlite_ast_exists( io_statement = lo_statement ).
   ENDMETHOD.
 
   METHOD parse_name_or_function.
@@ -1784,8 +2018,20 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
   METHOD parse_in.
     DATA lt_values TYPE zcl_sqlite_ast_node=>ty_nodes.
     DATA lo_value TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
 
     expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    IF is_select_start( ) = abap_true.
+      lo_statement = parse_select_statement( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      ro_node = NEW zcl_sqlite_ast_in(
+        io_expression = io_expression
+        it_values     = lt_values
+        iv_negated    = iv_negated
+        io_select     = lo_statement ).
+      RETURN.
+    ENDIF.
+
     IF current( )-kind = zcl_sqlite_tokenizer=>c_rparen.
       fail( 'IN requires at least one value' ).
     ENDIF.
