@@ -371,7 +371,7 @@ a bad page size raise errors.
 
 #### M3.6 DML
 
-- [ ] `INSERT [OR …] INTO … VALUES / SELECT / DEFAULT VALUES`, `UPDATE`, `DELETE`
+- [x] `INSERT [OR …] INTO … VALUES / SELECT / DEFAULT VALUES`, `UPDATE`, `DELETE`
       (`UPSERT` and `RETURNING` come later)
 
 **Done when:** a DML corpus parses to the expected dumps.

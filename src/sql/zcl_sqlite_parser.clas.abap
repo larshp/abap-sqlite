@@ -155,6 +155,34 @@ CLASS zcl_sqlite_parser DEFINITION
       RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_drop
       RAISING   zcx_sqlite_error.
 
+    METHODS parse_insert
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_insert
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_update
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_update
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_delete
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_delete
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_or_conflict_action
+      RETURNING VALUE(rv_action) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_assignment_list
+      RETURNING VALUE(rt_assignments) TYPE zcl_sqlite_ast_assignment=>ty_list
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_assignment
+      RETURNING VALUE(ro_assignment) TYPE REF TO zcl_sqlite_ast_assignment
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_select_or_dml
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node
+      RAISING   zcx_sqlite_error.
+
     METHODS parse_select_statement
       RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node
       RAISING   zcx_sqlite_error.
@@ -417,13 +445,19 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       ro_statement = lo_parser->parse_create( ).
     ELSEIF lo_parser->is_keyword( 'DROP' ) = abap_true.
       ro_statement = lo_parser->parse_drop( ).
+    ELSEIF lo_parser->is_keyword( 'INSERT' ) = abap_true.
+      ro_statement = lo_parser->parse_insert( ).
+    ELSEIF lo_parser->is_keyword( 'UPDATE' ) = abap_true.
+      ro_statement = lo_parser->parse_update( ).
+    ELSEIF lo_parser->is_keyword( 'DELETE' ) = abap_true.
+      ro_statement = lo_parser->parse_delete( ).
     ELSEIF lo_parser->is_keyword( 'SELECT' ) = abap_true
         OR lo_parser->is_keyword( 'VALUES' ) = abap_true
         OR lo_parser->is_keyword( 'WITH' ) = abap_true
         OR lo_parser->is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
       ro_statement = lo_parser->parse_select_statement( ).
     ELSE.
-      lo_parser->fail( 'expected CREATE, DROP, SELECT, VALUES or WITH' ).
+      lo_parser->fail( 'expected CREATE, DROP, INSERT, UPDATE, DELETE, SELECT, VALUES or WITH' ).
     ENDIF.
 
     WHILE lo_parser->is_kind( zcl_sqlite_tokenizer=>c_semicolon ) = abap_true.
@@ -582,6 +616,148 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       iv_object_type = lv_object_type
       iv_name        = lv_name
       iv_if_exists   = lv_if_exists ).
+  ENDMETHOD.
+
+  METHOD parse_insert.
+    DATA lv_conflict       TYPE string.
+    DATA lv_table          TYPE string.
+    DATA lt_columns        TYPE zcl_sqlite_ast_node=>ty_names.
+    DATA lo_values         TYPE REF TO zcl_sqlite_ast_values.
+    DATA lo_select         TYPE REF TO zcl_sqlite_ast_node.
+    DATA lv_default_values TYPE abap_bool.
+
+    expect_keyword( 'INSERT' ).
+    lv_conflict = parse_or_conflict_action( ).
+    expect_keyword( 'INTO' ).
+    lv_table = parse_object_name( ).
+
+    IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      advance( ).
+      lt_columns = parse_name_list( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    ENDIF.
+
+    IF is_keyword( 'DEFAULT' ) = abap_true.
+      advance( ).
+      expect_keyword( 'VALUES' ).
+      lv_default_values = abap_true.
+    ELSEIF is_keyword( 'VALUES' ) = abap_true.
+      lo_values = parse_values( ).
+    ELSE.
+      lo_select = parse_select_statement( ).
+    ENDIF.
+
+    ro_statement = NEW zcl_sqlite_ast_insert(
+      iv_conflict       = lv_conflict
+      iv_table          = lv_table
+      it_columns        = lt_columns
+      io_values         = lo_values
+      io_select         = lo_select
+      iv_default_values = lv_default_values ).
+  ENDMETHOD.
+
+  METHOD parse_update.
+    DATA lv_conflict    TYPE string.
+    DATA lv_table       TYPE string.
+    DATA lv_alias       TYPE string.
+    DATA lt_assignments TYPE zcl_sqlite_ast_assignment=>ty_list.
+    DATA lt_from        TYPE zcl_sqlite_ast_node=>ty_nodes.
+    DATA lo_where       TYPE REF TO zcl_sqlite_ast_node.
+
+    expect_keyword( 'UPDATE' ).
+    lv_conflict = parse_or_conflict_action( ).
+    lv_table = parse_object_name( ).
+    lv_alias = parse_optional_alias( ).
+    expect_keyword( 'SET' ).
+    lt_assignments = parse_assignment_list( ).
+
+    IF is_keyword( 'FROM' ) = abap_true.
+      advance( ).
+      lt_from = parse_from_items( ).
+    ENDIF.
+    IF is_keyword( 'WHERE' ) = abap_true.
+      advance( ).
+      lo_where = parse_expression_internal( 0 ).
+    ENDIF.
+
+    ro_statement = NEW zcl_sqlite_ast_update(
+      iv_conflict    = lv_conflict
+      iv_table       = lv_table
+      iv_alias       = lv_alias
+      it_assignments = lt_assignments
+      it_from        = lt_from
+      io_where       = lo_where ).
+  ENDMETHOD.
+
+  METHOD parse_delete.
+    DATA lv_table TYPE string.
+    DATA lv_alias TYPE string.
+    DATA lo_where TYPE REF TO zcl_sqlite_ast_node.
+
+    expect_keyword( 'DELETE' ).
+    expect_keyword( 'FROM' ).
+    lv_table = parse_object_name( ).
+    lv_alias = parse_optional_alias( ).
+    IF is_keyword( 'WHERE' ) = abap_true.
+      advance( ).
+      lo_where = parse_expression_internal( 0 ).
+    ENDIF.
+
+    ro_statement = NEW zcl_sqlite_ast_delete(
+      iv_table = lv_table
+      iv_alias = lv_alias
+      io_where = lo_where ).
+  ENDMETHOD.
+
+  METHOD parse_or_conflict_action.
+    IF is_keyword( 'OR' ) = abap_false.
+      RETURN.
+    ENDIF.
+
+    advance( ).
+    CASE current( )-value.
+      WHEN 'ROLLBACK' OR 'ABORT' OR 'REPLACE' OR 'FAIL' OR 'IGNORE'.
+        rv_action = |OR { current( )-value }|.
+        advance( ).
+      WHEN OTHERS.
+        fail( 'expected conflict action' ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD parse_assignment_list.
+    DO.
+      APPEND parse_assignment( ) TO rt_assignments.
+      IF is_kind( zcl_sqlite_tokenizer=>c_comma ) = abap_true.
+        advance( ).
+        CONTINUE.
+      ENDIF.
+      EXIT.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD parse_assignment.
+    DATA lv_column     TYPE string.
+    DATA lo_expression TYPE REF TO zcl_sqlite_ast_node.
+
+    lv_column = parse_identifier( ).
+    expect_operator( '=' ).
+    lo_expression = parse_expression_internal( 0 ).
+
+    ro_assignment = NEW zcl_sqlite_ast_assignment(
+      iv_column     = lv_column
+      io_expression = lo_expression ).
+  ENDMETHOD.
+
+  METHOD parse_select_or_dml.
+    IF is_keyword( 'INSERT' ) = abap_true.
+      ro_statement = parse_insert( ).
+    ELSEIF is_keyword( 'UPDATE' ) = abap_true.
+      ro_statement = parse_update( ).
+    ELSEIF is_keyword( 'DELETE' ) = abap_true.
+      ro_statement = parse_delete( ).
+    ELSE.
+      ro_statement = parse_select_statement( ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD parse_select_statement.
@@ -770,7 +946,7 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       EXIT.
     ENDDO.
 
-    lo_body = parse_select_statement( ).
+    lo_body = parse_select_or_dml( ).
     ro_statement = NEW zcl_sqlite_ast_with(
       iv_recursive = lv_recursive
       it_ctes      = lt_ctes

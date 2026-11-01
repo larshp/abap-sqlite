@@ -24,6 +24,11 @@ CLASS ltcl_parser DEFINITION FINAL FOR TESTING
     METHODS select_with FOR TESTING RAISING zcx_sqlite_error.
     METHODS select_subqueries FOR TESTING RAISING zcx_sqlite_error.
     METHODS select_advanced_errors FOR TESTING.
+    METHODS insert_statements FOR TESTING RAISING zcx_sqlite_error.
+    METHODS update_statements FOR TESTING RAISING zcx_sqlite_error.
+    METHODS delete_statements FOR TESTING RAISING zcx_sqlite_error.
+    METHODS dml_with FOR TESTING RAISING zcx_sqlite_error.
+    METHODS dml_errors FOR TESTING.
 
     METHODS assert_parse
       IMPORTING iv_sql      TYPE string
@@ -574,6 +579,106 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_error( |SELECT * FROM t WHERE a IN (SELECT 1| ).
     assert_statement_error( |VALUES (1) ORDER| ).
     assert_statement_error( |VALUES (1) LIMIT| ).
+  ENDMETHOD.
+
+  METHOD insert_statements.
+    assert_statement_parse(
+      iv_sql = |INSERT INTO items (id, value) VALUES (1, 'a'), (2, NULL)|
+      iv_expected = |INSERT INTO items (id, value) VALUES (INTEGER(1), STRING('a')), (INTEGER(2), NULL)| ).
+    assert_statement_parse(
+      iv_sql = |INSERT OR REPLACE INTO main.t VALUES (NULL)|
+      iv_expected = |INSERT OR REPLACE INTO main.t VALUES (NULL)| ).
+    assert_statement_parse(
+      iv_sql = |INSERT OR IGNORE INTO t (a, b) VALUES (1, 2)|
+      iv_expected = |INSERT OR IGNORE INTO t (a, b) VALUES (INTEGER(1), INTEGER(2))| ).
+    assert_statement_parse(
+      iv_sql = |INSERT INTO t DEFAULT VALUES|
+      iv_expected = |INSERT INTO t DEFAULT VALUES| ).
+    assert_statement_parse(
+      iv_sql = |INSERT INTO t (a) SELECT a FROM u WHERE b > 0|
+      iv_expected = |INSERT INTO t (a) SELECT COLUMN(a) FROM u WHERE BINARY(>, COLUMN(b), INTEGER(0))| ).
+    assert_statement_parse(
+      iv_sql = |INSERT INTO t WITH cte AS (SELECT 1) SELECT * FROM cte|
+      iv_expected = |INSERT INTO t WITH cte AS (SELECT INTEGER(1)) SELECT STAR FROM cte| ).
+    assert_statement_parse(
+      iv_sql = |INSERT INTO t VALUES (1), (2)|
+      iv_expected = |INSERT INTO t VALUES (INTEGER(1)), (INTEGER(2))| ).
+  ENDMETHOD.
+
+  METHOD update_statements.
+    assert_statement_parse(
+      iv_sql = |UPDATE t SET a = 1, b = b + 1 WHERE id = 2|
+      iv_expected = |UPDATE t SET a = INTEGER(1), b = BINARY(+, COLUMN(b), INTEGER(1)) WHERE BINARY(=, COLUMN(id), INTEGER(2))| ).
+    assert_statement_parse(
+      iv_sql = |UPDATE OR REPLACE main.t AS x SET a = NULL|
+      iv_expected = |UPDATE OR REPLACE main.t AS x SET a = NULL| ).
+    assert_statement_parse(
+      iv_sql = |UPDATE t SET a = (SELECT max(x) FROM u) WHERE id IN (SELECT id FROM v)|
+      iv_expected = |UPDATE t SET a = SUBQUERY(SELECT FUNCTION(max, COLUMN(x)) FROM u) WHERE IN(COLUMN(id), SELECT COLUMN(id) FROM v)| ).
+    assert_statement_parse(
+      iv_sql = |UPDATE t SET a = 1 FROM u WHERE t.id = u.id|
+      iv_expected = |UPDATE t SET a = INTEGER(1) FROM u WHERE BINARY(=, COLUMN(t.id), COLUMN(u.id))| ).
+    assert_statement_parse(
+      iv_sql = |UPDATE t SET a = 1, b = 2|
+      iv_expected = |UPDATE t SET a = INTEGER(1), b = INTEGER(2)| ).
+  ENDMETHOD.
+
+  METHOD delete_statements.
+    assert_statement_parse(
+      iv_sql = |DELETE FROM t|
+      iv_expected = |DELETE FROM t| ).
+    assert_statement_parse(
+      iv_sql = |DELETE FROM main.t AS x WHERE x.id = 1|
+      iv_expected = |DELETE FROM main.t AS x WHERE BINARY(=, COLUMN(x.id), INTEGER(1))| ).
+    assert_statement_parse(
+      iv_sql = |DELETE FROM t WHERE id IN (SELECT id FROM u)|
+      iv_expected = |DELETE FROM t WHERE IN(COLUMN(id), SELECT COLUMN(id) FROM u)| ).
+    assert_statement_parse(
+      iv_sql = |DELETE FROM t WHERE EXISTS (SELECT 1)|
+      iv_expected = |DELETE FROM t WHERE EXISTS(SELECT INTEGER(1))| ).
+  ENDMETHOD.
+
+  METHOD dml_with.
+    assert_statement_parse(
+      iv_sql = |WITH cte AS (SELECT 1) INSERT INTO t SELECT * FROM cte|
+      iv_expected = |WITH cte AS (SELECT INTEGER(1)) INSERT INTO t SELECT STAR FROM cte| ).
+    assert_statement_parse(
+      iv_sql = |WITH cte AS (SELECT 1) UPDATE t SET a = 1|
+      iv_expected = |WITH cte AS (SELECT INTEGER(1)) UPDATE t SET a = INTEGER(1)| ).
+    assert_statement_parse(
+      iv_sql = |WITH cte AS (SELECT 1) DELETE FROM t|
+      iv_expected = |WITH cte AS (SELECT INTEGER(1)) DELETE FROM t| ).
+  ENDMETHOD.
+
+  METHOD dml_errors.
+    assert_statement_error( |INSERT| ).
+    assert_statement_error( |INSERT INTO| ).
+    assert_statement_error( |INSERT INTO t| ).
+    assert_statement_error( |INSERT OR INTO t| ).
+    assert_statement_error( |INSERT INTO t DEFAULT| ).
+    assert_statement_error( |INSERT INTO t DEFAULT VALUES RETURNING *| ).
+    assert_statement_error( |INSERT INTO t (a,) VALUES (1)| ).
+    assert_statement_error( |INSERT INTO t (a) VALUES| ).
+    assert_statement_error( |INSERT INTO t VALUES (1) RETURNING *| ).
+    assert_statement_error( |INSERT INTO t SELECT| ).
+    assert_statement_error( |UPDATE| ).
+    assert_statement_error( |UPDATE t| ).
+    assert_statement_error( |UPDATE t SET| ).
+    assert_statement_error( |UPDATE t SET a| ).
+    assert_statement_error( |UPDATE t SET a =| ).
+    assert_statement_error( |UPDATE t SET a = 1,| ).
+    assert_statement_error( |UPDATE t SET a = 1 WHERE| ).
+    assert_statement_error( |UPDATE OR t SET a = 1| ).
+    assert_statement_error( |UPDATE t SET a = 1 RETURNING *| ).
+    assert_statement_error( |DELETE| ).
+    assert_statement_error( |DELETE FROM| ).
+    assert_statement_error( |DELETE FROM t WHERE| ).
+    assert_statement_error( |DELETE FROM t RETURNING *| ).
+    assert_statement_error( |DELETE t| ).
+    assert_statement_error( |WITH cte AS (SELECT 1) INSERT| ).
+    assert_statement_error( |WITH cte AS (SELECT 1)| ).
+    assert_statement_error( |WITH cte AS (SELECT 1) UPDATE| ).
+    assert_statement_error( |WITH cte AS (SELECT 1) DELETE| ).
   ENDMETHOD.
 
   METHOD assert_parse.
