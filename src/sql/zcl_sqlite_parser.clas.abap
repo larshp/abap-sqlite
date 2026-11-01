@@ -17,6 +17,16 @@ CLASS zcl_sqlite_parser DEFINITION
       RETURNING VALUE(rv_text) TYPE string
       RAISING   zcx_sqlite_error.
 
+    CLASS-METHODS parse_statement
+      IMPORTING iv_sql              TYPE string
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS dump_statement
+      IMPORTING iv_sql         TYPE string
+      RETURNING VALUE(rv_text) TYPE string
+      RAISING   zcx_sqlite_error.
+
   PRIVATE SECTION.
     CONSTANTS:
       c_prec_or         TYPE i VALUE 1,
@@ -117,6 +127,115 @@ CLASS zcl_sqlite_parser DEFINITION
       RETURNING VALUE(ro_node)    TYPE REF TO zcl_sqlite_ast_node
       RAISING   zcx_sqlite_error.
 
+    METHODS parse_create
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_create_table
+      IMPORTING iv_temporary        TYPE abap_bool
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_create_table
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_create_index
+      IMPORTING iv_unique           TYPE abap_bool
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_create_index
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_drop
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_drop
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_column_def
+      RETURNING VALUE(ro_column) TYPE REF TO zcl_sqlite_ast_column_def
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_table_constraint
+      RETURNING VALUE(ro_constraint) TYPE REF TO zcl_sqlite_ast_constraint
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_column_constraint
+      RETURNING VALUE(ro_constraint) TYPE REF TO zcl_sqlite_ast_constraint
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_constraint_name
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_conflict_clause
+      RETURNING VALUE(rv_action) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_default_expression
+      RETURNING VALUE(ro_expression) TYPE REF TO zcl_sqlite_ast_node
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_reference_clause
+      RETURNING VALUE(rs_reference) TYPE zcl_sqlite_ast_constraint=>ty_reference
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_reference_action
+      RETURNING VALUE(rv_action) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_foreign_key_clauses
+      CHANGING cs_reference TYPE zcl_sqlite_ast_constraint=>ty_reference
+      RAISING  zcx_sqlite_error.
+
+    METHODS parse_indexed_column
+      RETURNING VALUE(ro_column) TYPE REF TO zcl_sqlite_ast_indexed_column
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_indexed_columns
+      RETURNING VALUE(rt_columns) TYPE zcl_sqlite_ast_indexed_column=>ty_list
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_name_list
+      RETURNING VALUE(rt_names) TYPE zcl_sqlite_ast_node=>ty_names
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_optional_storage
+      RETURNING VALUE(rv_storage) TYPE string.
+
+    METHODS parse_table_options
+      CHANGING cv_without_rowid TYPE abap_bool
+               cv_strict        TYPE abap_bool
+      RAISING  zcx_sqlite_error.
+
+    METHODS parse_object_name
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_identifier
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_optional_type_name
+      RETURNING VALUE(rv_type) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_collation_name
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS is_table_constraint_start
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
+    METHODS is_column_constraint_start
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
+    METHODS is_word
+      IMPORTING iv_word          TYPE string
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
+    METHODS is_word_at
+      IMPORTING iv_ahead         TYPE i
+                iv_word          TYPE string
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
+    METHODS expect_word
+      IMPORTING iv_word TYPE string
+      RAISING   zcx_sqlite_error.
+
     METHODS current
       RETURNING VALUE(rs_token) TYPE zcl_sqlite_tokenizer=>ty_token.
 
@@ -195,6 +314,652 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
 
   METHOD dump_expression.
     rv_text = parse_expression( iv_sql )->dump( ).
+  ENDMETHOD.
+
+  METHOD parse_statement.
+    DATA lo_parser TYPE REF TO zcl_sqlite_parser.
+
+    lo_parser = NEW #( iv_sql ).
+    IF lo_parser->is_keyword( 'CREATE' ) = abap_true.
+      ro_statement = lo_parser->parse_create( ).
+    ELSEIF lo_parser->is_keyword( 'DROP' ) = abap_true.
+      ro_statement = lo_parser->parse_drop( ).
+    ELSE.
+      lo_parser->fail( 'expected CREATE or DROP' ).
+    ENDIF.
+
+    WHILE lo_parser->is_kind( zcl_sqlite_tokenizer=>c_semicolon ) = abap_true.
+      lo_parser->advance( ).
+    ENDWHILE.
+    IF lo_parser->is_kind( zcl_sqlite_tokenizer=>c_eof ) = abap_false.
+      lo_parser->fail( 'syntax error' ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD dump_statement.
+    rv_text = parse_statement( iv_sql )->dump( ).
+  ENDMETHOD.
+
+  METHOD parse_create.
+    DATA lv_temporary TYPE abap_bool.
+
+    expect_keyword( 'CREATE' ).
+    IF is_keyword( 'TEMP' ) = abap_true OR is_keyword( 'TEMPORARY' ) = abap_true.
+      lv_temporary = abap_true.
+      advance( ).
+    ENDIF.
+
+    IF lv_temporary = abap_true.
+      IF is_keyword( 'TABLE' ) = abap_false.
+        fail( 'expected TABLE after TEMP' ).
+      ENDIF.
+      ro_statement = parse_create_table( lv_temporary ).
+    ELSEIF is_keyword( 'TABLE' ) = abap_true.
+      ro_statement = parse_create_table( lv_temporary ).
+    ELSEIF is_keyword( 'UNIQUE' ) = abap_true.
+      advance( ).
+      ro_statement = parse_create_index( abap_true ).
+    ELSEIF is_keyword( 'INDEX' ) = abap_true.
+      ro_statement = parse_create_index( abap_false ).
+    ELSE.
+      fail( 'expected TABLE or INDEX' ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_create_table.
+    DATA lv_name          TYPE string.
+    DATA lv_if_not_exists TYPE abap_bool.
+    DATA lv_without_rowid TYPE abap_bool.
+    DATA lv_strict        TYPE abap_bool.
+    DATA lt_columns       TYPE zcl_sqlite_ast_create_table=>ty_columns.
+    DATA lt_constraints   TYPE zcl_sqlite_ast_create_table=>ty_constraints.
+    DATA lo_column        TYPE REF TO zcl_sqlite_ast_column_def.
+    DATA lo_constraint    TYPE REF TO zcl_sqlite_ast_constraint.
+
+    expect_keyword( 'TABLE' ).
+    IF is_keyword( 'IF' ) = abap_true.
+      advance( ).
+      expect_keyword( 'NOT' ).
+      expect_keyword( 'EXISTS' ).
+      lv_if_not_exists = abap_true.
+    ENDIF.
+    lv_name = parse_object_name( ).
+    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    IF is_kind( zcl_sqlite_tokenizer=>c_rparen ) = abap_true.
+      fail( 'expected column definition' ).
+    ENDIF.
+
+    DO.
+      IF is_table_constraint_start( ) = abap_true.
+        lo_constraint = parse_table_constraint( ).
+        APPEND lo_constraint TO lt_constraints.
+      ELSE.
+        lo_column = parse_column_def( ).
+        APPEND lo_column TO lt_columns.
+      ENDIF.
+
+      IF is_kind( zcl_sqlite_tokenizer=>c_comma ) = abap_true.
+        advance( ).
+        CONTINUE.
+      ENDIF.
+      EXIT.
+    ENDDO.
+
+    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    parse_table_options(
+      CHANGING
+        cv_without_rowid = lv_without_rowid
+        cv_strict        = lv_strict ).
+
+    IF lines( lt_columns ) = 0.
+      fail( 'CREATE TABLE requires a column definition' ).
+    ENDIF.
+
+    ro_statement = NEW zcl_sqlite_ast_create_table(
+      iv_name          = lv_name
+      iv_temporary     = iv_temporary
+      iv_if_not_exists = lv_if_not_exists
+      it_columns       = lt_columns
+      it_constraints   = lt_constraints
+      iv_without_rowid = lv_without_rowid
+      iv_strict        = lv_strict ).
+  ENDMETHOD.
+
+  METHOD parse_create_index.
+    DATA lv_name          TYPE string.
+    DATA lv_table_name    TYPE string.
+    DATA lv_if_not_exists TYPE abap_bool.
+    DATA lt_columns       TYPE zcl_sqlite_ast_indexed_column=>ty_list.
+    DATA lo_where         TYPE REF TO zcl_sqlite_ast_node.
+
+    expect_keyword( 'INDEX' ).
+    IF is_keyword( 'IF' ) = abap_true.
+      advance( ).
+      expect_keyword( 'NOT' ).
+      expect_keyword( 'EXISTS' ).
+      lv_if_not_exists = abap_true.
+    ENDIF.
+    lv_name = parse_object_name( ).
+    expect_keyword( 'ON' ).
+    lv_table_name = parse_object_name( ).
+    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    lt_columns = parse_indexed_columns( ).
+    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+
+    IF is_keyword( 'WHERE' ) = abap_true.
+      advance( ).
+      lo_where = parse_expression_internal( 0 ).
+    ENDIF.
+
+    ro_statement = NEW zcl_sqlite_ast_create_index(
+      iv_name          = lv_name
+      iv_table_name    = lv_table_name
+      iv_unique        = iv_unique
+      iv_if_not_exists = lv_if_not_exists
+      it_columns       = lt_columns
+      io_where         = lo_where ).
+  ENDMETHOD.
+
+  METHOD parse_drop.
+    DATA lv_object_type TYPE string.
+    DATA lv_name        TYPE string.
+    DATA lv_if_exists   TYPE abap_bool.
+
+    expect_keyword( 'DROP' ).
+    IF is_keyword( 'TABLE' ) = abap_true OR is_keyword( 'INDEX' ) = abap_true.
+      lv_object_type = current( )-value.
+      advance( ).
+    ELSE.
+      fail( 'expected TABLE or INDEX' ).
+    ENDIF.
+
+    IF is_keyword( 'IF' ) = abap_true.
+      advance( ).
+      expect_keyword( 'EXISTS' ).
+      lv_if_exists = abap_true.
+    ENDIF.
+    lv_name = parse_object_name( ).
+
+    ro_statement = NEW zcl_sqlite_ast_drop(
+      iv_object_type = lv_object_type
+      iv_name        = lv_name
+      iv_if_exists   = lv_if_exists ).
+  ENDMETHOD.
+
+  METHOD parse_column_def.
+    DATA lv_name        TYPE string.
+    DATA lv_type_name   TYPE string.
+    DATA lt_constraints TYPE zcl_sqlite_ast_column_def=>ty_constraints.
+    DATA lo_constraint  TYPE REF TO zcl_sqlite_ast_constraint.
+
+    lv_name = parse_identifier( ).
+    lv_type_name = parse_optional_type_name( ).
+    WHILE is_column_constraint_start( ) = abap_true.
+      lo_constraint = parse_column_constraint( ).
+      APPEND lo_constraint TO lt_constraints.
+    ENDWHILE.
+
+    ro_column = NEW zcl_sqlite_ast_column_def(
+      iv_name        = lv_name
+      iv_type_name   = lv_type_name
+      it_constraints = lt_constraints ).
+  ENDMETHOD.
+
+  METHOD parse_table_constraint.
+    DATA lv_name          TYPE string.
+    DATA lv_conflict      TYPE string.
+    DATA lt_columns       TYPE zcl_sqlite_ast_node=>ty_names.
+    DATA lt_indexed       TYPE zcl_sqlite_ast_indexed_column=>ty_list.
+    DATA lo_expression    TYPE REF TO zcl_sqlite_ast_node.
+    DATA ls_reference     TYPE zcl_sqlite_ast_constraint=>ty_reference.
+
+    lv_name = parse_constraint_name( ).
+    IF is_keyword( 'PRIMARY' ) = abap_true.
+      advance( ).
+      expect_keyword( 'KEY' ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+      lt_indexed = parse_indexed_columns( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      lv_conflict = parse_conflict_clause( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind            = 'PRIMARY KEY'
+        iv_name            = lv_name
+        it_indexed_columns = lt_indexed
+        iv_conflict        = lv_conflict ).
+    ELSEIF is_keyword( 'UNIQUE' ) = abap_true.
+      advance( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+      lt_indexed = parse_indexed_columns( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      lv_conflict = parse_conflict_clause( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind            = 'UNIQUE'
+        iv_name            = lv_name
+        it_indexed_columns = lt_indexed
+        iv_conflict        = lv_conflict ).
+    ELSEIF is_keyword( 'CHECK' ) = abap_true.
+      advance( ).
+      lo_expression = parse_parenthesized( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind       = 'CHECK'
+        iv_name       = lv_name
+        io_expression = lo_expression ).
+    ELSEIF is_keyword( 'FOREIGN' ) = abap_true.
+      advance( ).
+      expect_keyword( 'KEY' ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+      lt_columns = parse_name_list( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_keyword( 'REFERENCES' ).
+      ls_reference = parse_reference_clause( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind      = 'FOREIGN KEY'
+        iv_name      = lv_name
+        it_columns   = lt_columns
+        is_reference = ls_reference ).
+    ELSE.
+      fail( 'expected table constraint' ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_column_constraint.
+    DATA lv_name        TYPE string.
+    DATA lv_conflict    TYPE string.
+    DATA lv_order       TYPE string.
+    DATA lv_collation   TYPE string.
+    DATA lv_storage     TYPE string.
+    DATA lv_autoincrement TYPE abap_bool.
+    DATA lo_expression  TYPE REF TO zcl_sqlite_ast_node.
+    DATA ls_reference   TYPE zcl_sqlite_ast_constraint=>ty_reference.
+
+    lv_name = parse_constraint_name( ).
+    IF is_keyword( 'PRIMARY' ) = abap_true.
+      advance( ).
+      expect_keyword( 'KEY' ).
+      IF is_keyword( 'ASC' ) = abap_true OR is_keyword( 'DESC' ) = abap_true.
+        lv_order = current( )-value.
+        advance( ).
+      ENDIF.
+      lv_conflict = parse_conflict_clause( ).
+      IF is_keyword( 'AUTOINCREMENT' ) = abap_true.
+        lv_autoincrement = abap_true.
+        advance( ).
+      ENDIF.
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind          = 'PRIMARY KEY'
+        iv_name          = lv_name
+        iv_order         = lv_order
+        iv_conflict      = lv_conflict
+        iv_autoincrement = lv_autoincrement ).
+    ELSEIF is_keyword( 'NOT' ) = abap_true.
+      advance( ).
+      expect_keyword( 'NULL' ).
+      lv_conflict = parse_conflict_clause( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind     = 'NOT NULL'
+        iv_name     = lv_name
+        iv_conflict = lv_conflict ).
+    ELSEIF is_keyword( 'UNIQUE' ) = abap_true.
+      advance( ).
+      lv_conflict = parse_conflict_clause( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind     = 'UNIQUE'
+        iv_name     = lv_name
+        iv_conflict = lv_conflict ).
+    ELSEIF is_keyword( 'CHECK' ) = abap_true.
+      advance( ).
+      lo_expression = parse_parenthesized( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind       = 'CHECK'
+        iv_name       = lv_name
+        io_expression = lo_expression ).
+    ELSEIF is_keyword( 'DEFAULT' ) = abap_true.
+      advance( ).
+      lo_expression = parse_default_expression( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind       = 'DEFAULT'
+        iv_name       = lv_name
+        io_expression = lo_expression ).
+    ELSEIF is_keyword( 'COLLATE' ) = abap_true.
+      advance( ).
+      lv_collation = parse_collation_name( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind      = 'COLLATE'
+        iv_name      = lv_name
+        iv_collation = lv_collation ).
+    ELSEIF is_keyword( 'REFERENCES' ) = abap_true.
+      advance( ).
+      ls_reference = parse_reference_clause( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind      = 'REFERENCES'
+        iv_name      = lv_name
+        is_reference = ls_reference ).
+    ELSEIF is_keyword( 'GENERATED' ) = abap_true.
+      advance( ).
+      IF is_keyword( 'ALWAYS' ) = abap_true.
+        advance( ).
+      ENDIF.
+      expect_keyword( 'AS' ).
+      lo_expression = parse_parenthesized( ).
+      lv_storage = parse_optional_storage( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind       = 'GENERATED'
+        iv_name       = lv_name
+        io_expression = lo_expression
+        iv_storage    = lv_storage ).
+    ELSEIF is_keyword( 'AS' ) = abap_true.
+      advance( ).
+      lo_expression = parse_parenthesized( ).
+      lv_storage = parse_optional_storage( ).
+      ro_constraint = NEW zcl_sqlite_ast_constraint(
+        iv_kind       = 'GENERATED'
+        iv_name       = lv_name
+        io_expression = lo_expression
+        iv_storage    = lv_storage ).
+    ELSE.
+      fail( 'expected column constraint' ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_constraint_name.
+    IF is_keyword( 'CONSTRAINT' ) = abap_false.
+      RETURN.
+    ENDIF.
+    advance( ).
+    rv_name = parse_identifier( ).
+  ENDMETHOD.
+
+  METHOD parse_conflict_clause.
+    IF is_keyword( 'ON' ) = abap_false
+        OR is_keyword_at( iv_ahead = 1 iv_keyword = 'CONFLICT' ) = abap_false.
+      RETURN.
+    ENDIF.
+
+    advance( ).
+    advance( ).
+    CASE current( )-value.
+      WHEN 'ROLLBACK' OR 'ABORT' OR 'FAIL' OR 'IGNORE' OR 'REPLACE'.
+        rv_action = current( )-value.
+        advance( ).
+      WHEN OTHERS.
+        fail( 'expected conflict action' ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD parse_default_expression.
+    IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      ro_expression = parse_parenthesized( ).
+    ELSE.
+      ro_expression = parse_expression_internal( c_prec_unary ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_reference_clause.
+    rs_reference-table_name = parse_object_name( ).
+    IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      advance( ).
+      rs_reference-columns = parse_name_list( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    ENDIF.
+    parse_foreign_key_clauses( CHANGING cs_reference = rs_reference ).
+  ENDMETHOD.
+
+  METHOD parse_reference_action.
+    IF is_keyword( 'SET' ) = abap_true.
+      advance( ).
+      IF is_keyword( 'NULL' ) = abap_true.
+        rv_action = 'SET NULL'.
+        advance( ).
+      ELSEIF is_keyword( 'DEFAULT' ) = abap_true.
+        rv_action = 'SET DEFAULT'.
+        advance( ).
+      ELSE.
+        fail( 'expected NULL or DEFAULT' ).
+      ENDIF.
+    ELSEIF is_keyword( 'CASCADE' ) = abap_true OR is_keyword( 'RESTRICT' ) = abap_true.
+      rv_action = current( )-value.
+      advance( ).
+    ELSEIF is_keyword( 'NO' ) = abap_true.
+      advance( ).
+      expect_keyword( 'ACTION' ).
+      rv_action = 'NO ACTION'.
+    ELSE.
+      fail( 'expected foreign key action' ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_foreign_key_clauses.
+    DO.
+      IF is_keyword( 'ON' ) = abap_true.
+        advance( ).
+        IF is_keyword( 'DELETE' ) = abap_true.
+          advance( ).
+          cs_reference-on_delete = parse_reference_action( ).
+        ELSEIF is_keyword( 'UPDATE' ) = abap_true.
+          advance( ).
+          cs_reference-on_update = parse_reference_action( ).
+        ELSE.
+          fail( 'expected DELETE or UPDATE' ).
+        ENDIF.
+      ELSEIF is_keyword( 'MATCH' ) = abap_true.
+        advance( ).
+        cs_reference-match_name = parse_identifier( ).
+      ELSEIF is_keyword( 'NOT' ) = abap_true
+          AND is_keyword_at( iv_ahead = 1 iv_keyword = 'DEFERRABLE' ) = abap_true.
+        advance( ).
+        advance( ).
+        cs_reference-deferrable = 'NOT DEFERRABLE'.
+      ELSEIF is_keyword( 'DEFERRABLE' ) = abap_true.
+        advance( ).
+        cs_reference-deferrable = 'DEFERRABLE'.
+      ELSEIF is_keyword( 'INITIALLY' ) = abap_true.
+        advance( ).
+        IF is_keyword( 'DEFERRED' ) = abap_true OR is_keyword( 'IMMEDIATE' ) = abap_true.
+          cs_reference-initially = current( )-value.
+          advance( ).
+        ELSE.
+          fail( 'expected DEFERRED or IMMEDIATE' ).
+        ENDIF.
+      ELSE.
+        EXIT.
+      ENDIF.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD parse_indexed_column.
+    DATA lv_name      TYPE string.
+    DATA lv_collation TYPE string.
+    DATA lv_order     TYPE string.
+
+    lv_name = parse_identifier( ).
+    IF is_keyword( 'COLLATE' ) = abap_true.
+      advance( ).
+      lv_collation = parse_collation_name( ).
+    ENDIF.
+    IF is_keyword( 'ASC' ) = abap_true OR is_keyword( 'DESC' ) = abap_true.
+      lv_order = current( )-value.
+      advance( ).
+    ENDIF.
+
+    ro_column = NEW zcl_sqlite_ast_indexed_column(
+      iv_name      = lv_name
+      iv_collation = lv_collation
+      iv_order     = lv_order ).
+  ENDMETHOD.
+
+  METHOD parse_indexed_columns.
+    DATA lo_column TYPE REF TO zcl_sqlite_ast_indexed_column.
+
+    IF is_kind( zcl_sqlite_tokenizer=>c_rparen ) = abap_true.
+      fail( 'expected indexed column' ).
+    ENDIF.
+
+    DO.
+      lo_column = parse_indexed_column( ).
+      APPEND lo_column TO rt_columns.
+      IF is_kind( zcl_sqlite_tokenizer=>c_comma ) = abap_true.
+        advance( ).
+        CONTINUE.
+      ENDIF.
+      EXIT.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD parse_name_list.
+    DATA lv_name TYPE string.
+
+    IF is_kind( zcl_sqlite_tokenizer=>c_rparen ) = abap_true.
+      fail( 'expected column name' ).
+    ENDIF.
+
+    DO.
+      lv_name = parse_identifier( ).
+      APPEND lv_name TO rt_names.
+      IF is_kind( zcl_sqlite_tokenizer=>c_comma ) = abap_true.
+        advance( ).
+        CONTINUE.
+      ENDIF.
+      EXIT.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD parse_optional_storage.
+    IF is_word( 'VIRTUAL' ) = abap_true OR is_word( 'STORED' ) = abap_true.
+      rv_storage = to_upper( current( )-value ).
+      advance( ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_table_options.
+    DO.
+      IF is_word( 'WITHOUT' ) = abap_true.
+        advance( ).
+        expect_word( 'ROWID' ).
+        cv_without_rowid = abap_true.
+      ELSEIF is_word( 'STRICT' ) = abap_true.
+        advance( ).
+        cv_strict = abap_true.
+      ELSEIF is_kind( zcl_sqlite_tokenizer=>c_comma ) = abap_true
+          AND ( is_word_at( iv_ahead = 1 iv_word = 'WITHOUT' ) = abap_true
+             OR is_word_at( iv_ahead = 1 iv_word = 'STRICT' ) = abap_true ).
+        advance( ).
+      ELSE.
+        EXIT.
+      ENDIF.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD parse_object_name.
+    DATA lv_part TYPE string.
+
+    rv_name = parse_identifier( ).
+    WHILE is_kind( zcl_sqlite_tokenizer=>c_dot ) = abap_true.
+      advance( ).
+      lv_part = parse_identifier( ).
+      rv_name = rv_name && '.' && lv_part.
+    ENDWHILE.
+  ENDMETHOD.
+
+  METHOD parse_identifier.
+    DATA ls_token TYPE zcl_sqlite_tokenizer=>ty_token.
+
+    ls_token = current( ).
+    IF ls_token-kind <> zcl_sqlite_tokenizer=>c_identifier
+        AND ls_token-kind <> zcl_sqlite_tokenizer=>c_keyword.
+      fail( 'expected identifier' ).
+    ENDIF.
+    advance( ).
+    rv_name = ls_token-value.
+  ENDMETHOD.
+
+  METHOD parse_optional_type_name.
+    DATA lv_part TYPE string.
+
+    WHILE current( )-kind = zcl_sqlite_tokenizer=>c_identifier.
+      lv_part = to_upper( current( )-value ).
+      IF rv_type IS INITIAL.
+        rv_type = lv_part.
+      ELSE.
+        " ANORMALY: character literals lose trailing blanks when concatenated
+        rv_type = rv_type && | | && lv_part.
+      ENDIF.
+      advance( ).
+    ENDWHILE.
+
+    IF rv_type IS NOT INITIAL
+        AND current( )-kind = zcl_sqlite_tokenizer=>c_lparen.
+      rv_type = rv_type && '('.
+      advance( ).
+      WHILE current( )-kind <> zcl_sqlite_tokenizer=>c_rparen
+          AND current( )-kind <> zcl_sqlite_tokenizer=>c_eof.
+        rv_type = rv_type && current( )-text.
+        advance( ).
+      ENDWHILE.
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      rv_type = rv_type && ')'.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_collation_name.
+    DATA ls_token TYPE zcl_sqlite_tokenizer=>ty_token.
+
+    ls_token = current( ).
+    IF ls_token-kind <> zcl_sqlite_tokenizer=>c_identifier
+        AND ls_token-kind <> zcl_sqlite_tokenizer=>c_keyword.
+      fail( 'expected collation name' ).
+    ENDIF.
+    advance( ).
+    rv_name = to_upper( ls_token-value ).
+  ENDMETHOD.
+
+  METHOD is_table_constraint_start.
+    rv_result = boolc(
+      is_keyword( 'CONSTRAINT' ) = abap_true
+      OR is_keyword( 'PRIMARY' ) = abap_true
+      OR is_keyword( 'UNIQUE' ) = abap_true
+      OR is_keyword( 'CHECK' ) = abap_true
+      OR is_keyword( 'FOREIGN' ) = abap_true ).
+  ENDMETHOD.
+
+  METHOD is_column_constraint_start.
+    rv_result = boolc(
+      is_keyword( 'CONSTRAINT' ) = abap_true
+      OR is_keyword( 'PRIMARY' ) = abap_true
+      OR is_keyword( 'NOT' ) = abap_true
+      OR is_keyword( 'UNIQUE' ) = abap_true
+      OR is_keyword( 'CHECK' ) = abap_true
+      OR is_keyword( 'DEFAULT' ) = abap_true
+      OR is_keyword( 'COLLATE' ) = abap_true
+      OR is_keyword( 'REFERENCES' ) = abap_true
+      OR is_keyword( 'GENERATED' ) = abap_true
+      OR is_keyword( 'AS' ) = abap_true ).
+  ENDMETHOD.
+
+  METHOD is_word.
+    DATA ls_token TYPE zcl_sqlite_tokenizer=>ty_token.
+
+    ls_token = current( ).
+    rv_result = boolc(
+      ( ls_token-kind = zcl_sqlite_tokenizer=>c_identifier
+        OR ls_token-kind = zcl_sqlite_tokenizer=>c_keyword )
+      AND to_upper( ls_token-value ) = to_upper( iv_word ) ).
+  ENDMETHOD.
+
+  METHOD is_word_at.
+    DATA ls_token TYPE zcl_sqlite_tokenizer=>ty_token.
+
+    ls_token = token_at( iv_ahead ).
+    rv_result = boolc(
+      ( ls_token-kind = zcl_sqlite_tokenizer=>c_identifier
+        OR ls_token-kind = zcl_sqlite_tokenizer=>c_keyword )
+      AND to_upper( ls_token-value ) = to_upper( iv_word ) ).
+  ENDMETHOD.
+
+  METHOD expect_word.
+    IF is_word( iv_word ) = abap_false.
+      fail( |expected { iv_word }| ).
+    ENDIF.
+    advance( ).
   ENDMETHOD.
 
   METHOD parse_expression_internal.
@@ -644,33 +1409,9 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD parse_type_name.
-    DATA lv_part TYPE string.
-
-    WHILE current( )-kind = zcl_sqlite_tokenizer=>c_identifier.
-      lv_part = to_upper( current( )-value ).
-      IF rv_type IS INITIAL.
-        rv_type = lv_part.
-      ELSE.
-        " ANORMALY: character literals lose trailing blanks when concatenated
-        rv_type = rv_type && | | && lv_part.
-      ENDIF.
-      advance( ).
-    ENDWHILE.
-
+    rv_type = parse_optional_type_name( ).
     IF rv_type IS INITIAL.
       fail( 'expected type name' ).
-    ENDIF.
-
-    IF current( )-kind = zcl_sqlite_tokenizer=>c_lparen.
-      rv_type = rv_type && '('.
-      advance( ).
-      WHILE current( )-kind <> zcl_sqlite_tokenizer=>c_rparen
-          AND current( )-kind <> zcl_sqlite_tokenizer=>c_eof.
-        rv_type = rv_type && current( )-text.
-        advance( ).
-      ENDWHILE.
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
-      rv_type = rv_type && ')'.
     ENDIF.
   ENDMETHOD.
 

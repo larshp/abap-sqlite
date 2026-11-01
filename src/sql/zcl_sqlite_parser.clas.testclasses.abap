@@ -12,6 +12,10 @@ CLASS ltcl_parser DEFINITION FINAL FOR TESTING
     METHODS case_and_cast FOR TESTING RAISING zcx_sqlite_error.
     METHODS collate_json_match FOR TESTING RAISING zcx_sqlite_error.
     METHODS syntax_errors FOR TESTING.
+    METHODS fixture_ddl FOR TESTING RAISING zcx_sqlite_error.
+    METHODS create_table_constraints FOR TESTING RAISING zcx_sqlite_error.
+    METHODS create_index_and_drop FOR TESTING RAISING zcx_sqlite_error.
+    METHODS ddl_errors FOR TESTING.
 
     METHODS assert_parse
       IMPORTING iv_sql      TYPE string
@@ -19,6 +23,14 @@ CLASS ltcl_parser DEFINITION FINAL FOR TESTING
       RAISING   zcx_sqlite_error.
 
     METHODS assert_error
+      IMPORTING iv_sql TYPE string.
+
+    METHODS assert_statement_parse
+      IMPORTING iv_sql      TYPE string
+                iv_expected TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS assert_statement_error
       IMPORTING iv_sql TYPE string.
 ENDCLASS.
 
@@ -224,6 +236,115 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_error( '1 2' ).
   ENDMETHOD.
 
+  METHOD fixture_ddl.
+    DATA lt_sql TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
+    DATA lv_sql TYPE string.
+    DATA lv_dump TYPE string.
+
+    APPEND |CREATE TABLE items (id INTEGER NOT NULL, value TEXT NOT NULL)| TO lt_sql.
+    APPEND |CREATE TABLE items (id INTEGER PRIMARY KEY, value TEXT NOT NULL)| TO lt_sql.
+    APPEND |CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, price REAL)| TO lt_sql.
+    APPEND |CREATE TABLE items (value TEXT NOT NULL)| TO lt_sql.
+    APPEND |CREATE INDEX items_value ON items(value)| TO lt_sql.
+    APPEND |CREATE TABLE keep (id INTEGER NOT NULL, value TEXT NOT NULL)| TO lt_sql.
+    APPEND |CREATE INDEX keep_value ON keep(value)| TO lt_sql.
+    APPEND |CREATE TABLE m (id INTEGER NOT NULL, a TEXT NOT NULL, b INTEGER NOT NULL, c TEXT NOT NULL)| TO lt_sql.
+    APPEND |CREATE INDEX m_a ON m(a)| TO lt_sql.
+    APPEND |CREATE INDEX m_ab ON m(a, b)| TO lt_sql.
+    APPEND |CREATE INDEX m_b ON m(b)| TO lt_sql.
+    APPEND |CREATE INDEX m_ba ON m(b, a)| TO lt_sql.
+    APPEND |CREATE INDEX m_c ON m(c)| TO lt_sql.
+    APPEND |CREATE TABLE nulls (id INTEGER NOT NULL, a TEXT, b INTEGER, c BLOB)| TO lt_sql.
+    APPEND |CREATE INDEX nulls_a ON nulls(a)| TO lt_sql.
+    APPEND |CREATE INDEX nulls_ab ON nulls(a, b)| TO lt_sql.
+    APPEND |CREATE TABLE payloads (name TEXT NOT NULL, value)| TO lt_sql.
+    APPEND |CREATE TABLE serial_types (c_null, c_int8, c_int16, c_int24, c_int32, c_int48, c_int64, c_real, c_zero, c_one, c_blob0, c_text0, c_blob3, c_text3, c_text)| TO lt_sql.
+    APPEND |CREATE TABLE wr (k TEXT PRIMARY KEY, v TEXT, n INTEGER) WITHOUT ROWID| TO lt_sql.
+    APPEND |CREATE INDEX wr_v ON wr(v)| TO lt_sql.
+
+    LOOP AT lt_sql INTO lv_sql.
+      TRY.
+          lv_dump = zcl_sqlite_parser=>dump_statement( lv_sql ).
+        CATCH zcx_sqlite_error INTO DATA(lo_error).
+          cl_abap_unit_assert=>fail( msg = |fixture DDL did not parse: { lv_sql }: { lo_error->get_text( ) }| ).
+      ENDTRY.
+      cl_abap_unit_assert=>assert_true(
+        act = boolc( lv_dump IS NOT INITIAL )
+        msg = |fixture DDL did not parse: { lv_sql }| ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD create_table_constraints.
+    assert_statement_parse(
+      iv_sql = |CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, price REAL)|
+      iv_expected = |CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, price REAL)| ).
+    assert_statement_parse(
+      iv_sql = |CREATE TABLE IF NOT EXISTS main.t (id INTEGER, name TEXT, PRIMARY KEY (id, name)) WITHOUT ROWID|
+      iv_expected = |CREATE TABLE IF NOT EXISTS main.t (id INTEGER, name TEXT, PRIMARY KEY (id, name)) WITHOUT ROWID| ).
+    assert_statement_parse(
+      iv_sql = |CREATE TABLE t (a INTEGER, b TEXT, CONSTRAINT pk PRIMARY KEY (a, b) ON CONFLICT ABORT, CONSTRAINT uq UNIQUE (b COLLATE NOCASE DESC))|
+      iv_expected = |CREATE TABLE t (a INTEGER, b TEXT, CONSTRAINT pk PRIMARY KEY (a, b) ON CONFLICT ABORT, CONSTRAINT uq UNIQUE (b COLLATE NOCASE DESC))| ).
+    assert_statement_parse(
+      iv_sql = |CREATE TABLE c (id INTEGER CONSTRAINT pk PRIMARY KEY DESC ON CONFLICT ROLLBACK AUTOINCREMENT, code TEXT COLLATE NOCASE, n INTEGER NOT NULL ON CONFLICT IGNORE, x INTEGER CHECK(x > 0), y TEXT DEFAULT 'a', z INTEGER DEFAULT (1 + 2))|
+      iv_expected = |CREATE TABLE c (id INTEGER CONSTRAINT pk PRIMARY KEY DESC ON CONFLICT ROLLBACK AUTOINCREMENT, code TEXT COLLATE NOCASE, n INTEGER NOT NULL ON CONFLICT IGNORE, x INTEGER CHECK(BINARY(>, COLUMN(x), INTEGER(0))), y TEXT DEFAULT(STRING('a')), z INTEGER DEFAULT(BINARY(+, INTEGER(1), INTEGER(2))))| ).
+    assert_statement_parse(
+      iv_sql = |CREATE TABLE child (id INTEGER, parent_id INTEGER, CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE SET NULL MATCH simple DEFERRABLE INITIALLY DEFERRED)|
+      iv_expected = |CREATE TABLE child (id INTEGER, parent_id INTEGER, CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent (id) ON DELETE CASCADE ON UPDATE SET NULL MATCH simple DEFERRABLE INITIALLY DEFERRED)| ).
+    assert_statement_parse(
+      iv_sql = |CREATE TABLE g (a INTEGER, b INTEGER GENERATED ALWAYS AS (a + 1) STORED, c AS (a * 2) VIRTUAL)|
+      iv_expected = |CREATE TABLE g (a INTEGER, b INTEGER GENERATED ALWAYS AS (BINARY(+, COLUMN(a), INTEGER(1))) STORED, c GENERATED ALWAYS AS (BINARY(*, COLUMN(a), INTEGER(2))) VIRTUAL)| ).
+    assert_statement_parse(
+      iv_sql = |CREATE TABLE types (a DECIMAL(10, 2), b DOUBLE PRECISION, c VARCHAR(10))|
+      iv_expected = |CREATE TABLE types (a DECIMAL(10,2), b DOUBLE PRECISION, c VARCHAR(10))| ).
+    assert_statement_parse(
+      iv_sql = |CREATE TEMP TABLE t (a) WITHOUT ROWID, STRICT|
+      iv_expected = |CREATE TEMP TABLE t (a) WITHOUT ROWID, STRICT| ).
+  ENDMETHOD.
+
+  METHOD create_index_and_drop.
+    assert_statement_parse(
+      iv_sql = |CREATE UNIQUE INDEX IF NOT EXISTS idx ON main.items (a COLLATE NOCASE DESC, b) WHERE a > 0|
+      iv_expected = |CREATE UNIQUE INDEX IF NOT EXISTS idx ON main.items (a COLLATE NOCASE DESC, b) WHERE BINARY(>, COLUMN(a), INTEGER(0))| ).
+    assert_statement_parse(
+      iv_sql = |CREATE INDEX idx ON t(a)|
+      iv_expected = |CREATE INDEX idx ON t (a)| ).
+    assert_statement_parse(
+      iv_sql = |DROP TABLE IF EXISTS main.items|
+      iv_expected = |DROP TABLE IF EXISTS main.items| ).
+    assert_statement_parse(
+      iv_sql = |DROP INDEX IF EXISTS idx|
+      iv_expected = |DROP INDEX IF EXISTS idx| ).
+    assert_statement_parse(
+      iv_sql = |CREATE TABLE t (a);|
+      iv_expected = |CREATE TABLE t (a)| ).
+    assert_statement_parse(
+      iv_sql = |DROP INDEX idx;|
+      iv_expected = |DROP INDEX idx| ).
+  ENDMETHOD.
+
+  METHOD ddl_errors.
+    assert_statement_error( |CREATE VIEW v AS SELECT 1| ).
+    assert_statement_error( |CREATE TABLE| ).
+    assert_statement_error( |CREATE TABLE t ()| ).
+    assert_statement_error( |CREATE TABLE t (a INTEGER PRIMARY)| ).
+    assert_statement_error( |CREATE TABLE t (a INTEGER DEFAULT)| ).
+    assert_statement_error( |CREATE TABLE t (a INTEGER CHECK a)| ).
+    assert_statement_error( |CREATE TABLE t (a INTEGER REFERENCES p ON DELETE)| ).
+    assert_statement_error( |CREATE INDEX idx t(a)| ).
+    assert_statement_error( |CREATE INDEX idx ON t ()| ).
+    assert_statement_error( |DROP TABLE| ).
+    assert_statement_error( |DROP VIEW v| ).
+    assert_statement_error( |CREATE TABLE t (a INTEGER) WITH ROWID| ).
+    assert_statement_error( |CREATE TABLE t (a INTEGER) WITHOUT| ).
+    assert_statement_error( |CREATE TABLE t (a INTEGER) EXTRA| ).
+    assert_statement_error( |CREATE TABLE t (a INTEGER| ).
+    assert_statement_error( |CREATE TABLE t (a INTEGER, )| ).
+    assert_statement_error( |CREATE TABLE t (PRIMARY KEY (a))| ).
+    assert_statement_error( |CREATE TABLE t (a INTEGER, PRIMARY KEY ())| ).
+    assert_statement_error( |CREATE UNIQUE TABLE t (a)| ).
+    assert_statement_error( |CREATE TEMP INDEX idx ON t(a)| ).
+  ENDMETHOD.
+
   METHOD assert_parse.
     DATA lv_actual TYPE string.
 
@@ -238,6 +359,24 @@ CLASS ltcl_parser IMPLEMENTATION.
     TRY.
         zcl_sqlite_parser=>dump_expression( iv_sql ).
         cl_abap_unit_assert=>fail( msg = |expected a syntax error for { iv_sql }| ).
+      CATCH zcx_sqlite_error.
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD assert_statement_parse.
+    DATA lv_actual TYPE string.
+
+    lv_actual = zcl_sqlite_parser=>dump_statement( iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_actual
+      exp = iv_expected
+      msg = |statement dump for { iv_sql }| ).
+  ENDMETHOD.
+
+  METHOD assert_statement_error.
+    TRY.
+        zcl_sqlite_parser=>dump_statement( iv_sql ).
+        cl_abap_unit_assert=>fail( msg = |expected a statement error for { iv_sql }| ).
       CATCH zcx_sqlite_error.
     ENDTRY.
   ENDMETHOD.

@@ -350,7 +350,7 @@ a bad page size raise errors.
 
 #### M3.3 DDL
 
-- [ ] `CREATE TABLE` (column defs, type names, constraints, table constraints, `WITHOUT ROWID`,
+- [x] `CREATE TABLE` (column defs, type names, constraints, table constraints, `WITHOUT ROWID`,
       `IF NOT EXISTS`), `CREATE [UNIQUE] INDEX`, `DROP TABLE/INDEX`
 
 **Done when:** every `CREATE` statement in the fixtures parses.

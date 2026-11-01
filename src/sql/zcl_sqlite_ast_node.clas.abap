@@ -6,6 +6,7 @@ CLASS zcl_sqlite_ast_node DEFINITION
   PUBLIC SECTION.
     TYPES ty_node TYPE REF TO zcl_sqlite_ast_node.
     TYPES ty_nodes TYPE STANDARD TABLE OF ty_node WITH DEFAULT KEY.
+    TYPES ty_names TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
 
     METHODS dump
       RETURNING VALUE(rv_text) TYPE string.
@@ -13,6 +14,10 @@ CLASS zcl_sqlite_ast_node DEFINITION
   PROTECTED SECTION.
     CLASS-METHODS dump_nodes
       IMPORTING it_nodes       TYPE ty_nodes
+      RETURNING VALUE(rv_text) TYPE string.
+
+    CLASS-METHODS join_names
+      IMPORTING it_names       TYPE ty_names
       RETURNING VALUE(rv_text) TYPE string.
 
     CLASS-METHODS quote_string
@@ -37,6 +42,18 @@ CLASS zcl_sqlite_ast_node IMPLEMENTATION.
         rv_text = rv_text && |, |.
       ENDIF.
       rv_text = rv_text && lo_node->dump( ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD join_names.
+    DATA lv_name TYPE string.
+
+    LOOP AT it_names INTO lv_name.
+      IF rv_text IS NOT INITIAL.
+        " ANORMALY: character literals lose trailing blanks when concatenated
+        rv_text = rv_text && |, |.
+      ENDIF.
+      rv_text = rv_text && lv_name.
     ENDLOOP.
   ENDMETHOD.
 
