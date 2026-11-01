@@ -16,6 +16,10 @@ CLASS ltcl_parser DEFINITION FINAL FOR TESTING
     METHODS create_table_constraints FOR TESTING RAISING zcx_sqlite_error.
     METHODS create_index_and_drop FOR TESTING RAISING zcx_sqlite_error.
     METHODS ddl_errors FOR TESTING.
+    METHODS select_core FOR TESTING RAISING zcx_sqlite_error.
+    METHODS select_joins FOR TESTING RAISING zcx_sqlite_error.
+    METHODS select_values FOR TESTING RAISING zcx_sqlite_error.
+    METHODS select_errors FOR TESTING.
 
     METHODS assert_parse
       IMPORTING iv_sql      TYPE string
@@ -343,6 +347,109 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_error( |CREATE TABLE t (a INTEGER, PRIMARY KEY ())| ).
     assert_statement_error( |CREATE UNIQUE TABLE t (a)| ).
     assert_statement_error( |CREATE TEMP INDEX idx ON t(a)| ).
+  ENDMETHOD.
+
+  METHOD select_core.
+    assert_statement_parse(
+      iv_sql = |SELECT a, b + 1 FROM t WHERE c > 5|
+      iv_expected = |SELECT COLUMN(a), BINARY(+, COLUMN(b), INTEGER(1)) FROM t WHERE BINARY(>, COLUMN(c), INTEGER(5))| ).
+    assert_statement_parse(
+      iv_sql = |SELECT DISTINCT t.*, * FROM main.t AS x|
+      iv_expected = |SELECT DISTINCT COLUMN(t.*), STAR FROM main.t AS x| ).
+    assert_statement_parse(
+      iv_sql = |SELECT a AS x, b y FROM t;|
+      iv_expected = |SELECT COLUMN(a) AS x, COLUMN(b) AS y FROM t| ).
+    assert_statement_parse(
+      iv_sql = |SELECT count(*) AS n FROM t GROUP BY a, b HAVING count(*) > 1 ORDER BY n DESC, 1 LIMIT 10 OFFSET 2|
+      iv_expected = |SELECT FUNCTION(count, STAR) AS n FROM t GROUP BY COLUMN(a), COLUMN(b) HAVING BINARY(>, FUNCTION(count, STAR), INTEGER(1)) ORDER BY COLUMN(n) DESC, INTEGER(1) LIMIT INTEGER(10) OFFSET INTEGER(2)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT ALL a FROM t|
+      iv_expected = |SELECT COLUMN(a) FROM t| ).
+    assert_statement_parse(
+      iv_sql = |SELECT 1 + 2|
+      iv_expected = |SELECT BINARY(+, INTEGER(1), INTEGER(2))| ).
+    assert_statement_parse(
+      iv_sql = |SELECT a FROM t ORDER BY a ASC NULLS LAST, b|
+      iv_expected = |SELECT COLUMN(a) FROM t ORDER BY COLUMN(a) ASC NULLS LAST, COLUMN(b)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT a FROM t LIMIT 5, 10|
+      iv_expected = |SELECT COLUMN(a) FROM t LIMIT INTEGER(10) OFFSET INTEGER(5)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT a FROM t LIMIT 10|
+      iv_expected = |SELECT COLUMN(a) FROM t LIMIT INTEGER(10)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT 'x' AS label|
+      iv_expected = |SELECT STRING('x') AS label| ).
+  ENDMETHOD.
+
+  METHOD select_joins.
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM a INNER JOIN b ON a.id = b.id LEFT OUTER JOIN c USING (id, x) CROSS JOIN d|
+      iv_expected = |SELECT STAR FROM a INNER JOIN b ON BINARY(=, COLUMN(a.id), COLUMN(b.id)) LEFT JOIN c USING (id, x) CROSS JOIN d| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM a, b AS x, c y|
+      iv_expected = |SELECT STAR FROM a, b AS x, c AS y| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM a JOIN b USING (id)|
+      iv_expected = |SELECT STAR FROM a INNER JOIN b USING (id)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM main.a AS x LEFT JOIN main.b y ON x.id = y.id|
+      iv_expected = |SELECT STAR FROM main.a AS x LEFT JOIN main.b AS y ON BINARY(=, COLUMN(x.id), COLUMN(y.id))| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM a CROSS JOIN b|
+      iv_expected = |SELECT STAR FROM a CROSS JOIN b| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM a, b JOIN c ON b.id = c.id|
+      iv_expected = |SELECT STAR FROM a, b INNER JOIN c ON BINARY(=, COLUMN(b.id), COLUMN(c.id))| ).
+  ENDMETHOD.
+
+  METHOD select_values.
+    assert_statement_parse(
+      iv_sql = |VALUES (1, 'x'), (2, NULL)|
+      iv_expected = |VALUES (INTEGER(1), STRING('x')), (INTEGER(2), NULL)| ).
+    assert_statement_parse(
+      iv_sql = |VALUES (1 + 2)|
+      iv_expected = |VALUES (BINARY(+, INTEGER(1), INTEGER(2)))| ).
+    assert_statement_parse(
+      iv_sql = |VALUES (?)|
+      iv_expected = |VALUES (PARAM(?))| ).
+    assert_statement_parse(
+      iv_sql = |VALUES (1, 2), (3, 4);|
+      iv_expected = |VALUES (INTEGER(1), INTEGER(2)), (INTEGER(3), INTEGER(4))| ).
+    assert_statement_parse(
+      iv_sql = |VALUES (CURRENT_TIMESTAMP)|
+      iv_expected = |VALUES (CURRENT_TIMESTAMP)| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM t;|
+      iv_expected = |SELECT STAR FROM t| ).
+  ENDMETHOD.
+
+  METHOD select_errors.
+    assert_statement_error( |SELECT| ).
+    assert_statement_error( |SELECT FROM t| ).
+    assert_statement_error( |SELECT a FROM| ).
+    assert_statement_error( |SELECT a FROM t WHERE| ).
+    assert_statement_error( |SELECT a FROM t GROUP| ).
+    assert_statement_error( |SELECT a FROM t GROUP BY| ).
+    assert_statement_error( |SELECT a FROM t HAVING| ).
+    assert_statement_error( |SELECT a FROM t ORDER| ).
+    assert_statement_error( |SELECT a FROM t ORDER BY| ).
+    assert_statement_error( |SELECT a FROM t ORDER BY a NULLS| ).
+    assert_statement_error( |SELECT a FROM t LIMIT| ).
+    assert_statement_error( |SELECT a FROM t LIMIT 1 OFFSET| ).
+    assert_statement_error( |SELECT a FROM t LIMIT 1,| ).
+    assert_statement_error( |SELECT a FROM t WHERE a =| ).
+    assert_statement_error( |SELECT a FROM t,| ).
+    assert_statement_error( |SELECT a FROM t JOIN| ).
+    assert_statement_error( |SELECT a FROM a INNER b| ).
+    assert_statement_error( |SELECT a FROM a LEFT OUTER b| ).
+    assert_statement_error( |SELECT a FROM a JOIN b USING id| ).
+    assert_statement_error( |SELECT a FROM a JOIN b USING (id,)| ).
+    assert_statement_error( |VALUES| ).
+    assert_statement_error( |VALUES ()| ).
+    assert_statement_error( |VALUES (1| ).
+    assert_statement_error( |VALUES (1,)| ).
+    assert_statement_error( |VALUES (1) (2)| ).
   ENDMETHOD.
 
   METHOD assert_parse.

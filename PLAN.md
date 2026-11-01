@@ -357,7 +357,7 @@ a bad page size raise errors.
 
 #### M3.4 SELECT core
 
-- [ ] Result columns, `*`, `t.*`, aliases, `FROM` with joins (`INNER`, `LEFT`, `CROSS`, `,`),
+- [x] Result columns, `*`, `t.*`, aliases, `FROM` with joins (`INNER`, `LEFT`, `CROSS`, `,`),
       `WHERE`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`, `VALUES`
 
 **Done when:** a SELECT corpus parses to the expected dumps.
