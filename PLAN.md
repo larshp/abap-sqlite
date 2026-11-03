@@ -378,7 +378,7 @@ a bad page size raise errors.
 
 #### M3.7 Other statements and scripts
 
-- [ ] `BEGIN`, `COMMIT`, `ROLLBACK`, `PRAGMA`, `EXPLAIN [QUERY PLAN]`, scripts with several
+- [x] `BEGIN`, `COMMIT`, `ROLLBACK`, `PRAGMA`, `EXPLAIN [QUERY PLAN]`, scripts with several
       statements separated by `;`
 
 **Done when:** a script corpus splits and parses correctly.

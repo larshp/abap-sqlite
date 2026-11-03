@@ -29,6 +29,11 @@ CLASS ltcl_parser DEFINITION FINAL FOR TESTING
     METHODS delete_statements FOR TESTING RAISING zcx_sqlite_error.
     METHODS dml_with FOR TESTING RAISING zcx_sqlite_error.
     METHODS dml_errors FOR TESTING.
+    METHODS transactions FOR TESTING RAISING zcx_sqlite_error.
+    METHODS pragma_statements FOR TESTING RAISING zcx_sqlite_error.
+    METHODS explain_statements FOR TESTING RAISING zcx_sqlite_error.
+    METHODS script_parsing FOR TESTING RAISING zcx_sqlite_error.
+    METHODS other_errors FOR TESTING.
 
     METHODS assert_parse
       IMPORTING iv_sql      TYPE string
@@ -45,6 +50,11 @@ CLASS ltcl_parser DEFINITION FINAL FOR TESTING
 
     METHODS assert_statement_error
       IMPORTING iv_sql TYPE string.
+
+    METHODS assert_script
+      IMPORTING iv_sql      TYPE string
+                it_expected TYPE zcl_sqlite_ast_node=>ty_names
+      RAISING   zcx_sqlite_error.
 ENDCLASS.
 
 
@@ -681,6 +691,213 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_error( |WITH cte AS (SELECT 1) DELETE| ).
   ENDMETHOD.
 
+  METHOD transactions.
+    assert_statement_parse(
+      iv_sql = |BEGIN|
+      iv_expected = |BEGIN| ).
+    assert_statement_parse(
+      iv_sql = |BEGIN TRANSACTION|
+      iv_expected = |BEGIN TRANSACTION| ).
+    assert_statement_parse(
+      iv_sql = |BEGIN DEFERRED|
+      iv_expected = |BEGIN DEFERRED| ).
+    assert_statement_parse(
+      iv_sql = |BEGIN IMMEDIATE TRANSACTION|
+      iv_expected = |BEGIN IMMEDIATE TRANSACTION| ).
+    assert_statement_parse(
+      iv_sql = |BEGIN EXCLUSIVE TRANSACTION|
+      iv_expected = |BEGIN EXCLUSIVE TRANSACTION| ).
+    assert_statement_parse(
+      iv_sql = |COMMIT|
+      iv_expected = |COMMIT| ).
+    assert_statement_parse(
+      iv_sql = |COMMIT TRANSACTION|
+      iv_expected = |COMMIT TRANSACTION| ).
+    assert_statement_parse(
+      iv_sql = |END|
+      iv_expected = |END| ).
+    assert_statement_parse(
+      iv_sql = |END TRANSACTION|
+      iv_expected = |END TRANSACTION| ).
+    assert_statement_parse(
+      iv_sql = |ROLLBACK|
+      iv_expected = |ROLLBACK| ).
+    assert_statement_parse(
+      iv_sql = |ROLLBACK TRANSACTION|
+      iv_expected = |ROLLBACK TRANSACTION| ).
+    assert_statement_parse(
+      iv_sql = |ROLLBACK TO sp|
+      iv_expected = |ROLLBACK TO sp| ).
+    assert_statement_parse(
+      iv_sql = |ROLLBACK TO SAVEPOINT sp|
+      iv_expected = |ROLLBACK TO SAVEPOINT sp| ).
+    assert_statement_parse(
+      iv_sql = |ROLLBACK TRANSACTION TO SAVEPOINT sp|
+      iv_expected = |ROLLBACK TRANSACTION TO SAVEPOINT sp| ).
+    assert_statement_parse(
+      iv_sql = |BEGIN;|
+      iv_expected = |BEGIN| ).
+  ENDMETHOD.
+
+  METHOD pragma_statements.
+    assert_statement_parse(
+      iv_sql = |PRAGMA integrity_check|
+      iv_expected = |PRAGMA integrity_check| ).
+    assert_statement_parse(
+      iv_sql = |PRAGMA table_info(items)|
+      iv_expected = |PRAGMA table_info(items)| ).
+    assert_statement_parse(
+      iv_sql = |PRAGMA main.table_info(items)|
+      iv_expected = |PRAGMA main.table_info(items)| ).
+    assert_statement_parse(
+      iv_sql = |PRAGMA user_version = 3|
+      iv_expected = |PRAGMA user_version = 3| ).
+    assert_statement_parse(
+      iv_sql = |PRAGMA cache_size = -2000|
+      iv_expected = |PRAGMA cache_size = -2000| ).
+    assert_statement_parse(
+      iv_sql = |PRAGMA foo = +2|
+      iv_expected = |PRAGMA foo = +2| ).
+    assert_statement_parse(
+      iv_sql = |PRAGMA encoding = 'UTF-8'|
+      iv_expected = |PRAGMA encoding = 'UTF-8'| ).
+    assert_statement_parse(
+      iv_sql = |PRAGMA page_size(4096)|
+      iv_expected = |PRAGMA page_size(4096)| ).
+    assert_statement_parse(
+      iv_sql = |PRAGMA journal_mode = WAL|
+      iv_expected = |PRAGMA journal_mode = WAL| ).
+    assert_statement_parse(
+      iv_sql = |PRAGMA foreign_keys = ON|
+      iv_expected = |PRAGMA foreign_keys = ON| ).
+    assert_statement_parse(
+      iv_sql = |PRAGMA foo = 1.5|
+      iv_expected = |PRAGMA foo = 1.5| ).
+  ENDMETHOD.
+
+  METHOD explain_statements.
+    assert_statement_parse(
+      iv_sql = |EXPLAIN SELECT 1|
+      iv_expected = |EXPLAIN SELECT INTEGER(1)| ).
+    assert_statement_parse(
+      iv_sql = |EXPLAIN QUERY PLAN SELECT * FROM t WHERE id = 1|
+      iv_expected = |EXPLAIN QUERY PLAN SELECT STAR FROM t WHERE BINARY(=, COLUMN(id), INTEGER(1))| ).
+    assert_statement_parse(
+      iv_sql = |EXPLAIN QUERY PLAN INSERT INTO t VALUES (1)|
+      iv_expected = |EXPLAIN QUERY PLAN INSERT INTO t VALUES (INTEGER(1))| ).
+    assert_statement_parse(
+      iv_sql = |EXPLAIN UPDATE t SET a = 1|
+      iv_expected = |EXPLAIN UPDATE t SET a = INTEGER(1)| ).
+    assert_statement_parse(
+      iv_sql = |EXPLAIN DELETE FROM t|
+      iv_expected = |EXPLAIN DELETE FROM t| ).
+    assert_statement_parse(
+      iv_sql = |EXPLAIN PRAGMA user_version|
+      iv_expected = |EXPLAIN PRAGMA user_version| ).
+    assert_statement_parse(
+      iv_sql = |EXPLAIN CREATE TABLE t (a)|
+      iv_expected = |EXPLAIN CREATE TABLE t (a)| ).
+    assert_statement_parse(
+      iv_sql = |EXPLAIN QUERY PLAN WITH cte AS (SELECT 1) SELECT * FROM cte|
+      iv_expected = |EXPLAIN QUERY PLAN WITH cte AS (SELECT INTEGER(1)) SELECT STAR FROM cte| ).
+  ENDMETHOD.
+
+  METHOD script_parsing.
+    DATA lt_expected TYPE zcl_sqlite_ast_node=>ty_names.
+    DATA lv_sql      TYPE string.
+
+    APPEND |CREATE TABLE t (a)| TO lt_expected.
+    APPEND |INSERT INTO t VALUES (INTEGER(1))| TO lt_expected.
+    APPEND |SELECT STAR FROM t| TO lt_expected.
+    assert_script(
+      iv_sql = |CREATE TABLE t (a); INSERT INTO t VALUES (1); SELECT * FROM t;|
+      it_expected = lt_expected ).
+
+    CLEAR lt_expected.
+    APPEND |BEGIN| TO lt_expected.
+    APPEND |INSERT INTO t VALUES (INTEGER(1))| TO lt_expected.
+    APPEND |COMMIT| TO lt_expected.
+    assert_script(
+      iv_sql = |BEGIN; INSERT INTO t VALUES (1); COMMIT;|
+      it_expected = lt_expected ).
+
+    CLEAR lt_expected.
+    APPEND |BEGIN| TO lt_expected.
+    APPEND |SELECT INTEGER(1)| TO lt_expected.
+    APPEND |COMMIT| TO lt_expected.
+    lv_sql = |; ; BEGIN; -- hi| && cl_abap_char_utilities=>newline && |SELECT 1; ; COMMIT; ;|.
+    assert_script(
+      iv_sql = lv_sql
+      it_expected = lt_expected ).
+
+    CLEAR lt_expected.
+    APPEND |PRAGMA user_version = 3| TO lt_expected.
+    APPEND |EXPLAIN QUERY PLAN SELECT INTEGER(1)| TO lt_expected.
+    assert_script(
+      iv_sql = |PRAGMA user_version = 3; EXPLAIN QUERY PLAN SELECT 1;|
+      it_expected = lt_expected ).
+
+    CLEAR lt_expected.
+    APPEND |INSERT INTO t VALUES (STRING(';'))| TO lt_expected.
+    APPEND |SELECT INTEGER(1)| TO lt_expected.
+    assert_script(
+      iv_sql = |INSERT INTO t VALUES (';'); SELECT 1;|
+      it_expected = lt_expected ).
+
+    CLEAR lt_expected.
+    APPEND |SELECT INTEGER(1)| TO lt_expected.
+    APPEND |SELECT INTEGER(2)| TO lt_expected.
+    lv_sql = |SELECT 1; -- ; comment| && cl_abap_char_utilities=>newline && |SELECT 2;|.
+    assert_script(
+      iv_sql = lv_sql
+      it_expected = lt_expected ).
+
+    CLEAR lt_expected.
+    APPEND |SELECT INTEGER(1)| TO lt_expected.
+    APPEND |SELECT INTEGER(2)| TO lt_expected.
+    assert_script(
+      iv_sql = |SELECT 1; SELECT 2|
+      it_expected = lt_expected ).
+
+    CLEAR lt_expected.
+    assert_script(
+      iv_sql = ||
+      it_expected = lt_expected ).
+    lv_sql = | ; -- only comment| && cl_abap_char_utilities=>newline && |;|.
+    assert_script(
+      iv_sql = lv_sql
+      it_expected = lt_expected ).
+
+    TRY.
+        zcl_sqlite_parser=>dump_script( |SELECT 1; BOGUS;| ).
+        cl_abap_unit_assert=>fail( msg = |expected a script error| ).
+      CATCH zcx_sqlite_error.
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD other_errors.
+    assert_statement_error( |BEGIN FOO| ).
+    assert_statement_error( |BEGIN TRANSACTION DEFERRED| ).
+    assert_statement_error( |COMMIT FOO| ).
+    assert_statement_error( |END FOO| ).
+    assert_statement_error( |ROLLBACK TO| ).
+    assert_statement_error( |ROLLBACK TO SAVEPOINT| ).
+    assert_statement_error( |PRAGMA| ).
+    assert_statement_error( |PRAGMA foo =| ).
+    assert_statement_error( |PRAGMA foo = -| ).
+    assert_statement_error( |PRAGMA foo = -'x'| ).
+    assert_statement_error( |PRAGMA foo = +bar| ).
+    assert_statement_error( |PRAGMA foo()| ).
+    assert_statement_error( |PRAGMA foo = 1 2| ).
+    assert_statement_error( |PRAGMA foo = 1)| ).
+    assert_statement_error( |PRAGMA foo(1| ).
+    assert_statement_error( |EXPLAIN| ).
+    assert_statement_error( |EXPLAIN QUERY SELECT 1| ).
+    assert_statement_error( |EXPLAIN QUERY PLAN| ).
+    assert_statement_error( |EXPLAIN SELECT| ).
+    assert_statement_error( |EXPLAIN QUERY PLAN BOGUS| ).
+  ENDMETHOD.
+
   METHOD assert_parse.
     DATA lv_actual TYPE string.
 
@@ -715,6 +932,28 @@ CLASS ltcl_parser IMPLEMENTATION.
         cl_abap_unit_assert=>fail( msg = |expected a statement error for { iv_sql }| ).
       CATCH zcx_sqlite_error.
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD assert_script.
+    DATA lt_actual   TYPE zcl_sqlite_ast_node=>ty_names.
+    DATA lv_actual   TYPE string.
+    DATA lv_expected TYPE string.
+    DATA lv_index    TYPE i.
+
+    lt_actual = zcl_sqlite_parser=>dump_script( iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lt_actual )
+      exp = lines( it_expected )
+      msg = |script statement count for { iv_sql }| ).
+
+    LOOP AT it_expected INTO lv_expected.
+      lv_index = sy-tabix.
+      READ TABLE lt_actual INTO lv_actual INDEX lv_index.
+      cl_abap_unit_assert=>assert_equals(
+        act = lv_actual
+        exp = lv_expected
+        msg = |script statement { lv_index } for { iv_sql }| ).
+    ENDLOOP.
   ENDMETHOD.
 
 ENDCLASS.

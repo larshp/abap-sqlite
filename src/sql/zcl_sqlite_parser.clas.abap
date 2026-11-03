@@ -27,6 +27,16 @@ CLASS zcl_sqlite_parser DEFINITION
       RETURNING VALUE(rv_text) TYPE string
       RAISING   zcx_sqlite_error.
 
+    CLASS-METHODS parse_script
+      IMPORTING iv_sql               TYPE string
+      RETURNING VALUE(rt_statements) TYPE zcl_sqlite_ast_node=>ty_nodes
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS dump_script
+      IMPORTING iv_sql          TYPE string
+      RETURNING VALUE(rt_texts) TYPE zcl_sqlite_ast_node=>ty_names
+      RAISING   zcx_sqlite_error.
+
   PRIVATE SECTION.
     CONSTANTS:
       c_prec_or         TYPE i VALUE 1,
@@ -153,6 +163,26 @@ CLASS zcl_sqlite_parser DEFINITION
 
     METHODS parse_drop
       RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_drop
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_statement_body
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_transaction
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_transaction
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_pragma
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_pragma
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_pragma_value
+      RETURNING VALUE(rv_value) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_explain
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_explain
       RAISING   zcx_sqlite_error.
 
     METHODS parse_insert
@@ -441,24 +471,7 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     DATA lo_parser TYPE REF TO zcl_sqlite_parser.
 
     lo_parser = NEW #( iv_sql ).
-    IF lo_parser->is_keyword( 'CREATE' ) = abap_true.
-      ro_statement = lo_parser->parse_create( ).
-    ELSEIF lo_parser->is_keyword( 'DROP' ) = abap_true.
-      ro_statement = lo_parser->parse_drop( ).
-    ELSEIF lo_parser->is_keyword( 'INSERT' ) = abap_true.
-      ro_statement = lo_parser->parse_insert( ).
-    ELSEIF lo_parser->is_keyword( 'UPDATE' ) = abap_true.
-      ro_statement = lo_parser->parse_update( ).
-    ELSEIF lo_parser->is_keyword( 'DELETE' ) = abap_true.
-      ro_statement = lo_parser->parse_delete( ).
-    ELSEIF lo_parser->is_keyword( 'SELECT' ) = abap_true
-        OR lo_parser->is_keyword( 'VALUES' ) = abap_true
-        OR lo_parser->is_keyword( 'WITH' ) = abap_true
-        OR lo_parser->is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
-      ro_statement = lo_parser->parse_select_statement( ).
-    ELSE.
-      lo_parser->fail( 'expected CREATE, DROP, INSERT, UPDATE, DELETE, SELECT, VALUES or WITH' ).
-    ENDIF.
+    ro_statement = lo_parser->parse_statement_body( ).
 
     WHILE lo_parser->is_kind( zcl_sqlite_tokenizer=>c_semicolon ) = abap_true.
       lo_parser->advance( ).
@@ -470,6 +483,211 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
 
   METHOD dump_statement.
     rv_text = parse_statement( iv_sql )->dump( ).
+  ENDMETHOD.
+
+  METHOD parse_script.
+    DATA lt_tokens      TYPE zcl_sqlite_tokenizer=>ty_tokens.
+    DATA ls_token       TYPE zcl_sqlite_tokenizer=>ty_token.
+    DATA lv_start       TYPE i VALUE 1.
+    DATA lv_length      TYPE i.
+    DATA lv_has_content TYPE abap_bool.
+    DATA lv_sql         TYPE string.
+
+    lt_tokens = zcl_sqlite_tokenizer=>tokenize( iv_sql ).
+    LOOP AT lt_tokens INTO ls_token.
+      IF ls_token-kind = zcl_sqlite_tokenizer=>c_semicolon.
+        IF lv_has_content = abap_true.
+          lv_length = ls_token-offset - lv_start.
+          IF lv_length > 0.
+            lv_sql = substring(
+              val = iv_sql
+              off = lv_start - 1
+              len = lv_length ).
+            APPEND parse_statement( lv_sql ) TO rt_statements.
+          ENDIF.
+        ENDIF.
+        lv_start = ls_token-offset + ls_token-length.
+        CLEAR lv_has_content.
+        CONTINUE.
+      ENDIF.
+      IF ls_token-kind <> zcl_sqlite_tokenizer=>c_eof
+          AND ls_token-kind <> zcl_sqlite_tokenizer=>c_comment.
+        lv_has_content = abap_true.
+      ENDIF.
+    ENDLOOP.
+
+    IF lv_has_content = abap_true.
+      lv_sql = substring(
+        val = iv_sql
+        off = lv_start - 1 ).
+      APPEND parse_statement( lv_sql ) TO rt_statements.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD dump_script.
+    DATA lt_statements TYPE zcl_sqlite_ast_node=>ty_nodes.
+    DATA lo_statement  TYPE REF TO zcl_sqlite_ast_node.
+
+    lt_statements = parse_script( iv_sql ).
+    LOOP AT lt_statements INTO lo_statement.
+      APPEND lo_statement->dump( ) TO rt_texts.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD parse_statement_body.
+    IF is_keyword( 'CREATE' ) = abap_true.
+      ro_statement = parse_create( ).
+    ELSEIF is_keyword( 'DROP' ) = abap_true.
+      ro_statement = parse_drop( ).
+    ELSEIF is_keyword( 'INSERT' ) = abap_true.
+      ro_statement = parse_insert( ).
+    ELSEIF is_keyword( 'UPDATE' ) = abap_true.
+      ro_statement = parse_update( ).
+    ELSEIF is_keyword( 'DELETE' ) = abap_true.
+      ro_statement = parse_delete( ).
+    ELSEIF is_keyword( 'BEGIN' ) = abap_true
+        OR is_keyword( 'COMMIT' ) = abap_true
+        OR is_keyword( 'END' ) = abap_true
+        OR is_keyword( 'ROLLBACK' ) = abap_true.
+      ro_statement = parse_transaction( ).
+    ELSEIF is_keyword( 'PRAGMA' ) = abap_true.
+      ro_statement = parse_pragma( ).
+    ELSEIF is_keyword( 'EXPLAIN' ) = abap_true.
+      ro_statement = parse_explain( ).
+    ELSEIF is_keyword( 'SELECT' ) = abap_true
+        OR is_keyword( 'VALUES' ) = abap_true
+        OR is_keyword( 'WITH' ) = abap_true
+        OR is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      ro_statement = parse_select_statement( ).
+    ELSE.
+      fail( 'expected CREATE, DROP, INSERT, UPDATE, DELETE, BEGIN, COMMIT, END, ROLLBACK, PRAGMA, EXPLAIN, SELECT, VALUES or WITH' ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_transaction.
+    DATA lv_action      TYPE string.
+    DATA lv_mode        TYPE string.
+    DATA lv_transaction TYPE abap_bool.
+    DATA lv_to          TYPE string.
+    DATA lv_savepoint   TYPE abap_bool.
+
+    lv_action = current( )-value.
+    CASE lv_action.
+      WHEN 'BEGIN'.
+        advance( ).
+        IF is_keyword( 'DEFERRED' ) = abap_true
+            OR is_keyword( 'IMMEDIATE' ) = abap_true
+            OR is_keyword( 'EXCLUSIVE' ) = abap_true.
+          lv_mode = current( )-value.
+          advance( ).
+        ENDIF.
+        IF is_keyword( 'TRANSACTION' ) = abap_true.
+          lv_transaction = abap_true.
+          advance( ).
+        ENDIF.
+      WHEN 'COMMIT' OR 'END'.
+        advance( ).
+        IF is_keyword( 'TRANSACTION' ) = abap_true.
+          lv_transaction = abap_true.
+          advance( ).
+        ENDIF.
+      WHEN 'ROLLBACK'.
+        advance( ).
+        IF is_keyword( 'TRANSACTION' ) = abap_true.
+          lv_transaction = abap_true.
+          advance( ).
+        ENDIF.
+        IF is_keyword( 'TO' ) = abap_true.
+          advance( ).
+          IF is_keyword( 'SAVEPOINT' ) = abap_true.
+            lv_savepoint = abap_true.
+            advance( ).
+          ENDIF.
+          lv_to = parse_identifier( ).
+        ENDIF.
+      WHEN OTHERS.
+        fail( 'expected transaction statement' ).
+    ENDCASE.
+
+    ro_statement = NEW zcl_sqlite_ast_transaction(
+      iv_action      = lv_action
+      iv_mode        = lv_mode
+      iv_transaction = lv_transaction
+      iv_to          = lv_to
+      iv_savepoint   = lv_savepoint ).
+  ENDMETHOD.
+
+  METHOD parse_pragma.
+    DATA lv_name      TYPE string.
+    DATA lv_separator TYPE string.
+    DATA lv_value     TYPE string.
+
+    expect_keyword( 'PRAGMA' ).
+    lv_name = parse_object_name( ).
+    IF is_operator( '=' ) = abap_true.
+      lv_separator = '='.
+      advance( ).
+      lv_value = parse_pragma_value( ).
+    ELSEIF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      lv_separator = '('.
+      advance( ).
+      lv_value = parse_pragma_value( ).
+      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    ENDIF.
+
+    ro_statement = NEW zcl_sqlite_ast_pragma(
+      iv_name      = lv_name
+      iv_separator = lv_separator
+      iv_value     = lv_value ).
+  ENDMETHOD.
+
+  METHOD parse_pragma_value.
+    DATA ls_token TYPE zcl_sqlite_tokenizer=>ty_token.
+
+    IF is_operator( '+' ) = abap_true OR is_operator( '-' ) = abap_true.
+      rv_value = current( )-text.
+      advance( ).
+      ls_token = current( ).
+      IF ls_token-kind <> zcl_sqlite_tokenizer=>c_integer
+          AND ls_token-kind <> zcl_sqlite_tokenizer=>c_float.
+        fail( 'expected numeric pragma value' ).
+      ENDIF.
+      rv_value = rv_value && ls_token-text.
+      advance( ).
+      RETURN.
+    ENDIF.
+
+    ls_token = current( ).
+    CASE ls_token-kind.
+      WHEN zcl_sqlite_tokenizer=>c_integer
+          OR zcl_sqlite_tokenizer=>c_float
+          OR zcl_sqlite_tokenizer=>c_string
+          OR zcl_sqlite_tokenizer=>c_identifier
+          OR zcl_sqlite_tokenizer=>c_keyword
+          OR zcl_sqlite_tokenizer=>c_blob
+          OR zcl_sqlite_tokenizer=>c_parameter.
+        rv_value = rv_value && ls_token-text.
+        advance( ).
+      WHEN OTHERS.
+        fail( 'expected pragma value' ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD parse_explain.
+    DATA lv_query_plan TYPE abap_bool.
+    DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
+
+    expect_keyword( 'EXPLAIN' ).
+    IF is_keyword( 'QUERY' ) = abap_true.
+      advance( ).
+      expect_keyword( 'PLAN' ).
+      lv_query_plan = abap_true.
+    ENDIF.
+    lo_statement = parse_statement_body( ).
+
+    ro_statement = NEW zcl_sqlite_ast_explain(
+      iv_query_plan = lv_query_plan
+      io_statement  = lo_statement ).
   ENDMETHOD.
 
   METHOD parse_create.
