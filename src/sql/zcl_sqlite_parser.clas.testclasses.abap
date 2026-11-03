@@ -3,6 +3,13 @@ CLASS ltcl_parser DEFINITION FINAL FOR TESTING
   RISK LEVEL HARMLESS.
 
   PRIVATE SECTION.
+    TYPES: BEGIN OF ty_error_case,
+             sql      TYPE string,
+             message  TYPE string,
+             position TYPE i,
+           END OF ty_error_case,
+           ty_error_cases TYPE STANDARD TABLE OF ty_error_case WITH DEFAULT KEY.
+
     METHODS literals FOR TESTING RAISING zcx_sqlite_error.
     METHODS names_and_parameters FOR TESTING RAISING zcx_sqlite_error.
     METHODS unary_and_precedence FOR TESTING RAISING zcx_sqlite_error.
@@ -34,6 +41,8 @@ CLASS ltcl_parser DEFINITION FINAL FOR TESTING
     METHODS explain_statements FOR TESTING RAISING zcx_sqlite_error.
     METHODS script_parsing FOR TESTING RAISING zcx_sqlite_error.
     METHODS other_errors FOR TESTING.
+    METHODS parse_error_corpus FOR TESTING.
+    METHODS parse_error_positions FOR TESTING.
 
     METHODS assert_parse
       IMPORTING iv_sql      TYPE string
@@ -50,6 +59,11 @@ CLASS ltcl_parser DEFINITION FINAL FOR TESTING
 
     METHODS assert_statement_error
       IMPORTING iv_sql TYPE string.
+
+    METHODS assert_statement_error_details
+      IMPORTING iv_sql      TYPE string
+                iv_message  TYPE string
+                iv_position TYPE i.
 
     METHODS assert_script
       IMPORTING iv_sql      TYPE string
@@ -898,6 +912,156 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_error( |EXPLAIN QUERY PLAN BOGUS| ).
   ENDMETHOD.
 
+  METHOD parse_error_corpus.
+    DATA lt_cases TYPE ty_error_cases.
+    DATA ls_case  TYPE ty_error_case.
+
+    lt_cases = VALUE #(
+      ( sql = |SELEC 1| message = |near "SELEC": syntax error| position = 1 )
+      ( sql = |SELECT 1 2| message = |near "2": syntax error| position = 10 )
+      ( sql = |SELECT 1 FROM| message = |incomplete input| position = 14 )
+      ( sql = |SELECT * FROM t WHERE| message = |incomplete input| position = 22 )
+      ( sql = |SELECT 1 +| message = |incomplete input| position = 11 )
+      ( sql = |SELECT (| message = |incomplete input| position = 9 )
+      ( sql = |SELECT )| message = |near ")": syntax error| position = 8 )
+      ( sql = |SELECT 1 ORDER BY| message = |incomplete input| position = 18 )
+      ( sql = |SELECT 1 LIMIT| message = |incomplete input| position = 15 )
+      ( sql = |SELECT 1 UNION ALL| message = |incomplete input| position = 19 )
+      ( sql = |SELECT * FROM t JOIN| message = |incomplete input| position = 21 )
+      ( sql = |SELECT * FROM t JOIN u ON| message = |incomplete input| position = 26 )
+      ( sql = |SELECT * FROM t GROUP BY| message = |incomplete input| position = 25 )
+      ( sql = |SELECT * FROM t HAVING| message = |incomplete input| position = 23 )
+      ( sql = |SELECT * FROM t,| message = |incomplete input| position = 17 )
+      ( sql = |VALUES| message = |incomplete input| position = 7 )
+      ( sql = |VALUES (| message = |incomplete input| position = 9 )
+      ( sql = |SELECT CASE END| message = |near "END": syntax error| position = 13 )
+      ( sql = |SELECT 1 AS| message = |incomplete input| position = 12 )
+      ( sql = |CREATE| message = |incomplete input| position = 7 )
+      ( sql = |CREATE TABLE t| message = |incomplete input| position = 15 )
+      ( sql = |CREATE TABLE t (| message = |incomplete input| position = 17 )
+      ( sql = |CREATE TABLE t (a| message = |incomplete input| position = 18 )
+      ( sql = |CREATE INDEX i ON t| message = |incomplete input| position = 20 )
+      ( sql = |CREATE INDEX i ON t (a| message = |incomplete input| position = 23 )
+      ( sql = |DROP TABLE| message = |incomplete input| position = 11 )
+      ( sql = |INSERT INTO t| message = |incomplete input| position = 14 )
+      ( sql = |INSERT INTO t VALUES (1| message = |incomplete input| position = 24 )
+      ( sql = |INSERT INTO t DEFAULT| message = |incomplete input| position = 22 )
+      ( sql = |UPDATE t SET a =| message = |incomplete input| position = 17 )
+      ( sql = |DELETE FROM t WHERE| message = |incomplete input| position = 20 )
+      ( sql = |BEGIN FOO| message = |near "FOO": syntax error| position = 7 )
+      ( sql = |BEGIN TRANSACTION DEFERRED| message = |near "DEFERRED": syntax error| position = 19 )
+      ( sql = |COMMIT FOO| message = |near "FOO": syntax error| position = 8 )
+      ( sql = |END FOO| message = |near "FOO": syntax error| position = 5 )
+      ( sql = |ROLLBACK TO SAVEPOINT| message = |incomplete input| position = 22 )
+      ( sql = |PRAGMA| message = |incomplete input| position = 7 )
+      ( sql = |PRAGMA foo =| message = |incomplete input| position = 13 )
+      ( sql = |PRAGMA foo = -| message = |incomplete input| position = 15 )
+      ( sql = |PRAGMA foo = -'x'| message = |near "'x'": syntax error| position = 15 )
+      ( sql = |PRAGMA foo()| message = |near ")": syntax error| position = 12 )
+      ( sql = |PRAGMA foo = 1 2| message = |near "2": syntax error| position = 16 )
+      ( sql = |PRAGMA foo(1| message = |incomplete input| position = 13 )
+      ( sql = |EXPLAIN| message = |incomplete input| position = 8 )
+      ( sql = |EXPLAIN QUERY SELECT 1| message = |near "SELECT": syntax error| position = 15 )
+      ( sql = |EXPLAIN QUERY PLAN| message = |incomplete input| position = 19 )
+      ( sql = |EXPLAIN QUERY PLAN BOGUS| message = |near "BOGUS": syntax error| position = 20 )
+      ( sql = |WITH| message = |incomplete input| position = 5 )
+      ( sql = |WITH x AS (SELECT 1)| message = |incomplete input| position = 21 )
+      ( sql = |WITH cte AS (SELECT 1) INSERT| message = |incomplete input| position = 30 )
+      ( sql = |SELECT 1abc| message = |unrecognized token: "1abc"| position = 8 )
+      ( sql = |SELECT @| message = |unrecognized token: "@"| position = 8 )
+      ( sql = |SELECT 'unterminated| message = |unrecognized token: "'unterminated"| position = 8 )
+      ( sql = |SELECT 1; BOGUS| message = |near "BOGUS": syntax error| position = 11 )
+      ( sql = |DELETE FROM t RETURNING *| message = |near "RETURNING": syntax error| position = 15 )
+      ( sql = |DELETE t| message = |near "t": syntax error| position = 8 )
+      ( sql = |SELECT * FROM (SELECT 1| message = |incomplete input| position = 24 )
+      ( sql = |SELECT * FROM (SELECT 1) AS| message = |incomplete input| position = 28 )
+      ( sql = |INSERT INTO t VALUES (1) ON CONFLICT| message = |near "ON": syntax error| position = 26 )
+      ( sql = |CREATE TABLE t (a INTEGER PRIMARY KEY ON CONFLICT)| message = |near ")": syntax error| position = 50 )
+      ( sql = |SELECT CAST(1 AS)| message = |near ")": syntax error| position = 17 )
+      ( sql = |SELECT 1 NOT| message = |near "NOT": syntax error| position = 10 )
+      ( sql = |SELECT 1 IS NOT| message = |incomplete input| position = 16 )
+      ( sql = |INSERT INTO t SELECT| message = |incomplete input| position = 21 )
+      ( sql = |SELECT * FROM t LEFT OUTER| message = |incomplete input| position = 27 )
+      ( sql = |SELECT * FROM t INNER JOIN u USING| message = |incomplete input| position = 35 ) ).
+
+    LOOP AT lt_cases INTO ls_case.
+      assert_statement_error_details(
+        iv_sql      = ls_case-sql
+        iv_message  = ls_case-message
+        iv_position = ls_case-position ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD parse_error_positions.
+    DATA lv_sql   TYPE string.
+    DATA lo_error TYPE REF TO zcx_sqlite_error.
+
+    lv_sql = |SELECT 1,| && cl_abap_char_utilities=>newline && |2 3|.
+    TRY.
+        zcl_sqlite_parser=>dump_statement( lv_sql ).
+        cl_abap_unit_assert=>fail( msg = |expected a syntax error for { lv_sql }| ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = |near "3": syntax error|
+          msg = |multiline error message| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->position
+          exp = 13
+          msg = |multiline error position| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->line
+          exp = 2
+          msg = |multiline error line| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->column
+          exp = 3
+          msg = |multiline error column| ).
+    ENDTRY.
+
+    lv_sql = |SELECT 1;| && cl_abap_char_utilities=>newline && |BOGUS;|.
+    TRY.
+        zcl_sqlite_parser=>dump_script( lv_sql ).
+        cl_abap_unit_assert=>fail( msg = |expected a script syntax error for { lv_sql }| ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = |near "BOGUS": syntax error|
+          msg = |script error message| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->position
+          exp = 11
+          msg = |script error position| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->line
+          exp = 2
+          msg = |script error line| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->column
+          exp = 1
+          msg = |script error column| ).
+    ENDTRY.
+
+    lv_sql = |SELECT 1; -- comment| && cl_abap_char_utilities=>newline && |BOGUS;|.
+    TRY.
+        zcl_sqlite_parser=>dump_script( lv_sql ).
+        cl_abap_unit_assert=>fail( msg = |expected a script syntax error for { lv_sql }| ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->position
+          exp = 22
+          msg = |script error position after comment| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->line
+          exp = 2
+          msg = |script error line after comment| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->column
+          exp = 1
+          msg = |script error column after comment| ).
+    ENDTRY.
+  ENDMETHOD.
+
   METHOD assert_parse.
     DATA lv_actual TYPE string.
 
@@ -931,6 +1095,36 @@ CLASS ltcl_parser IMPLEMENTATION.
         zcl_sqlite_parser=>dump_statement( iv_sql ).
         cl_abap_unit_assert=>fail( msg = |expected a statement error for { iv_sql }| ).
       CATCH zcx_sqlite_error.
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD assert_statement_error_details.
+    DATA lo_error TYPE REF TO zcx_sqlite_error.
+
+    TRY.
+        zcl_sqlite_parser=>dump_statement( iv_sql ).
+        cl_abap_unit_assert=>fail( msg = |expected a statement error for { iv_sql }| ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error
+          msg = |error code for { iv_sql }| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = iv_message
+          msg = |error message for { iv_sql }| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->position
+          exp = iv_position
+          msg = |error position for { iv_sql }| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->line
+          exp = 1
+          msg = |error line for { iv_sql }| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->column
+          exp = iv_position
+          msg = |error column for { iv_sql }| ).
     ENDTRY.
   ENDMETHOD.
 

@@ -38,6 +38,14 @@ CLASS zcl_sqlite_parser DEFINITION
       RAISING   zcx_sqlite_error.
 
   PRIVATE SECTION.
+    CLASS-METHODS parse_script_statement
+      IMPORTING iv_sql              TYPE string
+                iv_start            TYPE i
+                iv_base_line        TYPE i
+                iv_base_column      TYPE i
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node
+      RAISING   zcx_sqlite_error.
+
     CONSTANTS:
       c_prec_or         TYPE i VALUE 1,
       c_prec_and        TYPE i VALUE 2,
@@ -489,6 +497,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     DATA lt_tokens      TYPE zcl_sqlite_tokenizer=>ty_tokens.
     DATA ls_token       TYPE zcl_sqlite_tokenizer=>ty_token.
     DATA lv_start       TYPE i VALUE 1.
+    DATA lv_base_line   TYPE i VALUE 1.
+    DATA lv_base_column TYPE i VALUE 1.
     DATA lv_length      TYPE i.
     DATA lv_has_content TYPE abap_bool.
     DATA lv_sql         TYPE string.
@@ -503,10 +513,16 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
               val = iv_sql
               off = lv_start - 1
               len = lv_length ).
-            APPEND parse_statement( lv_sql ) TO rt_statements.
+            APPEND parse_script_statement(
+              iv_sql         = lv_sql
+              iv_start       = lv_start
+              iv_base_line   = lv_base_line
+              iv_base_column = lv_base_column ) TO rt_statements.
           ENDIF.
         ENDIF.
         lv_start = ls_token-offset + ls_token-length.
+        lv_base_line = ls_token-line.
+        lv_base_column = ls_token-column + ls_token-length.
         CLEAR lv_has_content.
         CONTINUE.
       ENDIF.
@@ -520,8 +536,39 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       lv_sql = substring(
         val = iv_sql
         off = lv_start - 1 ).
-      APPEND parse_statement( lv_sql ) TO rt_statements.
+      APPEND parse_script_statement(
+        iv_sql         = lv_sql
+        iv_start       = lv_start
+        iv_base_line   = lv_base_line
+        iv_base_column = lv_base_column ) TO rt_statements.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD parse_script_statement.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA lv_position TYPE i.
+    DATA lv_line     TYPE i.
+    DATA lv_column   TYPE i.
+
+    TRY.
+        ro_statement = parse_statement( iv_sql ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        lv_position = iv_start - 1 + lo_error->position.
+        IF lo_error->line <= 1.
+          lv_line = iv_base_line.
+          lv_column = iv_base_column + lo_error->column - 1.
+        ELSE.
+          lv_line = iv_base_line + lo_error->line - 1.
+          lv_column = lo_error->column.
+        ENDIF.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code     = lo_error->code
+            iv_message  = lo_error->message
+            iv_position = lv_position
+            iv_line     = lv_line
+            iv_column   = lv_column.
+    ENDTRY.
   ENDMETHOD.
 
   METHOD dump_script.
@@ -2589,17 +2636,26 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD fail.
-    DATA lv_near TYPE string.
+    DATA ls_token TYPE zcl_sqlite_tokenizer=>ty_token.
+    DATA lv_text  TYPE string.
 
-    lv_near = current( )-text.
-    IF lv_near IS INITIAL.
-      lv_near = 'end of input'.
-    ENDIF.
+    ls_token = current( ).
+    CASE ls_token-kind.
+      WHEN zcl_sqlite_tokenizer=>c_eof.
+        lv_text = 'incomplete input'.
+      WHEN zcl_sqlite_tokenizer=>c_illegal.
+        lv_text = |unrecognized token: "{ ls_token-text }"|.
+      WHEN OTHERS.
+        lv_text = |near "{ ls_token-text }": syntax error|.
+    ENDCASE.
 
     RAISE EXCEPTION TYPE zcx_sqlite_error
       EXPORTING
-        iv_code    = zcx_sqlite_error=>sqlite_error
-        iv_message = |near "{ lv_near }": { iv_message }|.
+        iv_code     = zcx_sqlite_error=>sqlite_error
+        iv_message  = lv_text
+        iv_position = ls_token-offset
+        iv_line     = ls_token-line
+        iv_column   = ls_token-column.
   ENDMETHOD.
 
 ENDCLASS.

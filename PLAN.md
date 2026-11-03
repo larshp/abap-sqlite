@@ -385,7 +385,7 @@ a bad page size raise errors.
 
 #### M3.8 Parse errors
 
-- [ ] Syntax errors raise `ZCX_SQLITE_ERROR` with a position and a message like SQLite's
+- [x] Syntax errors raise `ZCX_SQLITE_ERROR` with a position and a message like SQLite's
       (`near "X": syntax error`)
 
 **Done when:** a corpus of ~50 invalid statements fails with the expected messages, and the full

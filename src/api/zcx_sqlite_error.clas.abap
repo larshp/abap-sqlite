@@ -41,12 +41,18 @@ CLASS zcx_sqlite_error DEFINITION
 
     DATA code TYPE i READ-ONLY.
     DATA message TYPE string READ-ONLY.
+    DATA position TYPE i READ-ONLY.
+    DATA line TYPE i READ-ONLY.
+    DATA column TYPE i READ-ONLY.
 
     METHODS constructor
-      IMPORTING iv_code    TYPE i DEFAULT sqlite_error
-                iv_message TYPE string OPTIONAL
-                textid     LIKE textid OPTIONAL
-                previous   LIKE previous OPTIONAL.
+      IMPORTING iv_code     TYPE i DEFAULT sqlite_error
+                iv_message  TYPE string OPTIONAL
+                textid      LIKE textid OPTIONAL
+                previous    LIKE previous OPTIONAL
+                iv_position TYPE i DEFAULT 0
+                iv_line     TYPE i DEFAULT 0
+                iv_column   TYPE i DEFAULT 0.
 ENDCLASS.
 
 
@@ -55,5 +61,8 @@ CLASS zcx_sqlite_error IMPLEMENTATION.
     super->constructor( textid = textid previous = previous ).
     code = iv_code.
     message = iv_message.
+    position = iv_position.
+    line = iv_line.
+    column = iv_column.
   ENDMETHOD.
 ENDCLASS.
