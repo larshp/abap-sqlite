@@ -24,6 +24,9 @@ CLASS zcl_sqlite_ast_select DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_columns
+      RETURNING VALUE(rt_columns) TYPE ty_columns.
+
     METHODS with_tail
       IMPORTING it_order_by      TYPE ty_order_by OPTIONAL
                 io_limit         TYPE REF TO zcl_sqlite_ast_node OPTIONAL
@@ -62,6 +65,10 @@ CLASS zcl_sqlite_ast_select IMPLEMENTATION.
     mt_order_by = it_order_by.
     mo_limit = io_limit.
     mo_offset = io_offset.
+  ENDMETHOD.
+
+  METHOD get_columns.
+    rt_columns = mt_columns.
   ENDMETHOD.
 
   METHOD with_tail.

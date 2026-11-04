@@ -14,6 +14,12 @@ CLASS zcl_sqlite_ast_result_column DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_expression
+      RETURNING VALUE(ro_expression) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_alias
+      RETURNING VALUE(rv_alias) TYPE string.
+
   PRIVATE SECTION.
     DATA mo_expression TYPE REF TO zcl_sqlite_ast_node.
     DATA mv_alias      TYPE string.
@@ -26,6 +32,14 @@ CLASS zcl_sqlite_ast_result_column IMPLEMENTATION.
   METHOD constructor.
     mo_expression = io_expression.
     mv_alias = iv_alias.
+  ENDMETHOD.
+
+  METHOD get_expression.
+    ro_expression = mo_expression.
+  ENDMETHOD.
+
+  METHOD get_alias.
+    rv_alias = mv_alias.
   ENDMETHOD.
 
   METHOD dump.

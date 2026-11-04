@@ -91,6 +91,27 @@ happens at the lower boundary (`-2^63 - 1`).
 that can leave the int8 range before doing arithmetic on them (M1.1 i64 decode, M2.5/M5.4 record
 sizes).
 
+## Large int8 constant literals lose precision in the transpiler
+
+- **Component:** transpiler
+- **Version:** @abaplint/transpiler-cli 2.14.13
+- **Found in:** M4.2 `src/exec/zcl_sqlite_expr_eval.clas.abap`
+- **Status:** open
+- **Upstream:** none yet
+
+```abap
+CONSTANTS c_max TYPE int8 VALUE 9223372036854775807.
+```
+
+Expected: `c_max` contains `9223372036854775807`. Actual: the generated JavaScript calls
+`Integer8.set(9223372036854775807)` with a JavaScript `Number`, which rounds to
+`9223372036854775808` before the runtime converts it to `BigInt`. Overflow checks that use the
+constant then miss the first overflowing addition.
+
+**Workaround:** write the literal as a quoted character literal, which is emitted as
+`Integer8.set('9223372036854775807')` and parsed exactly
+(`src/exec/zcl_sqlite_expr_eval.clas.abap`, search tag `ANORMALY:`).
+
 ## int8 to xstring assignment crashes
 
 - **Component:** runtime

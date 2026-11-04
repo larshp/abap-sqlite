@@ -14,6 +14,18 @@ CLASS zcl_sqlite_ast_in DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_expression
+      RETURNING VALUE(ro_expression) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_values
+      RETURNING VALUE(rt_values) TYPE zcl_sqlite_ast_node=>ty_nodes.
+
+    METHODS is_negated
+      RETURNING VALUE(rv_negated) TYPE abap_bool.
+
+    METHODS get_select
+      RETURNING VALUE(ro_select) TYPE REF TO zcl_sqlite_ast_node.
+
   PRIVATE SECTION.
     DATA mo_expression TYPE REF TO zcl_sqlite_ast_node.
     DATA mt_values     TYPE zcl_sqlite_ast_node=>ty_nodes.
@@ -30,6 +42,22 @@ CLASS zcl_sqlite_ast_in IMPLEMENTATION.
     mt_values = it_values.
     mv_negated = iv_negated.
     mo_select = io_select.
+  ENDMETHOD.
+
+  METHOD get_expression.
+    ro_expression = mo_expression.
+  ENDMETHOD.
+
+  METHOD get_values.
+    rt_values = mt_values.
+  ENDMETHOD.
+
+  METHOD is_negated.
+    rv_negated = mv_negated.
+  ENDMETHOD.
+
+  METHOD get_select.
+    ro_select = mo_select.
   ENDMETHOD.
 
   METHOD dump.

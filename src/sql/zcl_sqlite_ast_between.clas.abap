@@ -14,6 +14,18 @@ CLASS zcl_sqlite_ast_between DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_expression
+      RETURNING VALUE(ro_expression) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_low
+      RETURNING VALUE(ro_low) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_high
+      RETURNING VALUE(ro_high) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS is_negated
+      RETURNING VALUE(rv_negated) TYPE abap_bool.
+
   PRIVATE SECTION.
     DATA mo_expression TYPE REF TO zcl_sqlite_ast_node.
     DATA mo_low        TYPE REF TO zcl_sqlite_ast_node.
@@ -30,6 +42,22 @@ CLASS zcl_sqlite_ast_between IMPLEMENTATION.
     mo_low = io_low.
     mo_high = io_high.
     mv_negated = iv_negated.
+  ENDMETHOD.
+
+  METHOD get_expression.
+    ro_expression = mo_expression.
+  ENDMETHOD.
+
+  METHOD get_low.
+    ro_low = mo_low.
+  ENDMETHOD.
+
+  METHOD get_high.
+    ro_high = mo_high.
+  ENDMETHOD.
+
+  METHOD is_negated.
+    rv_negated = mv_negated.
   ENDMETHOD.
 
   METHOD dump.

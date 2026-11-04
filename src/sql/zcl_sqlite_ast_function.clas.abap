@@ -14,6 +14,18 @@ CLASS zcl_sqlite_ast_function DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_name
+      RETURNING VALUE(rv_name) TYPE string.
+
+    METHODS get_distinct
+      RETURNING VALUE(rv_distinct) TYPE abap_bool.
+
+    METHODS get_star
+      RETURNING VALUE(rv_star) TYPE abap_bool.
+
+    METHODS get_arguments
+      RETURNING VALUE(rt_arguments) TYPE zcl_sqlite_ast_node=>ty_nodes.
+
   PRIVATE SECTION.
     DATA mv_name      TYPE string.
     DATA mv_distinct  TYPE abap_bool.
@@ -30,6 +42,22 @@ CLASS zcl_sqlite_ast_function IMPLEMENTATION.
     mv_distinct = iv_distinct.
     mv_star = iv_star.
     mt_arguments = it_arguments.
+  ENDMETHOD.
+
+  METHOD get_name.
+    rv_name = mv_name.
+  ENDMETHOD.
+
+  METHOD get_distinct.
+    rv_distinct = mv_distinct.
+  ENDMETHOD.
+
+  METHOD get_star.
+    rv_star = mv_star.
+  ENDMETHOD.
+
+  METHOD get_arguments.
+    rt_arguments = mt_arguments.
   ENDMETHOD.
 
   METHOD dump.

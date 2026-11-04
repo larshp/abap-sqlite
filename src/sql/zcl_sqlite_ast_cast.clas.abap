@@ -12,6 +12,12 @@ CLASS zcl_sqlite_ast_cast DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_expression
+      RETURNING VALUE(ro_expression) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_type
+      RETURNING VALUE(rv_type) TYPE string.
+
   PRIVATE SECTION.
     DATA mo_expression TYPE REF TO zcl_sqlite_ast_node.
     DATA mv_type       TYPE string.
@@ -24,6 +30,14 @@ CLASS zcl_sqlite_ast_cast IMPLEMENTATION.
   METHOD constructor.
     mo_expression = io_expression.
     mv_type = iv_type.
+  ENDMETHOD.
+
+  METHOD get_expression.
+    ro_expression = mo_expression.
+  ENDMETHOD.
+
+  METHOD get_type.
+    rv_type = mv_type.
   ENDMETHOD.
 
   METHOD dump.

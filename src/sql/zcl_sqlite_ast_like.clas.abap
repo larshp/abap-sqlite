@@ -15,6 +15,21 @@ CLASS zcl_sqlite_ast_like DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_expression
+      RETURNING VALUE(ro_expression) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_pattern
+      RETURNING VALUE(ro_pattern) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_escape
+      RETURNING VALUE(ro_escape) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_operator
+      RETURNING VALUE(rv_operator) TYPE string.
+
+    METHODS is_negated
+      RETURNING VALUE(rv_negated) TYPE abap_bool.
+
   PRIVATE SECTION.
     DATA mo_expression TYPE REF TO zcl_sqlite_ast_node.
     DATA mo_pattern    TYPE REF TO zcl_sqlite_ast_node.
@@ -33,6 +48,26 @@ CLASS zcl_sqlite_ast_like IMPLEMENTATION.
     mo_escape = io_escape.
     mv_operator = iv_operator.
     mv_negated = iv_negated.
+  ENDMETHOD.
+
+  METHOD get_expression.
+    ro_expression = mo_expression.
+  ENDMETHOD.
+
+  METHOD get_pattern.
+    ro_pattern = mo_pattern.
+  ENDMETHOD.
+
+  METHOD get_escape.
+    ro_escape = mo_escape.
+  ENDMETHOD.
+
+  METHOD get_operator.
+    rv_operator = mv_operator.
+  ENDMETHOD.
+
+  METHOD is_negated.
+    rv_negated = mv_negated.
   ENDMETHOD.
 
   METHOD dump.

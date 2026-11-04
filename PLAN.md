@@ -403,7 +403,7 @@ valid corpus (~200 statements) still passes.
 
 #### M4.2 Expression evaluator
 
-- [ ] `ZCL_SQLITE_EXPR_EVAL`: three-valued logic, integer/real arithmetic with SQLite overflow
+- [x] `ZCL_SQLITE_EXPR_EVAL`: three-valued logic, integer/real arithmetic with SQLite overflow
       rules (int → real), division by zero → NULL, string ↔ number coercions, `||`, `CASE`,
       `CAST`, `IS`, `IN (list)`, `BETWEEN`, comparison with affinity rules
 

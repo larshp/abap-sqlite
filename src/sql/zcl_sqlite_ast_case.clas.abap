@@ -20,6 +20,15 @@ CLASS zcl_sqlite_ast_case DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_base
+      RETURNING VALUE(ro_base) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_whens
+      RETURNING VALUE(rt_whens) TYPE ty_whens.
+
+    METHODS get_else
+      RETURNING VALUE(ro_else) TYPE REF TO zcl_sqlite_ast_node.
+
   PRIVATE SECTION.
     DATA mo_base  TYPE REF TO zcl_sqlite_ast_node.
     DATA mt_whens TYPE ty_whens.
@@ -34,6 +43,18 @@ CLASS zcl_sqlite_ast_case IMPLEMENTATION.
     mo_base = io_base.
     mt_whens = it_whens.
     mo_else = io_else.
+  ENDMETHOD.
+
+  METHOD get_base.
+    ro_base = mo_base.
+  ENDMETHOD.
+
+  METHOD get_whens.
+    rt_whens = mt_whens.
+  ENDMETHOD.
+
+  METHOD get_else.
+    ro_else = mo_else.
   ENDMETHOD.
 
   METHOD dump.

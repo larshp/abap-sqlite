@@ -1,0 +1,256 @@
+CLASS ltcl_expr_eval DEFINITION FINAL FOR TESTING
+  DURATION SHORT
+  RISK LEVEL HARMLESS.
+
+  PRIVATE SECTION.
+    METHODS literals FOR TESTING RAISING zcx_sqlite_error.
+    METHODS arithmetic FOR TESTING RAISING zcx_sqlite_error.
+    METHODS logic FOR TESTING RAISING zcx_sqlite_error.
+    METHODS comparisons FOR TESTING RAISING zcx_sqlite_error.
+    METHODS coercions FOR TESTING RAISING zcx_sqlite_error.
+    METHODS case_expressions FOR TESTING RAISING zcx_sqlite_error.
+    METHODS in_between FOR TESTING RAISING zcx_sqlite_error.
+    METHODS real_text FOR TESTING RAISING zcx_sqlite_error.
+    METHODS bitwise FOR TESTING RAISING zcx_sqlite_error.
+    METHODS integer_boundaries FOR TESTING RAISING zcx_sqlite_error.
+    METHODS cast_types FOR TESTING RAISING zcx_sqlite_error.
+    METHODS hex_error FOR TESTING.
+
+    METHODS assert_integer
+      IMPORTING iv_sql      TYPE string
+                iv_expected TYPE int8
+      RAISING   zcx_sqlite_error.
+
+    METHODS assert_real
+      IMPORTING iv_sql      TYPE string
+                iv_expected TYPE f
+      RAISING   zcx_sqlite_error.
+
+    METHODS assert_text
+      IMPORTING iv_sql      TYPE string
+                iv_expected TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS assert_null
+      IMPORTING iv_sql TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS assert_blob
+      IMPORTING iv_sql      TYPE string
+                iv_expected TYPE xstring
+      RAISING   zcx_sqlite_error.
+ENDCLASS.
+
+
+CLASS ltcl_expr_eval IMPLEMENTATION.
+
+  METHOD literals.
+    assert_null( 'SELECT NULL' ).
+    assert_integer( iv_sql = 'SELECT 42' iv_expected = 42 ).
+    assert_real( iv_sql = 'SELECT 1.5' iv_expected = '1.5' ).
+    assert_text( iv_sql = 'SELECT ''abc''' iv_expected = 'abc' ).
+    assert_blob( iv_sql = 'SELECT x''4142''' iv_expected = '4142' ).
+    assert_integer( iv_sql = 'SELECT 0xFFFFFFFFFFFFFFFF' iv_expected = -1 ).
+    assert_integer( iv_sql = 'SELECT 0x8000000000000000'
+      iv_expected = -9223372036854775808 ).
+    assert_real( iv_sql = 'SELECT 9223372036854775808'
+      iv_expected = '9223372036854775808' ).
+  ENDMETHOD.
+
+  METHOD arithmetic.
+    assert_integer( iv_sql = 'SELECT 1 + 2' iv_expected = 3 ).
+    assert_real( iv_sql = 'SELECT 1.5 + 2' iv_expected = '3.5' ).
+    assert_integer( iv_sql = 'SELECT 7 / 2' iv_expected = 3 ).
+    assert_integer( iv_sql = 'SELECT -7 / 2' iv_expected = -3 ).
+    assert_integer( iv_sql = 'SELECT 7 % 2' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT -7 % 2' iv_expected = -1 ).
+    assert_null( 'SELECT 1 / 0' ).
+    assert_null( 'SELECT 1.0 / 0' ).
+    assert_real( iv_sql = 'SELECT 5.5 % 2' iv_expected = '1.0' ).
+    assert_real( iv_sql = 'SELECT 5.0 % 2' iv_expected = '1.0' ).
+    assert_real( iv_sql = 'SELECT 9223372036854775807 + 1'
+      iv_expected = '9223372036854775808' ).
+    assert_real( iv_sql = 'SELECT 9223372036854775807 * 2'
+      iv_expected = '18446744073709551616' ).
+  ENDMETHOD.
+
+  METHOD logic.
+    assert_integer( iv_sql = 'SELECT NULL AND 0' iv_expected = 0 ).
+    assert_null( 'SELECT NULL AND 1' ).
+    assert_integer( iv_sql = 'SELECT 0 AND (1 / 0)' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT 1 OR (1 / 0)' iv_expected = 1 ).
+    assert_null( 'SELECT NULL OR 0' ).
+    assert_integer( iv_sql = 'SELECT NULL OR 1' iv_expected = 1 ).
+    assert_null( 'SELECT NOT NULL' ).
+    assert_integer( iv_sql = 'SELECT NOT 0' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT NOT ''abc''' iv_expected = 1 ).
+  ENDMETHOD.
+
+  METHOD comparisons.
+    assert_integer( iv_sql = 'SELECT 1 = 1.0' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT 1 = ''1''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''1'' = ''1''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT 1 < 1.5' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT 2 > 1.5' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT 9007199254740993 = 9007199254740992.0'
+      iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''a'' < ''b''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT x''41'' < x''42''' iv_expected = 1 ).
+    assert_null( 'SELECT NULL = NULL' ).
+    assert_integer( iv_sql = 'SELECT 1 IS NULL' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT NULL IS NULL' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT NULL IS NOT NULL' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT 1 IS NOT 1' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''1'' IS 1' iv_expected = 0 ).
+  ENDMETHOD.
+
+  METHOD coercions.
+    assert_integer( iv_sql = 'SELECT ''12'' + 1' iv_expected = 13 ).
+    assert_integer( iv_sql = 'SELECT ''12abc'' + 1' iv_expected = 13 ).
+    assert_real( iv_sql = 'SELECT ''1.5'' + 1' iv_expected = '2.5' ).
+    assert_integer( iv_sql = 'SELECT ''abc'' + 1' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''  -12 '' + 1' iv_expected = -11 ).
+    assert_real( iv_sql = 'SELECT ''1e2'' + 1' iv_expected = '101.0' ).
+    assert_text( iv_sql = 'SELECT 1 || 2.0' iv_expected = '12.0' ).
+    assert_null( 'SELECT ''a'' || NULL' ).
+  ENDMETHOD.
+
+  METHOD case_expressions.
+    assert_text( iv_sql = 'SELECT CASE WHEN 1 THEN ''yes'' ELSE ''no'' END'
+      iv_expected = 'yes' ).
+    assert_text( iv_sql = 'SELECT CASE 1 WHEN 1.0 THEN ''match'' ELSE ''no'' END'
+      iv_expected = 'match' ).
+    assert_text( iv_sql = 'SELECT CASE NULL WHEN NULL THEN ''x'' ELSE ''y'' END'
+      iv_expected = 'y' ).
+    assert_text( iv_sql = 'SELECT CASE ''1'' WHEN 1 THEN ''x'' ELSE ''y'' END'
+      iv_expected = 'y' ).
+    assert_null( 'SELECT CASE WHEN 0 THEN ''x'' END' ).
+  ENDMETHOD.
+
+  METHOD in_between.
+    assert_integer( iv_sql = 'SELECT 1 BETWEEN 1 AND 2' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT 1 BETWEEN 2 AND 0' iv_expected = 0 ).
+    assert_null( 'SELECT NULL BETWEEN 0 AND 1' ).
+    assert_integer( iv_sql = 'SELECT 1 NOT BETWEEN 2 AND 0' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT 1 IN (2, 1)' iv_expected = 1 ).
+    assert_null( 'SELECT 1 IN (2, NULL)' ).
+    assert_null( 'SELECT 1 NOT IN (2, NULL)' ).
+    assert_null( 'SELECT NULL IN (1)' ).
+    assert_integer( iv_sql = 'SELECT 1 NOT IN (2, 3)' iv_expected = 1 ).
+  ENDMETHOD.
+
+  METHOD real_text.
+    assert_text( iv_sql = 'SELECT CAST(1.0 AS TEXT)' iv_expected = '1.0' ).
+    assert_text( iv_sql = 'SELECT CAST(0.1 AS TEXT)' iv_expected = '0.1' ).
+    assert_text( iv_sql = 'SELECT CAST(1.2345678901234567 AS TEXT)'
+      iv_expected = '1.23456789012346' ).
+    assert_text( iv_sql = 'SELECT CAST(1.0 / 3 AS TEXT)'
+      iv_expected = '0.333333333333333' ).
+    assert_text( iv_sql = 'SELECT CAST(1e15 AS TEXT)' iv_expected = '1.0e+15' ).
+    assert_text( iv_sql = 'SELECT CAST(1e-5 AS TEXT)' iv_expected = '1.0e-05' ).
+    assert_text( iv_sql = 'SELECT CAST(0.0001 AS TEXT)' iv_expected = '0.0001' ).
+    assert_text( iv_sql = 'SELECT CAST(-1.5 AS TEXT)' iv_expected = '-1.5' ).
+  ENDMETHOD.
+
+  METHOD bitwise.
+    assert_integer( iv_sql = 'SELECT ~0' iv_expected = -1 ).
+    assert_integer( iv_sql = 'SELECT 1 << 3' iv_expected = 8 ).
+    assert_integer( iv_sql = 'SELECT 1 << 63'
+      iv_expected = -9223372036854775808 ).
+    assert_integer( iv_sql = 'SELECT 1 << 64' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT -1 >> 1' iv_expected = -1 ).
+    assert_integer( iv_sql = 'SELECT -1 >> 64' iv_expected = -1 ).
+    assert_integer( iv_sql = 'SELECT 1 >> -1' iv_expected = 2 ).
+    assert_integer( iv_sql = 'SELECT 8 >> -1' iv_expected = 16 ).
+    assert_integer( iv_sql = 'SELECT -8 << -1' iv_expected = -4 ).
+    assert_integer( iv_sql = 'SELECT -8 >> -1' iv_expected = -16 ).
+    assert_integer( iv_sql = 'SELECT 1 << -1' iv_expected = 0 ).
+  ENDMETHOD.
+
+  METHOD integer_boundaries.
+    assert_integer( iv_sql = 'SELECT CAST(''-9223372036854775808'' AS INTEGER)'
+      iv_expected = -9223372036854775808 ).
+    assert_integer( iv_sql = 'SELECT -9223372036854775808'
+      iv_expected = -9223372036854775808 ).
+    assert_integer( iv_sql = 'SELECT - 0009223372036854775808'
+      iv_expected = -9223372036854775808 ).
+    assert_real( iv_sql = 'SELECT -9223372036854775809'
+      iv_expected = '-9223372036854775809' ).
+    assert_integer( iv_sql = 'SELECT (-9223372036854775808) % -1'
+      iv_expected = 0 ).
+  ENDMETHOD.
+
+  METHOD cast_types.
+    assert_integer( iv_sql = 'SELECT CAST(''12.9'' AS INTEGER)'
+      iv_expected = 12 ).
+    assert_real( iv_sql = 'SELECT CAST(''12.9'' AS REAL)'
+      iv_expected = '12.9' ).
+    assert_integer( iv_sql = 'SELECT CAST(''12.0'' AS NUMERIC)'
+      iv_expected = 12 ).
+    assert_real( iv_sql = 'SELECT CAST(''12.5'' AS NUMERIC)'
+      iv_expected = '12.5' ).
+    assert_text( iv_sql = 'SELECT CAST(1.5 AS TEXT)' iv_expected = '1.5' ).
+    assert_text( iv_sql = 'SELECT CAST(1 AS TEXT)' iv_expected = '1' ).
+    assert_blob( iv_sql = 'SELECT CAST(''abc'' AS BLOB)' iv_expected = '616263' ).
+    assert_text( iv_sql = 'SELECT CAST(x''4142'' AS TEXT)' iv_expected = 'AB' ).
+  ENDMETHOD.
+
+  METHOD hex_error.
+    TRY.
+        zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT 0x10000000000000000' ).
+        cl_abap_unit_assert=>fail( msg = 'expected hex literal error' ).
+      CATCH zcx_sqlite_error INTO DATA(lo_error).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message exp = 'hex literal too big: 0x10000000000000000' ).
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD assert_integer.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+
+    lo_value = zcl_sqlite_expr_eval=>evaluate_sql( iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_integer msg = iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = iv_expected msg = iv_sql ).
+  ENDMETHOD.
+
+  METHOD assert_real.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+
+    lo_value = zcl_sqlite_expr_eval=>evaluate_sql( iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_real msg = iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_real( ) exp = iv_expected msg = iv_sql ).
+  ENDMETHOD.
+
+  METHOD assert_text.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+
+    lo_value = zcl_sqlite_expr_eval=>evaluate_sql( iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_text msg = iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = iv_expected msg = iv_sql ).
+  ENDMETHOD.
+
+  METHOD assert_null.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+
+    lo_value = zcl_sqlite_expr_eval=>evaluate_sql( iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_null msg = iv_sql ).
+  ENDMETHOD.
+
+  METHOD assert_blob.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+
+    lo_value = zcl_sqlite_expr_eval=>evaluate_sql( iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_blob msg = iv_sql ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_blob( ) exp = iv_expected msg = iv_sql ).
+  ENDMETHOD.
+
+ENDCLASS.
