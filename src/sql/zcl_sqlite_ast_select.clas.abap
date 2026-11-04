@@ -27,6 +27,30 @@ CLASS zcl_sqlite_ast_select DEFINITION
     METHODS get_columns
       RETURNING VALUE(rt_columns) TYPE ty_columns.
 
+    METHODS get_distinct
+      RETURNING VALUE(rv_distinct) TYPE abap_bool.
+
+    METHODS get_from
+      RETURNING VALUE(rt_from) TYPE ty_from.
+
+    METHODS get_where
+      RETURNING VALUE(ro_where) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_group_by
+      RETURNING VALUE(rt_group_by) TYPE ty_expressions.
+
+    METHODS get_having
+      RETURNING VALUE(ro_having) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_order_by
+      RETURNING VALUE(rt_order_by) TYPE ty_order_by.
+
+    METHODS get_limit
+      RETURNING VALUE(ro_limit) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_offset
+      RETURNING VALUE(ro_offset) TYPE REF TO zcl_sqlite_ast_node.
+
     METHODS with_tail
       IMPORTING it_order_by      TYPE ty_order_by OPTIONAL
                 io_limit         TYPE REF TO zcl_sqlite_ast_node OPTIONAL
@@ -69,6 +93,38 @@ CLASS zcl_sqlite_ast_select IMPLEMENTATION.
 
   METHOD get_columns.
     rt_columns = mt_columns.
+  ENDMETHOD.
+
+  METHOD get_distinct.
+    rv_distinct = mv_distinct.
+  ENDMETHOD.
+
+  METHOD get_from.
+    rt_from = mt_from.
+  ENDMETHOD.
+
+  METHOD get_where.
+    ro_where = mo_where.
+  ENDMETHOD.
+
+  METHOD get_group_by.
+    rt_group_by = mt_group_by.
+  ENDMETHOD.
+
+  METHOD get_having.
+    ro_having = mo_having.
+  ENDMETHOD.
+
+  METHOD get_order_by.
+    rt_order_by = mt_order_by.
+  ENDMETHOD.
+
+  METHOD get_limit.
+    ro_limit = mo_limit.
+  ENDMETHOD.
+
+  METHOD get_offset.
+    ro_offset = mo_offset.
   ENDMETHOD.
 
   METHOD with_tail.

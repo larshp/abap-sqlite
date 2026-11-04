@@ -418,8 +418,8 @@ valid corpus (~200 statements) still passes.
 
 #### M4.4 First query end to end
 
-- [ ] Iterator operator interface. Operators `TableScan`, `Filter`, `Project`.
-- [ ] Minimal API (it gets more polish in Phase 6): `ZCL_SQLITE_DATABASE=>open( name )`,
+- [x] Iterator operator interface. Operators `TableScan`, `Filter`, `Project`.
+- [x] Minimal API (it gets more polish in Phase 6): `ZCL_SQLITE_DATABASE=>open( name )`,
       `->query( sql ) → result table of value rows`
 
 **Done when:** `SELECT a, b + 1 FROM t WHERE c > 5` returns the right rows from a fixture.

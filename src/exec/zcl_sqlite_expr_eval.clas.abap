@@ -9,7 +9,13 @@ CLASS zcl_sqlite_expr_eval DEFINITION
   PUBLIC SECTION.
     CLASS-METHODS evaluate
       IMPORTING io_expression   TYPE REF TO zcl_sqlite_ast_node
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS is_true
+      IMPORTING io_value       TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(rv_true) TYPE abap_bool
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_sql
@@ -51,51 +57,61 @@ CLASS zcl_sqlite_expr_eval DEFINITION
 
     CLASS-METHODS evaluate_unary
       IMPORTING io_unary        TYPE REF TO zcl_sqlite_ast_unary
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_binary
       IMPORTING io_binary       TYPE REF TO zcl_sqlite_ast_binary
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_case
       IMPORTING io_case         TYPE REF TO zcl_sqlite_ast_case
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_cast
       IMPORTING io_cast         TYPE REF TO zcl_sqlite_ast_cast
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_between
       IMPORTING io_between      TYPE REF TO zcl_sqlite_ast_between
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_in
       IMPORTING io_in           TYPE REF TO zcl_sqlite_ast_in
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_collate
       IMPORTING io_collate      TYPE REF TO zcl_sqlite_ast_collate
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_name
       IMPORTING io_name         TYPE REF TO zcl_sqlite_ast_name
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_function
       IMPORTING io_function     TYPE REF TO zcl_sqlite_ast_function
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_like
       IMPORTING io_like         TYPE REF TO zcl_sqlite_ast_like
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
@@ -119,6 +135,7 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       IMPORTING iv_operator     TYPE string
                 io_left         TYPE REF TO zcl_sqlite_ast_node
                 io_right        TYPE REF TO zcl_sqlite_ast_node
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
@@ -126,6 +143,7 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       IMPORTING iv_operator     TYPE string
                 io_left         TYPE REF TO zcl_sqlite_ast_node
                 io_right        TYPE REF TO zcl_sqlite_ast_node
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
@@ -133,6 +151,7 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       IMPORTING iv_operator     TYPE string
                 io_left         TYPE REF TO zcl_sqlite_ast_node
                 io_right        TYPE REF TO zcl_sqlite_ast_node
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
@@ -140,6 +159,7 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       IMPORTING iv_operator     TYPE string
                 io_left         TYPE REF TO zcl_sqlite_ast_node
                 io_right        TYPE REF TO zcl_sqlite_ast_node
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
@@ -147,6 +167,7 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       IMPORTING iv_operator     TYPE string
                 io_left         TYPE REF TO zcl_sqlite_ast_node
                 io_right        TYPE REF TO zcl_sqlite_ast_node
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
@@ -423,34 +444,34 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       ro_value = evaluate_literal( lo_literal ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_unary.
       lo_unary ?= io_expression.
-      ro_value = evaluate_unary( lo_unary ).
+      ro_value = evaluate_unary( io_unary = lo_unary io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_binary.
       lo_binary ?= io_expression.
-      ro_value = evaluate_binary( lo_binary ).
+      ro_value = evaluate_binary( io_binary = lo_binary io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_case.
       lo_case ?= io_expression.
-      ro_value = evaluate_case( lo_case ).
+      ro_value = evaluate_case( io_case = lo_case io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_cast.
       lo_cast ?= io_expression.
-      ro_value = evaluate_cast( lo_cast ).
+      ro_value = evaluate_cast( io_cast = lo_cast io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_between.
       lo_between ?= io_expression.
-      ro_value = evaluate_between( lo_between ).
+      ro_value = evaluate_between( io_between = lo_between io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_in.
       lo_in ?= io_expression.
-      ro_value = evaluate_in( lo_in ).
+      ro_value = evaluate_in( io_in = lo_in io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_collate.
       lo_collate ?= io_expression.
-      ro_value = evaluate_collate( lo_collate ).
+      ro_value = evaluate_collate( io_collate = lo_collate io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_name.
       lo_name ?= io_expression.
-      ro_value = evaluate_name( lo_name ).
+      ro_value = evaluate_name( io_name = lo_name io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_function.
       lo_function ?= io_expression.
-      ro_value = evaluate_function( lo_function ).
+      ro_value = evaluate_function( io_function = lo_function io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_like.
       lo_like ?= io_expression.
-      ro_value = evaluate_like( lo_like ).
+      ro_value = evaluate_like( io_like = lo_like io_context = io_context ).
     ELSE.
       raise_error( 'unsupported expression' ).
     ENDIF.
@@ -478,6 +499,10 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       raise_error( 'SELECT statement has no result columns' ).
     ENDIF.
     ro_value = evaluate( lo_column->get_expression( ) ).
+  ENDMETHOD.
+
+  METHOD is_true.
+    rv_true = boolc( truth_value( io_value ) = c_truth_true ).
   ENDMETHOD.
 
   METHOD evaluate_literal.
@@ -555,7 +580,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_truth    TYPE i.
 
     lv_operator = io_unary->get_operator( ).
-    lo_value = evaluate( io_unary->get_operand( ) ).
+    lo_value = evaluate(
+      io_expression = io_unary->get_operand( )
+      io_context    = io_context ).
 
     CASE lv_operator.
       WHEN '+'.
@@ -632,32 +659,38 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         ro_value = evaluate_logic(
           iv_operator = lv_operator
           io_left     = io_binary->get_left( )
-          io_right    = io_binary->get_right( ) ).
+          io_right    = io_binary->get_right( )
+          io_context  = io_context ).
       WHEN '=' OR '==' OR '!=' OR '<>' OR '<' OR '<=' OR '>' OR '>='.
         ro_value = evaluate_comparison(
           iv_operator = lv_operator
           io_left     = io_binary->get_left( )
-          io_right    = io_binary->get_right( ) ).
+          io_right    = io_binary->get_right( )
+          io_context  = io_context ).
       WHEN 'IS' OR 'IS NOT'.
         ro_value = evaluate_is(
           iv_operator = lv_operator
           io_left     = io_binary->get_left( )
-          io_right    = io_binary->get_right( ) ).
+          io_right    = io_binary->get_right( )
+          io_context  = io_context ).
       WHEN '||'.
         ro_value = evaluate_comparison(
           iv_operator = lv_operator
           io_left     = io_binary->get_left( )
-          io_right    = io_binary->get_right( ) ).
+          io_right    = io_binary->get_right( )
+          io_context  = io_context ).
       WHEN '+' OR '-' OR '*' OR '/' OR '%'.
         ro_value = evaluate_arithmetic(
           iv_operator = lv_operator
           io_left     = io_binary->get_left( )
-          io_right    = io_binary->get_right( ) ).
+          io_right    = io_binary->get_right( )
+          io_context  = io_context ).
       WHEN '&' OR '|' OR '<<' OR '>>'.
         ro_value = evaluate_bitwise(
           iv_operator = lv_operator
           io_left     = io_binary->get_left( )
-          io_right    = io_binary->get_right( ) ).
+          io_right    = io_binary->get_right( )
+          io_context  = io_context ).
       WHEN OTHERS.
         raise_error( |unsupported binary operator { lv_operator }| ).
     ENDCASE.
@@ -669,7 +702,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_left  TYPE int8.
     DATA lv_right TYPE int8.
 
-    lo_left = evaluate( io_left ).
+    lo_left = evaluate( io_expression = io_left io_context = io_context ).
     lv_left = truth_value( lo_left ).
 
     IF iv_operator = 'AND'.
@@ -677,7 +710,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         ro_value = zcl_sqlite_value=>integer( 0 ).
         RETURN.
       ENDIF.
-      lo_right = evaluate( io_right ).
+      lo_right = evaluate( io_expression = io_right io_context = io_context ).
       lv_right = truth_value( lo_right ).
       IF lv_left = c_truth_true.
         IF lv_right = c_truth_null.
@@ -698,7 +731,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       ro_value = zcl_sqlite_value=>integer( 1 ).
       RETURN.
     ENDIF.
-    lo_right = evaluate( io_right ).
+    lo_right = evaluate( io_expression = io_right io_context = io_context ).
     lv_right = truth_value( lo_right ).
     IF lv_left = c_truth_false.
       IF lv_right = c_truth_null.
@@ -721,8 +754,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_collation TYPE string.
     DATA lv_result TYPE int8.
 
-    lo_left = evaluate( io_left ).
-    lo_right = evaluate( io_right ).
+    lo_left = evaluate( io_expression = io_left io_context = io_context ).
+    lo_right = evaluate( io_expression = io_right io_context = io_context ).
 
     IF iv_operator = '=' OR iv_operator = '==' OR iv_operator = '!='
         OR iv_operator = '<>' OR iv_operator = '<' OR iv_operator = '<='
@@ -771,8 +804,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_collation TYPE string.
     DATA lv_result TYPE int8.
 
-    lo_left = evaluate( io_left ).
-    lo_right = evaluate( io_right ).
+    lo_left = evaluate( io_expression = io_left io_context = io_context ).
+    lo_right = evaluate( io_expression = io_right io_context = io_context ).
 
     IF lo_left->is_null( ) = abap_true AND lo_right->is_null( ) = abap_true.
       lv_result = 1.
@@ -803,8 +836,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_int_result TYPE int8.
     DATA lv_real_result TYPE abap_bool.
 
-    lo_left = evaluate( io_left ).
-    lo_right = evaluate( io_right ).
+    lo_left = evaluate( io_expression = io_left io_context = io_context ).
+    lo_right = evaluate( io_expression = io_right io_context = io_context ).
     IF lo_left->is_null( ) = abap_true OR lo_right->is_null( ) = abap_true.
       ro_value = zcl_sqlite_value=>null( ).
       RETURN.
@@ -909,8 +942,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_data  TYPE xstring.
     DATA lv_shift TYPE int8.
 
-    lo_left = evaluate( io_left ).
-    lo_right = evaluate( io_right ).
+    lo_left = evaluate( io_expression = io_left io_context = io_context ).
+    lo_right = evaluate( io_expression = io_right io_context = io_context ).
     IF lo_left->is_null( ) = abap_true OR lo_right->is_null( ) = abap_true.
       ro_value = zcl_sqlite_value=>null( ).
       RETURN.
@@ -962,8 +995,12 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_second TYPE i.
     DATA lv_result TYPE int8.
 
-    lo_value = evaluate( io_between->get_expression( ) ).
-    lo_low = evaluate( io_between->get_low( ) ).
+    lo_value = evaluate(
+      io_expression = io_between->get_expression( )
+      io_context    = io_context ).
+    lo_low = evaluate(
+      io_expression = io_between->get_low( )
+      io_context    = io_context ).
 
     IF lo_value->is_null( ) = abap_true OR lo_low->is_null( ) = abap_true.
       lv_first = c_truth_null.
@@ -981,7 +1018,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       WHEN c_truth_null.
         lv_result = c_truth_null.
       WHEN OTHERS.
-        lo_high = evaluate( io_between->get_high( ) ).
+        lo_high = evaluate(
+          io_expression = io_between->get_high( )
+          io_context    = io_context ).
         IF lo_high->is_null( ) = abap_true.
           lv_second = c_truth_null.
         ELSE.
@@ -1019,7 +1058,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       raise_error( 'IN subquery is not supported in a constant expression' ).
     ENDIF.
 
-    lo_value = evaluate( io_in->get_expression( ) ).
+    lo_value = evaluate(
+      io_expression = io_in->get_expression( )
+      io_context    = io_context ).
     lt_values = io_in->get_values( ).
     lv_collation = collation_of( io_in->get_expression( ) ).
     IF lv_collation IS INITIAL.
@@ -1028,7 +1069,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     IF lo_value->is_null( ) = abap_false.
       LOOP AT lt_values INTO lo_expression.
-        lo_candidate = evaluate( lo_expression ).
+        lo_candidate = evaluate(
+          io_expression = lo_expression
+          io_context    = io_context ).
         IF lo_candidate->is_null( ) = abap_true.
           lv_saw_null = abap_true.
           CONTINUE.
@@ -1065,13 +1108,19 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
   METHOD evaluate_collate.
     supported_collation( io_collate->get_name( ) ).
-    ro_value = evaluate( io_collate->get_expression( ) ).
+    ro_value = evaluate(
+      io_expression = io_collate->get_expression( )
+      io_context    = io_context ).
   ENDMETHOD.
 
   METHOD evaluate_name.
     CASE io_name->get_kind( ).
       WHEN zcl_sqlite_ast_name=>c_column.
-        raise_error( |no such column: { io_name->get_text( ) }| ).
+        IF io_context IS BOUND.
+          ro_value = io_context->value_of( io_name->get_text( ) ).
+        ELSE.
+          raise_error( |no such column: { io_name->get_text( ) }| ).
+        ENDIF.
       WHEN zcl_sqlite_ast_name=>c_parameter.
         raise_error( |no such parameter: { io_name->get_text( ) }| ).
       WHEN OTHERS.
@@ -1097,11 +1146,17 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       raise_error( 'wrong number of arguments to function GLOB()' ).
     ENDIF.
 
-    lo_value = evaluate( io_like->get_expression( ) ).
-    lo_pattern = evaluate( io_like->get_pattern( ) ).
+    lo_value = evaluate(
+      io_expression = io_like->get_expression( )
+      io_context    = io_context ).
+    lo_pattern = evaluate(
+      io_expression = io_like->get_pattern( )
+      io_context    = io_context ).
 
     IF io_like->get_escape( ) IS BOUND.
-      lo_escape = evaluate( io_like->get_escape( ) ).
+      lo_escape = evaluate(
+        io_expression = io_like->get_escape( )
+        io_context    = io_context ).
       IF lo_escape->is_null( ) = abap_true.
         ro_value = zcl_sqlite_value=>null( ).
         RETURN.
@@ -1510,10 +1565,14 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     lo_base = io_case->get_base( ).
 
     IF lo_base IS BOUND.
-      lo_base_value = evaluate( lo_base ).
+      lo_base_value = evaluate(
+        io_expression = lo_base
+        io_context    = io_context ).
       IF lo_base_value->is_null( ) = abap_false.
         LOOP AT lt_whens INTO ls_when.
-          lo_result = evaluate( ls_when-condition ).
+          lo_result = evaluate(
+            io_expression = ls_when-condition
+            io_context    = io_context ).
           IF lo_result->is_null( ) = abap_true.
             CONTINUE.
           ENDIF.
@@ -1522,23 +1581,31 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           IF compare_non_null(
               io_left = lo_base_value io_right = lo_result
               iv_collation = lv_collation ) = 0.
-            ro_value = evaluate( ls_when-result ).
+            ro_value = evaluate(
+              io_expression = ls_when-result
+              io_context    = io_context ).
             RETURN.
           ENDIF.
         ENDLOOP.
       ENDIF.
     ELSE.
       LOOP AT lt_whens INTO ls_when.
-        lo_result = evaluate( ls_when-condition ).
+        lo_result = evaluate(
+          io_expression = ls_when-condition
+          io_context    = io_context ).
         IF truth_value( lo_result ) = c_truth_true.
-          ro_value = evaluate( ls_when-result ).
+          ro_value = evaluate(
+            io_expression = ls_when-result
+            io_context    = io_context ).
           RETURN.
         ENDIF.
       ENDLOOP.
     ENDIF.
 
     IF io_case->get_else( ) IS BOUND.
-      ro_value = evaluate( io_case->get_else( ) ).
+      ro_value = evaluate(
+        io_expression = io_case->get_else( )
+        io_context    = io_context ).
     ELSE.
       ro_value = zcl_sqlite_value=>null( ).
     ENDIF.
@@ -1548,7 +1615,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lo_value TYPE REF TO zcl_sqlite_value.
     DATA lv_affinity TYPE string.
 
-    lo_value = evaluate( io_cast->get_expression( ) ).
+    lo_value = evaluate(
+      io_expression = io_cast->get_expression( )
+      io_context    = io_context ).
     IF lo_value->is_null( ) = abap_true.
       ro_value = zcl_sqlite_value=>null( ).
       RETURN.
