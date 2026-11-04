@@ -1,10 +1,11 @@
-import {mkdir, rm, writeFile} from "node:fs/promises";
+import {mkdir, readFile, rm, writeFile} from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import initSqlJs from "sql.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.resolve(here, "..", "fixtures");
+const fixturePrefix = "fixtures/";
 
 const SQL = await initSqlJs();
 
@@ -414,6 +415,270 @@ function overflowDatabase() {
   return db;
 }
 
+const queryDefinitions = [
+  {
+    name: "small.select_all",
+    database: "small.db",
+    sql: "SELECT id, name, price FROM items",
+  },
+  {
+    name: "small.arithmetic_filter",
+    database: "small.db",
+    sql: "SELECT id, price + 1 FROM items WHERE id > 1",
+  },
+  {
+    name: "small.star_where_text",
+    database: "small.db",
+    sql: "SELECT * FROM items WHERE name = 'beta'",
+  },
+  {
+    name: "small.qualified_star",
+    database: "small.db",
+    sql: "SELECT items.* FROM items WHERE id = 2",
+  },
+  {
+    name: "small.table_alias",
+    database: "small.db",
+    sql: "SELECT i.name FROM items AS i WHERE i.id = 1",
+  },
+  {
+    name: "small.rowid",
+    database: "small.db",
+    sql: "SELECT rowid AS rid, id FROM items WHERE id = 2",
+  },
+  {
+    name: "small.real_compare",
+    database: "small.db",
+    sql: "SELECT id, name FROM items WHERE price > 2",
+  },
+  {
+    name: "small.null_filter",
+    database: "small.db",
+    sql: "SELECT id FROM items WHERE price IS NULL",
+  },
+  {
+    name: "small.not_filter",
+    database: "small.db",
+    sql: "SELECT id FROM items WHERE NOT (id = 1)",
+  },
+  {
+    name: "small.or_filter",
+    database: "small.db",
+    sql: "SELECT id FROM items WHERE id = 1 OR name = 'gamma'",
+  },
+  {
+    name: "small.between",
+    database: "small.db",
+    sql: "SELECT id FROM items WHERE id BETWEEN 2 AND 3",
+  },
+  {
+    name: "small.in_list",
+    database: "small.db",
+    sql: "SELECT id FROM items WHERE name IN ('alpha', 'gamma')",
+  },
+  {
+    name: "small.like",
+    database: "small.db",
+    sql: "SELECT id, name FROM items WHERE name LIKE 'a%'",
+  },
+  {
+    name: "small.glob",
+    database: "small.db",
+    sql: "SELECT id, name FROM items WHERE name GLOB 'b*'",
+  },
+  {
+    name: "small.glob_case_sensitive",
+    database: "small.db",
+    sql: "SELECT id FROM items WHERE name GLOB 'A*'",
+  },
+  {
+    name: "small.nocase",
+    database: "small.db",
+    sql: "SELECT id FROM items WHERE name = 'ALPHA' COLLATE NOCASE",
+  },
+  {
+    name: "small.rtrim",
+    database: "small.db",
+    sql: "SELECT id FROM items WHERE name = 'alpha  ' COLLATE RTRIM",
+  },
+  {
+    name: "small.concat",
+    database: "small.db",
+    sql: "SELECT id, name || ':' || id FROM items WHERE id < 3",
+  },
+  {
+    name: "small.unary",
+    database: "small.db",
+    sql: "SELECT id, -price FROM items WHERE price IS NOT NULL",
+  },
+  {
+    name: "small.bitwise",
+    database: "small.db",
+    sql: "SELECT id, id << 2 FROM items WHERE id = 3",
+  },
+  {
+    name: "small.case",
+    database: "small.db",
+    sql: "SELECT id, CASE WHEN price IS NULL THEN 'missing' ELSE name END FROM items",
+  },
+  {
+    name: "small.cast_text",
+    database: "small.db",
+    sql: "SELECT id, CAST(price AS TEXT) FROM items WHERE id = 1",
+  },
+  {
+    name: "small.empty",
+    database: "small.db",
+    sql: "SELECT id, name FROM items WHERE id > 99",
+  },
+  {
+    name: "small.constant_integer",
+    database: "small.db",
+    sql: "SELECT 1 + 1",
+  },
+  {
+    name: "small.constant_real",
+    database: "small.db",
+    sql: "SELECT 1.5 + 2.5",
+  },
+  {
+    name: "small.constant_text",
+    database: "small.db",
+    sql: "SELECT 'abc' || 'def'",
+  },
+  {
+    name: "small.constant_blob",
+    database: "small.db",
+    sql: "SELECT x'4142'",
+  },
+  {
+    name: "small.constant_null",
+    database: "small.db",
+    sql: "SELECT NULL",
+  },
+  {
+    name: "nulls.select_all",
+    database: "nulls.db",
+    sql: "SELECT id, a, b, c FROM nulls",
+  },
+  {
+    name: "nulls.is_null",
+    database: "nulls.db",
+    sql: "SELECT id FROM nulls WHERE a IS NULL AND id = 2",
+  },
+  {
+    name: "nulls.in_with_null",
+    database: "nulls.db",
+    sql: "SELECT id FROM nulls WHERE b IN (1, NULL)",
+  },
+  {
+    name: "serial_types.mixed",
+    database: "serial_types.db",
+    sql: "SELECT c_int8, c_real, c_text3, c_blob3 FROM serial_types",
+  },
+  {
+    name: "without_rowid.scan",
+    database: "without_rowid.db",
+    sql: "SELECT k, v, n FROM wr WHERE n > 38",
+  },
+  {
+    name: "without_rowid.range",
+    database: "without_rowid.db",
+    sql: "SELECT k, v FROM wr WHERE v >= 'value-038'",
+  },
+  {
+    name: "many_indexes.filter",
+    database: "many_indexes.db",
+    sql: "SELECT id, a, b FROM m WHERE a = 'b' AND b = 2",
+  },
+];
+
+function querySql(sql) {
+  return sql.trim().replace(/;+\s*$/, "");
+}
+
+function queryValue(value, type) {
+  if (type === "null") {
+    return {type};
+  }
+  if (type === "blob") {
+    if (!(value instanceof Uint8Array)) {
+      throw new Error(`expected a blob value, got ${typeof value}`);
+    }
+    return {
+      type,
+      value: Buffer.from(value).toString("hex").toUpperCase(),
+    };
+  }
+  return {type, value: String(value)};
+}
+
+function queryResult(db, definition) {
+  const sql = querySql(definition.sql);
+  const statement = db.prepare(sql);
+  const columns = statement.getColumnNames();
+  if (new Set(columns).size !== columns.length) {
+    throw new Error(
+      `${definition.name}: duplicate result column names are not supported`,
+    );
+  }
+  const values = [];
+  while (statement.step()) {
+    values.push(statement.get(null, {useBigInt: true}));
+  }
+  statement.free();
+
+  const typeColumns = columns
+    .map(column => `typeof(${quoteIdentifier(column)})`)
+    .join(", ");
+  const typed = db.exec(`SELECT ${typeColumns}, * FROM (${sql})`);
+  const typedRows = typed.length === 0 ? [] : typed[0].values;
+  if (typedRows.length !== values.length) {
+    throw new Error(
+      `${definition.name}: ${values.length} rows but ${typedRows.length} type rows`,
+    );
+  }
+
+  return {
+    columns,
+    rows: values.map((row, rowIndex) => row.map((value, columnIndex) =>
+      queryValue(value, typedRows[rowIndex][columnIndex]))),
+  };
+}
+
+async function writeQueries() {
+  const databases = new Map();
+  const queries = [];
+
+  for (const definition of queryDefinitions) {
+    let db = databases.get(definition.database);
+    if (db === undefined) {
+      const bytes = await readFile(path.join(fixturesDir, definition.database));
+      db = new SQL.Database(bytes);
+      databases.set(definition.database, db);
+    }
+
+    const result = queryResult(db, definition);
+    queries.push({
+      name: definition.name,
+      database: `${fixturePrefix}${definition.database}`,
+      sql: querySql(definition.sql),
+      columns: result.columns,
+      rows: result.rows,
+    });
+  }
+
+  for (const db of databases.values()) {
+    db.close();
+  }
+
+  await writeFile(
+    path.join(fixturesDir, "queries.json"),
+    `${JSON.stringify({queries}, null, 2)}\n`,
+  );
+  console.log(`queries.json: ${queries.length} queries`);
+}
+
 async function writeFixture(name, db) {
   const bytes = db.export();
   db.close();
@@ -451,3 +716,5 @@ await writeFixture("auto_vacuum", autoVacuumDatabase());
 await writeFixture("without_rowid", withoutRowidDatabase());
 await writeFixture("nulls", nullsDatabase());
 await writeFixture("many_indexes", manyIndexesDatabase());
+
+await writeQueries();

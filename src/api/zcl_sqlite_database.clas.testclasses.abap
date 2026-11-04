@@ -162,3 +162,227 @@ CLASS ltcl_database IMPLEMENTATION.
   ENDMETHOD.
 
 ENDCLASS.
+
+
+CLASS ltcl_query_harness DEFINITION FINAL FOR TESTING
+  DURATION SHORT
+  RISK LEVEL HARMLESS.
+
+  PRIVATE SECTION.
+    DATA mv_failures TYPE string.
+
+    METHODS differential_queries FOR TESTING RAISING zcx_sqlite_error.
+    METHODS check_cell
+      IMPORTING io_value TYPE REF TO zcl_sqlite_value
+                iv_query TYPE string
+                is_cell  TYPE zsqlite_queries.
+    METHODS add_failure
+      IMPORTING iv_query  TYPE string
+                iv_row    TYPE i
+                iv_col    TYPE i
+                iv_detail TYPE string.
+    METHODS value_type_name
+      IMPORTING io_value       TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(rv_name) TYPE string.
+ENDCLASS.
+
+
+CLASS ltcl_query_harness IMPLEMENTATION.
+
+  METHOD differential_queries.
+    DATA lt_queries     TYPE STANDARD TABLE OF zsqlite_queries WITH DEFAULT KEY.
+    DATA ls_query       TYPE zsqlite_queries.
+    DATA lt_cells       TYPE STANDARD TABLE OF zsqlite_queries WITH DEFAULT KEY.
+    DATA ls_cell        TYPE zsqlite_queries.
+    DATA lo_database    TYPE REF TO zcl_sqlite_database.
+    DATA rs_result      TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row         TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value       TYPE REF TO zcl_sqlite_value.
+    DATA lv_sql         TYPE string.
+    DATA lv_database    TYPE string.
+    DATA lv_query_name  TYPE string.
+    DATA lv_row_count   TYPE i.
+    DATA lv_column_count TYPE i.
+
+    SELECT * FROM zsqlite_queries INTO TABLE @lt_queries
+      WHERE mandt = @sy-mandt AND row_no = 0
+      ORDER BY query_name.
+    SELECT * FROM zsqlite_queries INTO TABLE @lt_cells
+      WHERE mandt = @sy-mandt AND row_no > 0
+      ORDER BY query_name, row_no, col_no.
+
+    IF lines( lt_queries ) = 0.
+      cl_abap_unit_assert=>fail( 'no differential queries loaded' ).
+    ENDIF.
+
+    LOOP AT lt_queries INTO ls_query.
+      lv_query_name = ls_query-query_name.
+      CONDENSE lv_query_name.
+      lv_database = ls_query-database_name.
+      CONDENSE lv_database.
+      lv_sql = zcl_sqlite_utf8=>decode( ls_query-sql_text ).
+
+      lo_database = zcl_sqlite_database=>open( lv_database ).
+      rs_result = lo_database->query( lv_sql ).
+
+      lv_row_count = lines( rs_result-rows ).
+      IF lv_row_count <> ls_query-row_count.
+        add_failure(
+          iv_query  = lv_query_name
+          iv_row    = 0
+          iv_col    = 0
+          iv_detail = |row count { lv_row_count }, expected { ls_query-row_count }| ).
+      ENDIF.
+
+      lv_column_count = lines( rs_result-columns ).
+      IF lv_column_count <> ls_query-column_count.
+        add_failure(
+          iv_query  = lv_query_name
+          iv_row    = 0
+          iv_col    = 0
+          iv_detail = |column count { lv_column_count }, expected { ls_query-column_count }| ).
+      ENDIF.
+
+      LOOP AT lt_cells INTO ls_cell.
+        IF ls_cell-query_name <> ls_query-query_name.
+          CONTINUE.
+        ENDIF.
+
+        READ TABLE rs_result-rows INTO ls_row INDEX ls_cell-row_no.
+        IF sy-subrc <> 0.
+          add_failure(
+            iv_query  = lv_query_name
+            iv_row    = ls_cell-row_no
+            iv_col    = ls_cell-col_no
+            iv_detail = 'missing result row' ).
+          CONTINUE.
+        ENDIF.
+
+        READ TABLE ls_row INTO lo_value INDEX ls_cell-col_no.
+        IF sy-subrc <> 0.
+          add_failure(
+            iv_query  = lv_query_name
+            iv_row    = ls_cell-row_no
+            iv_col    = ls_cell-col_no
+            iv_detail = 'missing result column' ).
+          CONTINUE.
+        ENDIF.
+
+        check_cell(
+          io_value = lo_value
+          iv_query = lv_query_name
+          is_cell  = ls_cell ).
+      ENDLOOP.
+
+      lo_database->close( ).
+    ENDLOOP.
+
+    IF mv_failures IS NOT INITIAL.
+      cl_abap_unit_assert=>fail( msg = mv_failures ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD check_cell.
+    DATA lv_expected_type  TYPE string.
+    DATA lv_actual_type    TYPE string.
+    DATA lv_expected_text  TYPE string.
+    DATA lv_actual_text    TYPE string.
+    DATA lv_expected_int   TYPE int8.
+    DATA lv_actual_int     TYPE int8.
+    DATA lv_expected_real  TYPE f.
+    DATA lv_actual_real    TYPE f.
+    DATA lv_expected_blob  TYPE xstring.
+    DATA lv_actual_blob    TYPE xstring.
+
+    lv_expected_type = is_cell-value_type.
+    CONDENSE lv_expected_type.
+    lv_actual_type = value_type_name( io_value ).
+
+    IF lv_expected_type <> lv_actual_type.
+      add_failure(
+        iv_query  = iv_query
+        iv_row    = is_cell-row_no
+        iv_col    = is_cell-col_no
+        iv_detail = |type { lv_actual_type }, expected { lv_expected_type }| ).
+      RETURN.
+    ENDIF.
+
+    IF lv_expected_type = 'null'.
+      RETURN.
+    ENDIF.
+
+    CASE lv_expected_type.
+      WHEN 'integer'.
+        lv_expected_text = zcl_sqlite_utf8=>decode( is_cell-value_text ).
+        lv_expected_int = lv_expected_text.
+        lv_actual_int = io_value->as_integer( ).
+        IF lv_actual_int <> lv_expected_int.
+          add_failure(
+            iv_query  = iv_query
+            iv_row    = is_cell-row_no
+            iv_col    = is_cell-col_no
+            iv_detail = |integer mismatch, expected { lv_expected_text }| ).
+        ENDIF.
+      WHEN 'real'.
+        lv_expected_text = zcl_sqlite_utf8=>decode( is_cell-value_text ).
+        lv_expected_real = lv_expected_text.
+        lv_actual_real = io_value->as_real( ).
+        IF lv_actual_real <> lv_expected_real.
+          add_failure(
+            iv_query  = iv_query
+            iv_row    = is_cell-row_no
+            iv_col    = is_cell-col_no
+            iv_detail = |real mismatch, expected { lv_expected_text }| ).
+        ENDIF.
+      WHEN 'text'.
+        lv_expected_text = zcl_sqlite_utf8=>decode( is_cell-value_text ).
+        lv_actual_text = io_value->as_text( ).
+        IF lv_actual_text <> lv_expected_text.
+          add_failure(
+            iv_query  = iv_query
+            iv_row    = is_cell-row_no
+            iv_col    = is_cell-col_no
+            iv_detail = |text mismatch, expected { lv_expected_text }| ).
+        ENDIF.
+      WHEN 'blob'.
+        lv_expected_blob = is_cell-value_text.
+        lv_actual_blob = io_value->as_blob( ).
+        IF lv_actual_blob <> lv_expected_blob.
+          add_failure(
+            iv_query  = iv_query
+            iv_row    = is_cell-row_no
+            iv_col    = is_cell-col_no
+            iv_detail = 'blob mismatch' ).
+        ENDIF.
+      WHEN OTHERS.
+        add_failure(
+          iv_query  = iv_query
+          iv_row    = is_cell-row_no
+          iv_col    = is_cell-col_no
+          iv_detail = |unknown expected type { lv_expected_type }| ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD add_failure.
+    mv_failures = mv_failures &&
+      |{ iv_query } [{ iv_row },{ iv_col }]: { iv_detail }; |.
+  ENDMETHOD.
+
+  METHOD value_type_name.
+    CASE io_value->value_type( ).
+      WHEN zcl_sqlite_value=>c_null.
+        rv_name = 'null'.
+      WHEN zcl_sqlite_value=>c_integer.
+        rv_name = 'integer'.
+      WHEN zcl_sqlite_value=>c_real.
+        rv_name = 'real'.
+      WHEN zcl_sqlite_value=>c_text.
+        rv_name = 'text'.
+      WHEN zcl_sqlite_value=>c_blob.
+        rv_name = 'blob'.
+      WHEN OTHERS.
+        rv_name = 'unknown'.
+    ENDCASE.
+  ENDMETHOD.
+
+ENDCLASS.

@@ -1,0 +1,917 @@
+{
+  "queries": [
+    {
+      "name": "small.select_all",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, name, price FROM items",
+      "columns": [
+        "id",
+        "name",
+        "price"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          },
+          {
+            "type": "real",
+            "value": "1.5"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "beta"
+          },
+          {
+            "type": "real",
+            "value": "2.25"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "gamma"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.arithmetic_filter",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, price + 1 FROM items WHERE id > 1",
+      "columns": [
+        "id",
+        "price + 1"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "real",
+            "value": "3.25"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.star_where_text",
+      "database": "fixtures/small.db",
+      "sql": "SELECT * FROM items WHERE name = 'beta'",
+      "columns": [
+        "id",
+        "name",
+        "price"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "beta"
+          },
+          {
+            "type": "real",
+            "value": "2.25"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.qualified_star",
+      "database": "fixtures/small.db",
+      "sql": "SELECT items.* FROM items WHERE id = 2",
+      "columns": [
+        "id",
+        "name",
+        "price"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "beta"
+          },
+          {
+            "type": "real",
+            "value": "2.25"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.table_alias",
+      "database": "fixtures/small.db",
+      "sql": "SELECT i.name FROM items AS i WHERE i.id = 1",
+      "columns": [
+        "name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.rowid",
+      "database": "fixtures/small.db",
+      "sql": "SELECT rowid AS rid, id FROM items WHERE id = 2",
+      "columns": [
+        "rid",
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.real_compare",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, name FROM items WHERE price > 2",
+      "columns": [
+        "id",
+        "name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "beta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.null_filter",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id FROM items WHERE price IS NULL",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.not_filter",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id FROM items WHERE NOT (id = 1)",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.or_filter",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id FROM items WHERE id = 1 OR name = 'gamma'",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.between",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id FROM items WHERE id BETWEEN 2 AND 3",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.in_list",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id FROM items WHERE name IN ('alpha', 'gamma')",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.like",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, name FROM items WHERE name LIKE 'a%'",
+      "columns": [
+        "id",
+        "name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.glob",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, name FROM items WHERE name GLOB 'b*'",
+      "columns": [
+        "id",
+        "name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "beta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.glob_case_sensitive",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id FROM items WHERE name GLOB 'A*'",
+      "columns": [
+        "id"
+      ],
+      "rows": []
+    },
+    {
+      "name": "small.nocase",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id FROM items WHERE name = 'ALPHA' COLLATE NOCASE",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.rtrim",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id FROM items WHERE name = 'alpha  ' COLLATE RTRIM",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.concat",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, name || ':' || id FROM items WHERE id < 3",
+      "columns": [
+        "id",
+        "name || ':' || id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "alpha:1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "beta:2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.unary",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, -price FROM items WHERE price IS NOT NULL",
+      "columns": [
+        "id",
+        "-price"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "real",
+            "value": "-1.5"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "real",
+            "value": "-2.25"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.bitwise",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, id << 2 FROM items WHERE id = 3",
+      "columns": [
+        "id",
+        "id << 2"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "12"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.case",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, CASE WHEN price IS NULL THEN 'missing' ELSE name END FROM items",
+      "columns": [
+        "id",
+        "CASE WHEN price IS NULL THEN 'missing' ELSE name END"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "beta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "missing"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.cast_text",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, CAST(price AS TEXT) FROM items WHERE id = 1",
+      "columns": [
+        "id",
+        "CAST(price AS TEXT)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "1.5"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.empty",
+      "database": "fixtures/small.db",
+      "sql": "SELECT id, name FROM items WHERE id > 99",
+      "columns": [
+        "id",
+        "name"
+      ],
+      "rows": []
+    },
+    {
+      "name": "small.constant_integer",
+      "database": "fixtures/small.db",
+      "sql": "SELECT 1 + 1",
+      "columns": [
+        "1 + 1"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.constant_real",
+      "database": "fixtures/small.db",
+      "sql": "SELECT 1.5 + 2.5",
+      "columns": [
+        "1.5 + 2.5"
+      ],
+      "rows": [
+        [
+          {
+            "type": "real",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.constant_text",
+      "database": "fixtures/small.db",
+      "sql": "SELECT 'abc' || 'def'",
+      "columns": [
+        "'abc' || 'def'"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "abcdef"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.constant_blob",
+      "database": "fixtures/small.db",
+      "sql": "SELECT x'4142'",
+      "columns": [
+        "x'4142'"
+      ],
+      "rows": [
+        [
+          {
+            "type": "blob",
+            "value": "4142"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "small.constant_null",
+      "database": "fixtures/small.db",
+      "sql": "SELECT NULL",
+      "columns": [
+        "NULL"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "nulls.select_all",
+      "database": "fixtures/nulls.db",
+      "sql": "SELECT id, a, b, c FROM nulls",
+      "columns": [
+        "id",
+        "a",
+        "b",
+        "c"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "blob",
+            "value": "01"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "blob",
+            "value": ""
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "blob",
+            "value": "03"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "nulls.is_null",
+      "database": "fixtures/nulls.db",
+      "sql": "SELECT id FROM nulls WHERE a IS NULL AND id = 2",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "nulls.in_with_null",
+      "database": "fixtures/nulls.db",
+      "sql": "SELECT id FROM nulls WHERE b IN (1, NULL)",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "serial_types.mixed",
+      "database": "fixtures/serial_types.db",
+      "sql": "SELECT c_int8, c_real, c_text3, c_blob3 FROM serial_types",
+      "columns": [
+        "c_int8",
+        "c_real",
+        "c_text3",
+        "c_blob3"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "-1"
+          },
+          {
+            "type": "real",
+            "value": "1.5"
+          },
+          {
+            "type": "text",
+            "value": "abc"
+          },
+          {
+            "type": "blob",
+            "value": "010203"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "127"
+          },
+          {
+            "type": "real",
+            "value": "-1.5"
+          },
+          {
+            "type": "text",
+            "value": "xyz"
+          },
+          {
+            "type": "blob",
+            "value": "040506"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "without_rowid.scan",
+      "database": "fixtures/without_rowid.db",
+      "sql": "SELECT k, v, n FROM wr WHERE n > 38",
+      "columns": [
+        "k",
+        "v",
+        "n"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "key-039"
+          },
+          {
+            "type": "text",
+            "value": "value-039"
+          },
+          {
+            "type": "integer",
+            "value": "39"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-040"
+          },
+          {
+            "type": "text",
+            "value": "value-040"
+          },
+          {
+            "type": "integer",
+            "value": "40"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "without_rowid.range",
+      "database": "fixtures/without_rowid.db",
+      "sql": "SELECT k, v FROM wr WHERE v >= 'value-038'",
+      "columns": [
+        "k",
+        "v"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "key-038"
+          },
+          {
+            "type": "text",
+            "value": "value-038"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-039"
+          },
+          {
+            "type": "text",
+            "value": "value-039"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-040"
+          },
+          {
+            "type": "text",
+            "value": "value-040"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "many_indexes.filter",
+      "database": "fixtures/many_indexes.db",
+      "sql": "SELECT id, a, b FROM m WHERE a = 'b' AND b = 2",
+      "columns": [
+        "id",
+        "a",
+        "b"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    }
+  ]
+}

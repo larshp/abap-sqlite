@@ -426,7 +426,7 @@ valid corpus (~200 statements) still passes.
 
 #### M4.5 Differential test harness
 
-- [ ] `make-fixtures.mjs` also writes `queries.json` (SQL + expected rows and types from sql.js),
+- [x] `make-fixtures.mjs` also writes `queries.json` (SQL + expected rows and types from sql.js),
       and one ABAP Unit test runs all of them and reports each mismatch
 
 **Done when:** the harness runs in CI with the queries supported so far.
