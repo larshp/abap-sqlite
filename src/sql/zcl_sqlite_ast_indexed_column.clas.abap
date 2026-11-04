@@ -13,6 +13,15 @@ CLASS zcl_sqlite_ast_indexed_column DEFINITION
                 iv_collation TYPE string OPTIONAL
                 iv_order     TYPE string OPTIONAL.
 
+    METHODS get_name
+      RETURNING VALUE(rv_name) TYPE string.
+
+    METHODS get_collation
+      RETURNING VALUE(rv_collation) TYPE string.
+
+    METHODS get_order
+      RETURNING VALUE(rv_order) TYPE string.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -29,6 +38,18 @@ CLASS zcl_sqlite_ast_indexed_column IMPLEMENTATION.
     mv_name = iv_name.
     mv_collation = iv_collation.
     mv_order = iv_order.
+  ENDMETHOD.
+
+  METHOD get_name.
+    rv_name = mv_name.
+  ENDMETHOD.
+
+  METHOD get_collation.
+    rv_collation = mv_collation.
+  ENDMETHOD.
+
+  METHOD get_order.
+    rv_order = mv_order.
   ENDMETHOD.
 
   METHOD dump.

@@ -14,6 +14,15 @@ CLASS zcl_sqlite_ast_column_def DEFINITION
                 iv_type_name   TYPE string OPTIONAL
                 it_constraints TYPE ty_constraints OPTIONAL.
 
+    METHODS get_name
+      RETURNING VALUE(rv_name) TYPE string.
+
+    METHODS get_type_name
+      RETURNING VALUE(rv_type_name) TYPE string.
+
+    METHODS get_constraints
+      RETURNING VALUE(rt_constraints) TYPE ty_constraints.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -30,6 +39,18 @@ CLASS zcl_sqlite_ast_column_def IMPLEMENTATION.
     mv_name = iv_name.
     mv_type_name = iv_type_name.
     mt_constraints = it_constraints.
+  ENDMETHOD.
+
+  METHOD get_name.
+    rv_name = mv_name.
+  ENDMETHOD.
+
+  METHOD get_type_name.
+    rv_type_name = mv_type_name.
+  ENDMETHOD.
+
+  METHOD get_constraints.
+    rt_constraints = mt_constraints.
   ENDMETHOD.
 
   METHOD dump.

@@ -16,6 +16,21 @@ CLASS zcl_sqlite_ast_create_index DEFINITION
                 it_columns       TYPE ty_columns OPTIONAL
                 io_where         TYPE REF TO zcl_sqlite_ast_node OPTIONAL.
 
+    METHODS get_name
+      RETURNING VALUE(rv_name) TYPE string.
+
+    METHODS get_table_name
+      RETURNING VALUE(rv_table_name) TYPE string.
+
+    METHODS is_unique
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
+    METHODS get_columns
+      RETURNING VALUE(rt_columns) TYPE ty_columns.
+
+    METHODS get_where
+      RETURNING VALUE(ro_where) TYPE REF TO zcl_sqlite_ast_node.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -38,6 +53,26 @@ CLASS zcl_sqlite_ast_create_index IMPLEMENTATION.
     mv_if_not_exists = iv_if_not_exists.
     mt_columns = it_columns.
     mo_where = io_where.
+  ENDMETHOD.
+
+  METHOD get_name.
+    rv_name = mv_name.
+  ENDMETHOD.
+
+  METHOD get_table_name.
+    rv_table_name = mv_table_name.
+  ENDMETHOD.
+
+  METHOD is_unique.
+    rv_result = mv_unique.
+  ENDMETHOD.
+
+  METHOD get_columns.
+    rt_columns = mt_columns.
+  ENDMETHOD.
+
+  METHOD get_where.
+    ro_where = mo_where.
   ENDMETHOD.
 
   METHOD dump.

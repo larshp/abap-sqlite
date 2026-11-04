@@ -32,6 +32,39 @@ CLASS zcl_sqlite_ast_constraint DEFINITION
                 iv_storage         TYPE string OPTIONAL
                 is_reference       TYPE ty_reference OPTIONAL.
 
+    METHODS get_kind
+      RETURNING VALUE(rv_kind) TYPE string.
+
+    METHODS get_name
+      RETURNING VALUE(rv_name) TYPE string.
+
+    METHODS get_columns
+      RETURNING VALUE(rt_columns) TYPE zcl_sqlite_ast_node=>ty_names.
+
+    METHODS get_indexed_columns
+      RETURNING VALUE(rt_columns) TYPE ty_indexed_columns.
+
+    METHODS get_expression
+      RETURNING VALUE(ro_expression) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_collation
+      RETURNING VALUE(rv_collation) TYPE string.
+
+    METHODS get_order
+      RETURNING VALUE(rv_order) TYPE string.
+
+    METHODS get_conflict
+      RETURNING VALUE(rv_conflict) TYPE string.
+
+    METHODS is_autoincrement
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
+    METHODS get_storage
+      RETURNING VALUE(rv_storage) TYPE string.
+
+    METHODS get_reference
+      RETURNING VALUE(rs_reference) TYPE ty_reference.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -76,6 +109,50 @@ CLASS zcl_sqlite_ast_constraint IMPLEMENTATION.
     mv_autoincrement = iv_autoincrement.
     mv_storage = iv_storage.
     ms_reference = is_reference.
+  ENDMETHOD.
+
+  METHOD get_kind.
+    rv_kind = mv_kind.
+  ENDMETHOD.
+
+  METHOD get_name.
+    rv_name = mv_name.
+  ENDMETHOD.
+
+  METHOD get_columns.
+    rt_columns = mt_columns.
+  ENDMETHOD.
+
+  METHOD get_indexed_columns.
+    rt_columns = mt_indexed_columns.
+  ENDMETHOD.
+
+  METHOD get_expression.
+    ro_expression = mo_expression.
+  ENDMETHOD.
+
+  METHOD get_collation.
+    rv_collation = mv_collation.
+  ENDMETHOD.
+
+  METHOD get_order.
+    rv_order = mv_order.
+  ENDMETHOD.
+
+  METHOD get_conflict.
+    rv_conflict = mv_conflict.
+  ENDMETHOD.
+
+  METHOD is_autoincrement.
+    rv_result = mv_autoincrement.
+  ENDMETHOD.
+
+  METHOD get_storage.
+    rv_storage = mv_storage.
+  ENDMETHOD.
+
+  METHOD get_reference.
+    rs_reference = ms_reference.
   ENDMETHOD.
 
   METHOD dump.

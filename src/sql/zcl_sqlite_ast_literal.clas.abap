@@ -10,6 +10,12 @@ CLASS zcl_sqlite_ast_literal DEFINITION
       IMPORTING iv_kind  TYPE string
                 iv_value TYPE string.
 
+    METHODS get_kind
+      RETURNING VALUE(rv_kind) TYPE string.
+
+    METHODS get_value
+      RETURNING VALUE(rv_value) TYPE string.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -24,6 +30,14 @@ CLASS zcl_sqlite_ast_literal IMPLEMENTATION.
   METHOD constructor.
     mv_kind = iv_kind.
     mv_value = iv_value.
+  ENDMETHOD.
+
+  METHOD get_kind.
+    rv_kind = mv_kind.
+  ENDMETHOD.
+
+  METHOD get_value.
+    rv_value = mv_value.
   ENDMETHOD.
 
   METHOD dump.

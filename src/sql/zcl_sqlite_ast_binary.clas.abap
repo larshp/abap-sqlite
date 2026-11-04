@@ -12,6 +12,15 @@ CLASS zcl_sqlite_ast_binary DEFINITION
                 io_left     TYPE REF TO zcl_sqlite_ast_node
                 io_right    TYPE REF TO zcl_sqlite_ast_node.
 
+    METHODS get_operator
+      RETURNING VALUE(rv_operator) TYPE string.
+
+    METHODS get_left
+      RETURNING VALUE(ro_left) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_right
+      RETURNING VALUE(ro_right) TYPE REF TO zcl_sqlite_ast_node.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -28,6 +37,18 @@ CLASS zcl_sqlite_ast_binary IMPLEMENTATION.
     mv_operator = iv_operator.
     mo_left = io_left.
     mo_right = io_right.
+  ENDMETHOD.
+
+  METHOD get_operator.
+    rv_operator = mv_operator.
+  ENDMETHOD.
+
+  METHOD get_left.
+    ro_left = mo_left.
+  ENDMETHOD.
+
+  METHOD get_right.
+    ro_right = mo_right.
   ENDMETHOD.
 
   METHOD dump.

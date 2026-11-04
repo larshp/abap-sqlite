@@ -395,7 +395,7 @@ valid corpus (~200 statements) still passes.
 
 #### M4.1 Catalog
 
-- [ ] Build table/column/index metadata from the parsed `sqlite_schema` SQL. Column affinity
+- [x] Build table/column/index metadata from the parsed `sqlite_schema` SQL. Column affinity
       follows the type-name rules (INTEGER / TEXT / BLOB / REAL / NUMERIC). `INTEGER PRIMARY KEY`
       is a rowid alias.
 

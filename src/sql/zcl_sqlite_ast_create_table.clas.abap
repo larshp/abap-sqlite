@@ -18,6 +18,21 @@ CLASS zcl_sqlite_ast_create_table DEFINITION
                 iv_without_rowid TYPE abap_bool DEFAULT abap_false
                 iv_strict        TYPE abap_bool DEFAULT abap_false.
 
+    METHODS get_name
+      RETURNING VALUE(rv_name) TYPE string.
+
+    METHODS get_columns
+      RETURNING VALUE(rt_columns) TYPE ty_columns.
+
+    METHODS get_constraints
+      RETURNING VALUE(rt_constraints) TYPE ty_constraints.
+
+    METHODS is_without_rowid
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
+    METHODS is_strict
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -42,6 +57,26 @@ CLASS zcl_sqlite_ast_create_table IMPLEMENTATION.
     mt_constraints = it_constraints.
     mv_without_rowid = iv_without_rowid.
     mv_strict = iv_strict.
+  ENDMETHOD.
+
+  METHOD get_name.
+    rv_name = mv_name.
+  ENDMETHOD.
+
+  METHOD get_columns.
+    rt_columns = mt_columns.
+  ENDMETHOD.
+
+  METHOD get_constraints.
+    rt_constraints = mt_constraints.
+  ENDMETHOD.
+
+  METHOD is_without_rowid.
+    rv_result = mv_without_rowid.
+  ENDMETHOD.
+
+  METHOD is_strict.
+    rv_result = mv_strict.
   ENDMETHOD.
 
   METHOD dump.

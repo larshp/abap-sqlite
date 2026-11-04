@@ -10,6 +10,12 @@ CLASS zcl_sqlite_ast_unary DEFINITION
       IMPORTING iv_operator TYPE string
                 io_operand  TYPE REF TO zcl_sqlite_ast_node.
 
+    METHODS get_operator
+      RETURNING VALUE(rv_operator) TYPE string.
+
+    METHODS get_operand
+      RETURNING VALUE(ro_operand) TYPE REF TO zcl_sqlite_ast_node.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -24,6 +30,14 @@ CLASS zcl_sqlite_ast_unary IMPLEMENTATION.
   METHOD constructor.
     mv_operator = iv_operator.
     mo_operand = io_operand.
+  ENDMETHOD.
+
+  METHOD get_operator.
+    rv_operator = mv_operator.
+  ENDMETHOD.
+
+  METHOD get_operand.
+    ro_operand = mo_operand.
   ENDMETHOD.
 
   METHOD dump.
