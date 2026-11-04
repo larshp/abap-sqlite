@@ -14,6 +14,10 @@ CLASS ltcl_expr_eval DEFINITION FINAL FOR TESTING
     METHODS bitwise FOR TESTING RAISING zcx_sqlite_error.
     METHODS integer_boundaries FOR TESTING RAISING zcx_sqlite_error.
     METHODS cast_types FOR TESTING RAISING zcx_sqlite_error.
+    METHODS collations FOR TESTING RAISING zcx_sqlite_error.
+    METHODS like_patterns FOR TESTING RAISING zcx_sqlite_error.
+    METHODS glob_patterns FOR TESTING RAISING zcx_sqlite_error.
+    METHODS pattern_errors FOR TESTING.
     METHODS hex_error FOR TESTING.
 
     METHODS assert_integer
@@ -193,6 +197,145 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
     assert_text( iv_sql = 'SELECT CAST(1 AS TEXT)' iv_expected = '1' ).
     assert_blob( iv_sql = 'SELECT CAST(''abc'' AS BLOB)' iv_expected = '616263' ).
     assert_text( iv_sql = 'SELECT CAST(x''4142'' AS TEXT)' iv_expected = 'AB' ).
+  ENDMETHOD.
+
+  METHOD collations.
+    assert_integer( iv_sql = 'SELECT ''a'' = ''A''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''a'' = ''A'' COLLATE NOCASE' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''a'' COLLATE NOCASE = ''A''' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''a'' COLLATE BINARY = ''A'' COLLATE NOCASE' iv_expected = 0 ).
+    assert_integer( iv_sql =
+      'SELECT ''a'' COLLATE NOCASE = ''A'' COLLATE BINARY' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''abc '' = ''abc'' COLLATE RTRIM' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''abc  '' = ''abc '' COLLATE RTRIM' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''a'' COLLATE NOCASE IN (''A'')' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''a'' IN (''A'' COLLATE NOCASE)' iv_expected = 0 ).
+    assert_integer( iv_sql =
+      'SELECT ''a'' BETWEEN ''A'' AND ''B'' COLLATE NOCASE' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''a'' BETWEEN ''A'' COLLATE NOCASE AND ''B''' iv_expected = 0 ).
+    assert_integer( iv_sql =
+      'SELECT CASE ''a'' COLLATE NOCASE WHEN ''A'' THEN 1 ELSE 0 END'
+      iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT CASE WHEN 1 THEN ''a'' COLLATE NOCASE ELSE ''b'' END = ''A'''
+      iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT CAST(''a'' COLLATE NOCASE AS TEXT) = ''A''' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''a'' COLLATE NOCASE || ''x'' = ''AX''' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''a'' COLLATE BINARY || (''X'' COLLATE NOCASE) = ''Ax'''
+      iv_expected = 0 ).
+    assert_integer( iv_sql =
+      'SELECT ''x'' || (''a'' COLLATE NOCASE) = ''XA''' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''a'' COLLATE NOCASE IS ''A''' iv_expected = 1 ).
+  ENDMETHOD.
+
+  METHOD like_patterns.
+    assert_integer( iv_sql = 'SELECT ''a'' LIKE ''A''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''A'' LIKE ''a''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' LIKE ''a%''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' LIKE ''a_c''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' LIKE ''a%c''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' LIKE ''%b%''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''ac'' LIKE ''a%b%c''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT '''' LIKE ''%''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT '''' LIKE ''_''' iv_expected = 0 ).
+    assert_integer( iv_sql =
+      'SELECT ''a%c'' LIKE ''a!%c'' ESCAPE ''!''' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''abc'' LIKE ''a!%c'' ESCAPE ''!''' iv_expected = 0 ).
+    assert_integer( iv_sql =
+      'SELECT ''a_c'' LIKE ''a!_c'' ESCAPE ''!''' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''abc'' LIKE ''a!bc'' ESCAPE ''!''' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''a!'' LIKE ''a!'' ESCAPE ''!''' iv_expected = 0 ).
+    assert_integer( iv_sql =
+      'SELECT ''abc'' LIKE ''abc!'' ESCAPE ''!''' iv_expected = 0 ).
+    assert_integer( iv_sql =
+      'SELECT ''abc'' LIKE ''a_c'' ESCAPE ''A''' iv_expected = 1 ).
+    assert_integer( iv_sql =
+      'SELECT ''aBc'' LIKE ''a_c'' ESCAPE ''a''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''a'' LIKE ''a'' ESCAPE 1' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''a1'' LIKE ''a1'' ESCAPE 1'
+      iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''a'' LIKE ''a'' ESCAPE ''1'''
+      iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' NOT LIKE ''a%''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT 1 LIKE ''1''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT 1.5 LIKE ''1.5''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT x''4142'' LIKE ''AB''' iv_expected = 1 ).
+    assert_null( 'SELECT NULL LIKE ''a''' ).
+    assert_null( 'SELECT ''a'' LIKE NULL' ).
+    assert_null( 'SELECT NULL NOT LIKE ''a''' ).
+    assert_null( 'SELECT ''abc'' LIKE ''abc'' ESCAPE NULL' ).
+  ENDMETHOD.
+
+  METHOD glob_patterns.
+    assert_integer( iv_sql = 'SELECT ''AB'' GLOB ''A*''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''AB'' GLOB ''a*''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' GLOB ''a?c''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' GLOB ''a[bd]c''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' GLOB ''a[b-d]c''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' GLOB ''a[^bd]c''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' GLOB ''a[!bd]c''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' GLOB ''a[b''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT '']'' GLOB ''[]]''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''-'' GLOB ''[a-]''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''b'' GLOB ''[a-]''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''a'' GLOB ''[]a]''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''a'' GLOB ''[^a]''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''b'' GLOB ''[^a]''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''^'' GLOB ''[^a]''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''^'' GLOB ''[!a]''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''a'' GLOB ''[z-a]''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''['' GLOB ''[[]''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' GLOB ''a*b*c''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT ''ac'' GLOB ''a*b*c''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT '''' GLOB ''*''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT '''' GLOB ''?''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT ''abc'' NOT GLOB ''a*''' iv_expected = 0 ).
+    assert_integer( iv_sql = 'SELECT 1 GLOB ''1''' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT x''4142'' GLOB ''AB''' iv_expected = 1 ).
+    assert_null( 'SELECT NULL GLOB ''a''' ).
+    assert_null( 'SELECT ''a'' GLOB NULL' ).
+  ENDMETHOD.
+
+  METHOD pattern_errors.
+    TRY.
+        zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT ''abc'' LIKE ''abc'' ESCAPE ''!!''' ).
+        cl_abap_unit_assert=>fail( msg = 'expected escape error' ).
+      CATCH zcx_sqlite_error INTO DATA(lo_escape_error).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_escape_error->message
+          exp = 'ESCAPE expression must be a single character' ).
+    ENDTRY.
+
+    TRY.
+        zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT ''a'' COLLATE FOO = ''A''' ).
+        cl_abap_unit_assert=>fail( msg = 'expected collation error' ).
+      CATCH zcx_sqlite_error INTO DATA(lo_collation_error).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_collation_error->message
+          exp = 'no such collation sequence: FOO' ).
+    ENDTRY.
+
+    TRY.
+        zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT ''a'' GLOB ''a'' ESCAPE ''!''' ).
+        cl_abap_unit_assert=>fail( msg = 'expected glob escape error' ).
+      CATCH zcx_sqlite_error INTO DATA(lo_glob_error).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_glob_error->message
+          exp = 'wrong number of arguments to function GLOB()' ).
+    ENDTRY.
   ENDMETHOD.
 
   METHOD hex_error.

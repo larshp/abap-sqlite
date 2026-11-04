@@ -23,6 +23,12 @@ CLASS zcl_sqlite_expr_eval DEFINITION
              overflow TYPE abap_bool,
            END OF ty_integer_parse.
 
+    TYPES: BEGIN OF ty_glob_class,
+             matched TYPE abap_bool,
+             valid   TYPE abap_bool,
+             next    TYPE i,
+           END OF ty_glob_class.
+
     " ANORMALY: large int8 constant literals lose precision in the transpiler
     CONSTANTS c_max_integer TYPE int8 VALUE '9223372036854775807'.
     CONSTANTS c_min_integer TYPE int8 VALUE -9223372036854775808.
@@ -93,6 +99,22 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
+    CLASS-METHODS collation_of
+      IMPORTING io_expression       TYPE REF TO zcl_sqlite_ast_node
+      RETURNING VALUE(rv_collation) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS effective_collation
+      IMPORTING io_left             TYPE REF TO zcl_sqlite_ast_node
+                io_right            TYPE REF TO zcl_sqlite_ast_node
+      RETURNING VALUE(rv_collation) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS supported_collation
+      IMPORTING iv_name        TYPE string
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
     CLASS-METHODS evaluate_logic
       IMPORTING iv_operator     TYPE string
                 io_left         TYPE REF TO zcl_sqlite_ast_node
@@ -150,8 +172,31 @@ CLASS zcl_sqlite_expr_eval DEFINITION
     CLASS-METHODS compare_non_null
       IMPORTING io_left           TYPE REF TO zcl_sqlite_value
                 io_right          TYPE REF TO zcl_sqlite_value
+                iv_collation      TYPE string DEFAULT 'BINARY'
       RETURNING VALUE(rv_compare) TYPE i
       RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS collated_text
+      IMPORTING iv_text        TYPE string
+                iv_collation   TYPE string
+      RETURNING VALUE(rv_text) TYPE string.
+
+    CLASS-METHODS like_match
+      IMPORTING iv_text         TYPE string
+                iv_pattern      TYPE string
+                iv_escape       TYPE string
+      RETURNING VALUE(rv_match) TYPE abap_bool.
+
+    CLASS-METHODS glob_match
+      IMPORTING iv_text         TYPE string
+                iv_pattern      TYPE string
+      RETURNING VALUE(rv_match) TYPE abap_bool.
+
+    CLASS-METHODS glob_class_matches
+      IMPORTING iv_pattern       TYPE string
+                iv_start         TYPE i
+                iv_char          TYPE string
+      RETURNING VALUE(rs_result) TYPE ty_glob_class.
 
     CLASS-METHODS compare_int_real
       IMPORTING iv_integer        TYPE int8
@@ -238,6 +283,18 @@ CLASS zcl_sqlite_expr_eval DEFINITION
     CLASS-METHODS is_space_char
       IMPORTING iv_char          TYPE string
       RETURNING VALUE(rv_result) TYPE abap_bool.
+
+    CLASS-METHODS ascii_lower_char
+      IMPORTING iv_char        TYPE string
+      RETURNING VALUE(rv_char) TYPE string.
+
+    CLASS-METHODS ascii_lower
+      IMPORTING iv_text        TYPE string
+      RETURNING VALUE(rv_text) TYPE string.
+
+    CLASS-METHODS rtrim_spaces
+      IMPORTING iv_text        TYPE string
+      RETURNING VALUE(rv_text) TYPE string.
 
     CLASS-METHODS bool_to_int
       IMPORTING iv_value        TYPE abap_bool
@@ -661,6 +718,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lo_left  TYPE REF TO zcl_sqlite_value.
     DATA lo_right TYPE REF TO zcl_sqlite_value.
     DATA lv_compare TYPE i.
+    DATA lv_collation TYPE string.
     DATA lv_result TYPE int8.
 
     lo_left = evaluate( io_left ).
@@ -673,7 +731,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         ro_value = zcl_sqlite_value=>null( ).
         RETURN.
       ENDIF.
-      lv_compare = compare_non_null( io_left = lo_left io_right = lo_right ).
+      lv_collation = effective_collation( io_left = io_left io_right = io_right ).
+      lv_compare = compare_non_null(
+        io_left = lo_left io_right = lo_right iv_collation = lv_collation ).
       CASE iv_operator.
         WHEN '=' OR '=='.
           lv_result = bool_to_int( boolc( lv_compare = 0 ) ).
@@ -708,6 +768,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
   METHOD evaluate_is.
     DATA lo_left  TYPE REF TO zcl_sqlite_value.
     DATA lo_right TYPE REF TO zcl_sqlite_value.
+    DATA lv_collation TYPE string.
     DATA lv_result TYPE int8.
 
     lo_left = evaluate( io_left ).
@@ -718,7 +779,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ELSEIF lo_left->is_null( ) = abap_true OR lo_right->is_null( ) = abap_true.
       lv_result = 0.
     ELSE.
-      lv_result = bool_to_int( boolc( compare_non_null( io_left = lo_left io_right = lo_right ) = 0 ) ).
+      lv_collation = effective_collation( io_left = io_left io_right = io_right ).
+      lv_result = bool_to_int( boolc( compare_non_null(
+        io_left = lo_left io_right = lo_right iv_collation = lv_collation ) = 0 ) ).
     ENDIF.
 
     IF iv_operator = 'IS NOT'.
@@ -894,6 +957,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lo_value TYPE REF TO zcl_sqlite_value.
     DATA lo_low   TYPE REF TO zcl_sqlite_value.
     DATA lo_high  TYPE REF TO zcl_sqlite_value.
+    DATA lv_collation TYPE string.
     DATA lv_first TYPE i.
     DATA lv_second TYPE i.
     DATA lv_result TYPE int8.
@@ -904,7 +968,11 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     IF lo_value->is_null( ) = abap_true OR lo_low->is_null( ) = abap_true.
       lv_first = c_truth_null.
     ELSE.
-      lv_first = bool_to_int( boolc( compare_non_null( io_left = lo_value io_right = lo_low ) >= 0 ) ).
+      lv_collation = effective_collation(
+        io_left = io_between->get_expression( )
+        io_right = io_between->get_low( ) ).
+      lv_first = bool_to_int( boolc( compare_non_null(
+        io_left = lo_value io_right = lo_low iv_collation = lv_collation ) >= 0 ) ).
     ENDIF.
 
     CASE lv_first.
@@ -917,7 +985,11 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         IF lo_high->is_null( ) = abap_true.
           lv_second = c_truth_null.
         ELSE.
-          lv_second = bool_to_int( boolc( compare_non_null( io_left = lo_value io_right = lo_high ) <= 0 ) ).
+          lv_collation = effective_collation(
+            io_left = io_between->get_expression( )
+            io_right = io_between->get_high( ) ).
+          lv_second = bool_to_int( boolc( compare_non_null(
+            io_left = lo_value io_right = lo_high iv_collation = lv_collation ) <= 0 ) ).
         ENDIF.
         lv_result = lv_second.
     ENDCASE.
@@ -938,6 +1010,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lo_candidate TYPE REF TO zcl_sqlite_value.
     DATA lo_expression TYPE REF TO zcl_sqlite_ast_node.
     DATA lt_values    TYPE zcl_sqlite_ast_node=>ty_nodes.
+    DATA lv_collation TYPE string.
     DATA lv_found     TYPE abap_bool.
     DATA lv_saw_null  TYPE abap_bool.
     DATA lv_result    TYPE int8.
@@ -948,6 +1021,10 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     lo_value = evaluate( io_in->get_expression( ) ).
     lt_values = io_in->get_values( ).
+    lv_collation = collation_of( io_in->get_expression( ) ).
+    IF lv_collation IS INITIAL.
+      lv_collation = 'BINARY'.
+    ENDIF.
 
     IF lo_value->is_null( ) = abap_false.
       LOOP AT lt_values INTO lo_expression.
@@ -956,7 +1033,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           lv_saw_null = abap_true.
           CONTINUE.
         ENDIF.
-        IF compare_non_null( io_left = lo_value io_right = lo_candidate ) = 0.
+        IF compare_non_null(
+            io_left = lo_value io_right = lo_candidate
+            iv_collation = lv_collation ) = 0.
           lv_found = abap_true.
           EXIT.
         ENDIF.
@@ -985,9 +1064,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD evaluate_collate.
-    IF io_collate->get_name( ) <> 'BINARY'.
-      raise_error( |collation { io_collate->get_name( ) } is not supported yet| ).
-    ENDIF.
+    supported_collation( io_collate->get_name( ) ).
     ro_value = evaluate( io_collate->get_expression( ) ).
   ENDMETHOD.
 
@@ -1007,7 +1084,417 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD evaluate_like.
-    raise_error( |{ io_like->get_operator( ) } is not supported yet| ).
+    DATA lo_value   TYPE REF TO zcl_sqlite_value.
+    DATA lo_pattern TYPE REF TO zcl_sqlite_value.
+    DATA lo_escape  TYPE REF TO zcl_sqlite_value.
+    DATA lv_text    TYPE string.
+    DATA lv_pattern TYPE string.
+    DATA lv_escape  TYPE string.
+    DATA lv_match   TYPE abap_bool.
+
+    IF io_like->get_operator( ) = 'GLOB'
+        AND io_like->get_escape( ) IS BOUND.
+      raise_error( 'wrong number of arguments to function GLOB()' ).
+    ENDIF.
+
+    lo_value = evaluate( io_like->get_expression( ) ).
+    lo_pattern = evaluate( io_like->get_pattern( ) ).
+
+    IF io_like->get_escape( ) IS BOUND.
+      lo_escape = evaluate( io_like->get_escape( ) ).
+      IF lo_escape->is_null( ) = abap_true.
+        ro_value = zcl_sqlite_value=>null( ).
+        RETURN.
+      ENDIF.
+      lv_escape = cast_to_text( lo_escape )->as_text( ).
+      IF strlen( lv_escape ) <> 1.
+        raise_error( 'ESCAPE expression must be a single character' ).
+      ENDIF.
+    ENDIF.
+
+    IF lo_value->is_null( ) = abap_true OR lo_pattern->is_null( ) = abap_true.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+
+    lv_text = cast_to_text( lo_value )->as_text( ).
+    lv_pattern = cast_to_text( lo_pattern )->as_text( ).
+
+    CASE io_like->get_operator( ).
+      WHEN 'LIKE'.
+        lv_match = like_match(
+          iv_text = lv_text iv_pattern = lv_pattern iv_escape = lv_escape ).
+      WHEN 'GLOB'.
+        lv_match = glob_match( iv_text = lv_text iv_pattern = lv_pattern ).
+      WHEN OTHERS.
+        raise_error( |unsupported pattern operator { io_like->get_operator( ) }| ).
+    ENDCASE.
+
+    IF io_like->is_negated( ) = abap_true.
+      lv_match = boolc( lv_match = abap_false ).
+    ENDIF.
+
+    ro_value = zcl_sqlite_value=>integer( bool_to_int( lv_match ) ).
+  ENDMETHOD.
+
+  METHOD collation_of.
+    DATA lo_binary  TYPE REF TO zcl_sqlite_ast_binary.
+    DATA lo_unary   TYPE REF TO zcl_sqlite_ast_unary.
+    DATA lo_cast    TYPE REF TO zcl_sqlite_ast_cast.
+    DATA lo_case    TYPE REF TO zcl_sqlite_ast_case.
+    DATA lo_collate TYPE REF TO zcl_sqlite_ast_collate.
+    DATA lt_whens   TYPE zcl_sqlite_ast_case=>ty_whens.
+    DATA ls_when    TYPE zcl_sqlite_ast_case=>ty_when.
+
+    IF io_expression IS NOT BOUND.
+      RETURN.
+    ENDIF.
+
+    IF io_expression IS INSTANCE OF zcl_sqlite_ast_collate.
+      lo_collate ?= io_expression.
+      rv_collation = supported_collation( lo_collate->get_name( ) ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_binary.
+      lo_binary ?= io_expression.
+      IF lo_binary->get_operator( ) = '||'.
+        rv_collation = collation_of( lo_binary->get_left( ) ).
+        IF rv_collation IS INITIAL.
+          rv_collation = collation_of( lo_binary->get_right( ) ).
+        ENDIF.
+      ENDIF.
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_unary.
+      lo_unary ?= io_expression.
+      rv_collation = collation_of( lo_unary->get_operand( ) ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_cast.
+      lo_cast ?= io_expression.
+      rv_collation = collation_of( lo_cast->get_expression( ) ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_case.
+      lo_case ?= io_expression.
+      lt_whens = lo_case->get_whens( ).
+      LOOP AT lt_whens INTO ls_when.
+        rv_collation = collation_of( ls_when-result ).
+        IF rv_collation IS NOT INITIAL.
+          RETURN.
+        ENDIF.
+      ENDLOOP.
+      rv_collation = collation_of( lo_case->get_else( ) ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD effective_collation.
+    rv_collation = collation_of( io_left ).
+    IF rv_collation IS INITIAL.
+      rv_collation = collation_of( io_right ).
+    ENDIF.
+    IF rv_collation IS INITIAL.
+      rv_collation = 'BINARY'.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD supported_collation.
+    CASE iv_name.
+      WHEN 'BINARY' OR 'NOCASE' OR 'RTRIM'.
+        rv_name = iv_name.
+      WHEN OTHERS.
+        raise_error( |no such collation sequence: { iv_name }| ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD collated_text.
+    CASE iv_collation.
+      WHEN 'NOCASE'.
+        rv_text = ascii_lower( iv_text ).
+      WHEN 'RTRIM'.
+        rv_text = rtrim_spaces( iv_text ).
+      WHEN OTHERS.
+        rv_text = iv_text.
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD like_match.
+    DATA lv_text_length    TYPE i.
+    DATA lv_pattern_length TYPE i.
+    DATA lv_text_index     TYPE i VALUE 1.
+    DATA lv_pattern_index  TYPE i VALUE 1.
+    DATA lv_star_pattern   TYPE i VALUE 0.
+    DATA lv_star_text      TYPE i VALUE 0.
+    DATA lv_pattern_char   TYPE string.
+    DATA lv_text_char      TYPE string.
+    DATA lv_literal_char   TYPE string.
+
+    lv_text_length = strlen( iv_text ).
+    lv_pattern_length = strlen( iv_pattern ).
+
+    WHILE lv_text_index <= lv_text_length.
+      IF lv_pattern_index > lv_pattern_length.
+        IF lv_star_pattern > 0.
+          lv_pattern_index = lv_star_pattern.
+          lv_star_text = lv_star_text + 1.
+          lv_text_index = lv_star_text.
+          CONTINUE.
+        ELSE.
+          rv_match = abap_false.
+          RETURN.
+        ENDIF.
+      ENDIF.
+
+      lv_pattern_char = substring(
+        val = iv_pattern off = lv_pattern_index - 1 len = 1 ).
+
+      IF iv_escape IS NOT INITIAL AND lv_pattern_char = iv_escape.
+        IF lv_pattern_index < lv_pattern_length.
+          lv_literal_char = substring(
+            val = iv_pattern off = lv_pattern_index len = 1 ).
+          lv_text_char = substring(
+            val = iv_text off = lv_text_index - 1 len = 1 ).
+          IF ascii_lower_char( lv_literal_char )
+              = ascii_lower_char( lv_text_char ).
+            lv_pattern_index = lv_pattern_index + 2.
+            lv_text_index = lv_text_index + 1.
+            CONTINUE.
+          ENDIF.
+        ENDIF.
+        IF lv_star_pattern > 0.
+          lv_pattern_index = lv_star_pattern.
+          lv_star_text = lv_star_text + 1.
+          lv_text_index = lv_star_text.
+          CONTINUE.
+        ELSE.
+          rv_match = abap_false.
+          RETURN.
+        ENDIF.
+      ELSEIF lv_pattern_char = '%'.
+        lv_star_pattern = lv_pattern_index + 1.
+        lv_star_text = lv_text_index.
+        lv_pattern_index = lv_pattern_index + 1.
+        CONTINUE.
+      ELSEIF lv_pattern_char = '_'.
+        lv_pattern_index = lv_pattern_index + 1.
+        lv_text_index = lv_text_index + 1.
+        CONTINUE.
+      ELSE.
+        lv_text_char = substring(
+          val = iv_text off = lv_text_index - 1 len = 1 ).
+        IF ascii_lower_char( lv_pattern_char )
+            = ascii_lower_char( lv_text_char ).
+          lv_pattern_index = lv_pattern_index + 1.
+          lv_text_index = lv_text_index + 1.
+          CONTINUE.
+        ENDIF.
+        IF lv_star_pattern > 0.
+          lv_pattern_index = lv_star_pattern.
+          lv_star_text = lv_star_text + 1.
+          lv_text_index = lv_star_text.
+          CONTINUE.
+        ELSE.
+          rv_match = abap_false.
+          RETURN.
+        ENDIF.
+      ENDIF.
+    ENDWHILE.
+
+    WHILE lv_pattern_index <= lv_pattern_length.
+      lv_pattern_char = substring(
+        val = iv_pattern off = lv_pattern_index - 1 len = 1 ).
+      IF lv_pattern_char = '%'
+          AND ( iv_escape IS INITIAL OR lv_pattern_char <> iv_escape ).
+        lv_pattern_index = lv_pattern_index + 1.
+      ELSE.
+        rv_match = abap_false.
+        RETURN.
+      ENDIF.
+    ENDWHILE.
+
+    rv_match = abap_true.
+  ENDMETHOD.
+
+  METHOD glob_match.
+    DATA lv_text_length    TYPE i.
+    DATA lv_pattern_length TYPE i.
+    DATA lv_text_index     TYPE i VALUE 1.
+    DATA lv_pattern_index  TYPE i VALUE 1.
+    DATA lv_star_pattern   TYPE i VALUE 0.
+    DATA lv_star_text      TYPE i VALUE 0.
+    DATA lv_pattern_char   TYPE string.
+    DATA lv_text_char      TYPE string.
+    DATA ls_class          TYPE ty_glob_class.
+
+    lv_text_length = strlen( iv_text ).
+    lv_pattern_length = strlen( iv_pattern ).
+
+    WHILE lv_text_index <= lv_text_length.
+      IF lv_pattern_index > lv_pattern_length.
+        IF lv_star_pattern > 0.
+          lv_pattern_index = lv_star_pattern.
+          lv_star_text = lv_star_text + 1.
+          lv_text_index = lv_star_text.
+          CONTINUE.
+        ELSE.
+          rv_match = abap_false.
+          RETURN.
+        ENDIF.
+      ENDIF.
+
+      lv_pattern_char = substring(
+        val = iv_pattern off = lv_pattern_index - 1 len = 1 ).
+
+      CASE lv_pattern_char.
+        WHEN '*'.
+          lv_star_pattern = lv_pattern_index + 1.
+          lv_star_text = lv_text_index.
+          lv_pattern_index = lv_pattern_index + 1.
+        WHEN '?'.
+          lv_pattern_index = lv_pattern_index + 1.
+          lv_text_index = lv_text_index + 1.
+        WHEN '['.
+          lv_text_char = substring(
+            val = iv_text off = lv_text_index - 1 len = 1 ).
+          ls_class = glob_class_matches(
+            iv_pattern = iv_pattern
+            iv_start = lv_pattern_index
+            iv_char = lv_text_char ).
+          IF ls_class-valid = abap_true AND ls_class-matched = abap_true.
+            lv_pattern_index = ls_class-next.
+            lv_text_index = lv_text_index + 1.
+          ELSEIF lv_star_pattern > 0.
+            lv_pattern_index = lv_star_pattern.
+            lv_star_text = lv_star_text + 1.
+            lv_text_index = lv_star_text.
+          ELSE.
+            rv_match = abap_false.
+            RETURN.
+          ENDIF.
+        WHEN OTHERS.
+          lv_text_char = substring(
+            val = iv_text off = lv_text_index - 1 len = 1 ).
+          IF lv_pattern_char = lv_text_char.
+            lv_pattern_index = lv_pattern_index + 1.
+            lv_text_index = lv_text_index + 1.
+          ELSEIF lv_star_pattern > 0.
+            lv_pattern_index = lv_star_pattern.
+            lv_star_text = lv_star_text + 1.
+            lv_text_index = lv_star_text.
+          ELSE.
+            rv_match = abap_false.
+            RETURN.
+          ENDIF.
+      ENDCASE.
+    ENDWHILE.
+
+    WHILE lv_pattern_index <= lv_pattern_length.
+      lv_pattern_char = substring(
+        val = iv_pattern off = lv_pattern_index - 1 len = 1 ).
+      IF lv_pattern_char = '*'.
+        lv_pattern_index = lv_pattern_index + 1.
+      ELSE.
+        rv_match = abap_false.
+        RETURN.
+      ENDIF.
+    ENDWHILE.
+
+    rv_match = abap_true.
+  ENDMETHOD.
+
+  METHOD glob_class_matches.
+    DATA lv_length      TYPE i.
+    DATA lv_index       TYPE i.
+    DATA lv_char        TYPE string.
+    DATA lv_start_char  TYPE string.
+    DATA lv_end_char    TYPE string.
+    DATA lv_negated     TYPE abap_bool.
+    DATA lv_first       TYPE abap_bool.
+    DATA lv_matched     TYPE abap_bool.
+
+    rs_result-valid = abap_false.
+    rs_result-matched = abap_false.
+    rs_result-next = 0.
+
+    lv_length = strlen( iv_pattern ).
+    lv_index = iv_start + 1.
+    IF lv_index > lv_length.
+      RETURN.
+    ENDIF.
+
+    lv_char = substring( val = iv_pattern off = lv_index - 1 len = 1 ).
+    IF lv_char = '^'.
+      lv_negated = abap_true.
+      lv_index = lv_index + 1.
+    ENDIF.
+
+    lv_first = abap_true.
+    WHILE lv_index <= lv_length.
+      lv_char = substring( val = iv_pattern off = lv_index - 1 len = 1 ).
+
+      IF lv_char = ']' AND lv_first = abap_false.
+        rs_result-valid = abap_true.
+        rs_result-next = lv_index + 1.
+        rs_result-matched = boolc( lv_matched <> lv_negated ).
+        RETURN.
+      ENDIF.
+
+      IF lv_char = ']' AND lv_first = abap_true.
+        IF iv_char = lv_char.
+          lv_matched = abap_true.
+        ENDIF.
+        lv_first = abap_false.
+        lv_index = lv_index + 1.
+        CONTINUE.
+      ENDIF.
+
+      IF lv_index + 2 <= lv_length
+          AND substring( val = iv_pattern off = lv_index len = 1 ) = '-'
+          AND substring( val = iv_pattern off = lv_index + 1 len = 1 ) <> ']'.
+        lv_start_char = lv_char.
+        lv_end_char = substring( val = iv_pattern off = lv_index + 1 len = 1 ).
+        IF iv_char >= lv_start_char AND iv_char <= lv_end_char.
+          lv_matched = abap_true.
+        ENDIF.
+        lv_index = lv_index + 3.
+      ELSE.
+        IF iv_char = lv_char.
+          lv_matched = abap_true.
+        ENDIF.
+        lv_index = lv_index + 1.
+      ENDIF.
+      lv_first = abap_false.
+    ENDWHILE.
+  ENDMETHOD.
+
+  METHOD ascii_lower_char.
+    IF iv_char >= |A| AND iv_char <= |Z|.
+      rv_char = to_lower( iv_char ).
+    ELSE.
+      rv_char = iv_char.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD ascii_lower.
+    DATA lv_length TYPE i.
+    DATA lv_index  TYPE i.
+    DATA lv_char   TYPE string.
+
+    lv_length = strlen( iv_text ).
+    DO lv_length TIMES.
+      lv_index = sy-index - 1.
+      lv_char = substring( val = iv_text off = lv_index len = 1 ).
+      rv_text = rv_text && ascii_lower_char( lv_char ).
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD rtrim_spaces.
+    DATA lv_length TYPE i.
+
+    rv_text = iv_text.
+    lv_length = strlen( rv_text ).
+    WHILE lv_length > 0.
+      " ANORMALY: a string does not compare equal to the character literal ' '
+      IF substring( val = rv_text off = lv_length - 1 len = 1 ) <> | |.
+        EXIT.
+      ENDIF.
+      lv_length = lv_length - 1.
+    ENDWHILE.
+    IF lv_length < strlen( rv_text ).
+      rv_text = substring( val = rv_text len = lv_length ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD evaluate_case.
@@ -1017,6 +1504,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lo_result TYPE REF TO zcl_sqlite_value.
     DATA lt_whens TYPE zcl_sqlite_ast_case=>ty_whens.
     DATA ls_when TYPE zcl_sqlite_ast_case=>ty_when.
+    DATA lv_collation TYPE string.
 
     lt_whens = io_case->get_whens( ).
     lo_base = io_case->get_base( ).
@@ -1029,7 +1517,11 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           IF lo_result->is_null( ) = abap_true.
             CONTINUE.
           ENDIF.
-          IF compare_non_null( io_left = lo_base_value io_right = lo_result ) = 0.
+          lv_collation = effective_collation(
+            io_left = lo_base io_right = ls_when-condition ).
+          IF compare_non_null(
+              io_left = lo_base_value io_right = lo_result
+              iv_collation = lv_collation ) = 0.
             ro_value = evaluate( ls_when-result ).
             RETURN.
           ENDIF.
@@ -1144,6 +1636,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_right_real TYPE f.
     DATA lv_left_bytes TYPE xstring.
     DATA lv_right_bytes TYPE xstring.
+    DATA lv_left_text TYPE string.
+    DATA lv_right_text TYPE string.
 
     lv_left_rank = value_rank( io_left ).
     lv_right_rank = value_rank( io_right ).
@@ -1190,9 +1684,13 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           ENDIF.
         ENDIF.
       WHEN 2.
+        lv_left_text = collated_text(
+          iv_text = io_left->as_text( ) iv_collation = iv_collation ).
+        lv_right_text = collated_text(
+          iv_text = io_right->as_text( ) iv_collation = iv_collation ).
         TRY.
-            lv_left_bytes = zcl_sqlite_utf8=>encode( io_left->as_text( ) ).
-            lv_right_bytes = zcl_sqlite_utf8=>encode( io_right->as_text( ) ).
+            lv_left_bytes = zcl_sqlite_utf8=>encode( lv_left_text ).
+            lv_right_bytes = zcl_sqlite_utf8=>encode( lv_right_text ).
           CATCH cx_sy_conversion_codepage.
             raise_error( 'text is not valid UTF-8' ).
         ENDTRY.

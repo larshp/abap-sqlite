@@ -411,7 +411,7 @@ valid corpus (~200 statements) still passes.
 
 #### M4.3 Collations and LIKE/GLOB
 
-- [ ] Collations `BINARY`, `NOCASE`, `RTRIM`, `COLLATE` operator. `LIKE` (ASCII case folding,
+- [x] Collations `BINARY`, `NOCASE`, `RTRIM`, `COLLATE` operator. `LIKE` (ASCII case folding,
       `ESCAPE`) and `GLOB`.
 
 **Done when:** a comparison/pattern corpus matches sql.js.
