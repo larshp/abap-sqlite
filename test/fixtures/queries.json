@@ -912,6 +912,611 @@
           }
         ]
       ]
+    },
+    {
+      "name": "functions.numeric",
+      "database": "fixtures/small.db",
+      "sql": "SELECT\n      abs(-3) AS a1,\n      abs(-3.5) AS a2,\n      abs('-4x') AS a3,\n      abs(NULL) AS a4,\n      round(2.5) AS a5,\n      round(-2.5) AS a6,\n      round(123.456, 2) AS a7,\n      round(123.456, -1) AS a8,\n      round(1, 2) AS a9,\n      round(NULL, 2) AS a10,\n      min(3, 1, 2) AS a11,\n      max(3, 1, 2) AS a12,\n      min('2', 10) AS a13,\n      max('2', 10) AS a14,\n      min(1, 1.0) AS a15,\n      max(1, 1.0) AS a16,\n      min(NULL, 1) AS a17,\n      max('a', 'B', 'b') AS a18",
+      "columns": [
+        "a1",
+        "a2",
+        "a3",
+        "a4",
+        "a5",
+        "a6",
+        "a7",
+        "a8",
+        "a9",
+        "a10",
+        "a11",
+        "a12",
+        "a13",
+        "a14",
+        "a15",
+        "a16",
+        "a17",
+        "a18"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "real",
+            "value": "3.5"
+          },
+          {
+            "type": "real",
+            "value": "4"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "real",
+            "value": "3"
+          },
+          {
+            "type": "real",
+            "value": "-3"
+          },
+          {
+            "type": "real",
+            "value": "123.46"
+          },
+          {
+            "type": "real",
+            "value": "123"
+          },
+          {
+            "type": "real",
+            "value": "1"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "text",
+            "value": "2"
+          },
+          {
+            "type": "real",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "functions.text",
+      "database": "fixtures/small.db",
+      "sql": "SELECT\n      length('abc') AS b1,\n      length('') AS b2,\n      length(12345) AS b3,\n      length(1.0) AS b4,\n      length(x'000102') AS b5,\n      lower('AbC') AS b6,\n      lower('ÄÖÜ') AS b7,\n      lower(123) AS b8,\n      upper('Abc') AS b9,\n      upper('äöü') AS b10,\n      substr('abcdef', 2) AS b11,\n      substr('abcdef', 2, 3) AS b12,\n      substr('abcdef', -2) AS b13,\n      substr('abcdef', -2, 1) AS b14,\n      substr('abcdef', 2, -1) AS b15,\n      substr('abcdef', 0, 2) AS b16,\n      substr('abcdef', 1, 0) AS b17,\n      substr('abcdef', 1, 100) AS b18,\n      substr('abcdef', 10, 2) AS b19,\n      substr(NULL, 1) AS b20,\n      substr(12345, 2, 2) AS b21",
+      "columns": [
+        "b1",
+        "b2",
+        "b3",
+        "b4",
+        "b5",
+        "b6",
+        "b7",
+        "b8",
+        "b9",
+        "b10",
+        "b11",
+        "b12",
+        "b13",
+        "b14",
+        "b15",
+        "b16",
+        "b17",
+        "b18",
+        "b19",
+        "b20",
+        "b21"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "abc"
+          },
+          {
+            "type": "text",
+            "value": "ÄÖÜ"
+          },
+          {
+            "type": "text",
+            "value": "123"
+          },
+          {
+            "type": "text",
+            "value": "ABC"
+          },
+          {
+            "type": "text",
+            "value": "äöü"
+          },
+          {
+            "type": "text",
+            "value": "bcdef"
+          },
+          {
+            "type": "text",
+            "value": "bcd"
+          },
+          {
+            "type": "text",
+            "value": "ef"
+          },
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "text",
+            "value": ""
+          },
+          {
+            "type": "text",
+            "value": "abcdef"
+          },
+          {
+            "type": "text",
+            "value": ""
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "text",
+            "value": "23"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "functions.conditional",
+      "database": "fixtures/small.db",
+      "sql": "SELECT\n      coalesce(NULL, NULL, 3) AS c1,\n      coalesce(NULL, 'x') AS c2,\n      ifnull(NULL, 2) AS c3,\n      ifnull(1, 2) AS c4,\n      nullif(1, 1) AS c5,\n      nullif(1, 2) AS c6,\n      nullif(NULL, NULL) AS c7,\n      iif(1, 'yes', 'no') AS c8,\n      iif(0, 'yes', 'no') AS c9,\n      iif(NULL, 'yes', 'no') AS c10,\n      iif('x', 1, 2) AS c11,\n      typeof(NULL) AS c12,\n      typeof(1) AS c13,\n      typeof(1.5) AS c14,\n      typeof('x') AS c15,\n      typeof(x'00') AS c16,\n      typeof(abs('3')) AS c17,\n      typeof(random()) AS c18",
+      "columns": [
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5",
+        "c6",
+        "c7",
+        "c8",
+        "c9",
+        "c10",
+        "c11",
+        "c12",
+        "c13",
+        "c14",
+        "c15",
+        "c16",
+        "c17",
+        "c18"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "x"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "text",
+            "value": "yes"
+          },
+          {
+            "type": "text",
+            "value": "no"
+          },
+          {
+            "type": "text",
+            "value": "no"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "null"
+          },
+          {
+            "type": "text",
+            "value": "integer"
+          },
+          {
+            "type": "text",
+            "value": "real"
+          },
+          {
+            "type": "text",
+            "value": "text"
+          },
+          {
+            "type": "text",
+            "value": "blob"
+          },
+          {
+            "type": "text",
+            "value": "real"
+          },
+          {
+            "type": "text",
+            "value": "integer"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "functions.trim_replace",
+      "database": "fixtures/small.db",
+      "sql": "SELECT\n      trim('  abc  ') AS d1,\n      trim('xxabcxx', 'x') AS d2,\n      ltrim('xxabc', 'x') AS d3,\n      rtrim('abcxx', 'x') AS d4,\n      trim('abc', '') AS d5,\n      trim(NULL, 'x') AS d6,\n      trim(123, '2') AS d7,\n      replace('abcabc', 'ab', 'X') AS d8,\n      replace('abc', '', 'X') AS d9,\n      replace(NULL, 'a', 'b') AS d10,\n      replace('abc', NULL, 'b') AS d11,\n      replace('abc', 'b', NULL) AS d12",
+      "columns": [
+        "d1",
+        "d2",
+        "d3",
+        "d4",
+        "d5",
+        "d6",
+        "d7",
+        "d8",
+        "d9",
+        "d10",
+        "d11",
+        "d12"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "abc"
+          },
+          {
+            "type": "text",
+            "value": "abc"
+          },
+          {
+            "type": "text",
+            "value": "abc"
+          },
+          {
+            "type": "text",
+            "value": "abc"
+          },
+          {
+            "type": "text",
+            "value": "abc"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "text",
+            "value": "123"
+          },
+          {
+            "type": "text",
+            "value": "XcXc"
+          },
+          {
+            "type": "text",
+            "value": "abc"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "functions.instr_hex_quote",
+      "database": "fixtures/small.db",
+      "sql": "SELECT\n      instr('abcdef', 'cd') AS e1,\n      instr('abcdef', 'zz') AS e2,\n      instr('abc', '') AS e3,\n      instr('', '') AS e4,\n      instr(NULL, 'a') AS e5,\n      instr('abc', NULL) AS e6,\n      instr(12345, 34) AS e7,\n      hex('abc') AS e8,\n      hex(x'0001AB') AS e9,\n      hex(123) AS e10,\n      hex(1.5) AS e11,\n      hex(NULL) AS e12,\n      quote(NULL) AS e13,\n      quote(123) AS e14,\n      quote(1.5) AS e15,\n      quote('abc') AS e16,\n      quote(x'00AB') AS e17,\n      quote('a''b') AS e18",
+      "columns": [
+        "e1",
+        "e2",
+        "e3",
+        "e4",
+        "e5",
+        "e6",
+        "e7",
+        "e8",
+        "e9",
+        "e10",
+        "e11",
+        "e12",
+        "e13",
+        "e14",
+        "e15",
+        "e16",
+        "e17",
+        "e18"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "616263"
+          },
+          {
+            "type": "text",
+            "value": "0001AB"
+          },
+          {
+            "type": "text",
+            "value": "313233"
+          },
+          {
+            "type": "text",
+            "value": "312E35"
+          },
+          {
+            "type": "text",
+            "value": ""
+          },
+          {
+            "type": "text",
+            "value": "NULL"
+          },
+          {
+            "type": "text",
+            "value": "123"
+          },
+          {
+            "type": "text",
+            "value": "1.5"
+          },
+          {
+            "type": "text",
+            "value": "'abc'"
+          },
+          {
+            "type": "text",
+            "value": "X'00AB'"
+          },
+          {
+            "type": "text",
+            "value": "'a''b'"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "functions.blobs",
+      "database": "fixtures/small.db",
+      "sql": "SELECT\n      substr(x'00010203', 2, 2) AS f1,\n      substr(x'00010203', -2) AS f2,\n      length(x'00010203') AS f3,\n      lower(x'4142') AS f4,\n      upper(x'6162') AS f5,\n      trim(x'20612020') AS f6,\n      replace(x'616263', x'62', x'58') AS f7,\n      instr(x'00010203', x'0102') AS f8,\n      instr(x'00010203', x'') AS f9,\n      hex(x'00AB') AS f10,\n      quote(x'00AB') AS f11,\n      typeof(x'00') AS f12",
+      "columns": [
+        "f1",
+        "f2",
+        "f3",
+        "f4",
+        "f5",
+        "f6",
+        "f7",
+        "f8",
+        "f9",
+        "f10",
+        "f11",
+        "f12"
+      ],
+      "rows": [
+        [
+          {
+            "type": "blob",
+            "value": "0102"
+          },
+          {
+            "type": "blob",
+            "value": "0203"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "ab"
+          },
+          {
+            "type": "text",
+            "value": "AB"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "text",
+            "value": "aXc"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "00AB"
+          },
+          {
+            "type": "text",
+            "value": "X'00AB'"
+          },
+          {
+            "type": "text",
+            "value": "blob"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "functions.unicode",
+      "database": "fixtures/small.db",
+      "sql": "SELECT\n      length('ä€😀') AS g1,\n      substr('ä€😀', 1, 1) AS g2,\n      substr('ä€😀', 2, 1) AS g3,\n      substr('ä€😀', 3, 1) AS g4,\n      length('😀') AS g5,\n      lower('Ä') AS g6,\n      upper('ä') AS g7,\n      hex('ä') AS g8,\n      instr('a😀b', 'b') AS g9",
+      "columns": [
+        "g1",
+        "g2",
+        "g3",
+        "g4",
+        "g5",
+        "g6",
+        "g7",
+        "g8",
+        "g9"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "ä"
+          },
+          {
+            "type": "text",
+            "value": "€"
+          },
+          {
+            "type": "text",
+            "value": "😀"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ä"
+          },
+          {
+            "type": "text",
+            "value": "ä"
+          },
+          {
+            "type": "text",
+            "value": "C3A4"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
     }
   ]
 }

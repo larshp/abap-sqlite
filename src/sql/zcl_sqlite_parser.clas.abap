@@ -93,6 +93,7 @@ CLASS zcl_sqlite_parser DEFINITION
       RAISING   zcx_sqlite_error.
 
     METHODS parse_name_or_function
+      IMPORTING iv_keep_case   TYPE abap_bool DEFAULT abap_false
       RETURNING VALUE(ro_node) TYPE REF TO zcl_sqlite_ast_node
       RAISING   zcx_sqlite_error.
 
@@ -2289,7 +2290,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
               iv_kind  = ls_token-value
               iv_value = '' ).
           WHEN OTHERS.
-            fail( 'syntax error' ).
+            IF token_at( iv_ahead = 1 )-kind = zcl_sqlite_tokenizer=>c_lparen.
+              ro_node = parse_name_or_function( iv_keep_case = abap_true ).
+            ELSE.
+              fail( 'syntax error' ).
+            ENDIF.
         ENDCASE.
       WHEN OTHERS.
         fail( 'syntax error' ).
@@ -2327,7 +2332,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     DATA lv_text TYPE string.
 
     ls_token = current( ).
-    lv_name = ls_token-value.
+    IF iv_keep_case = abap_true.
+      lv_name = ls_token-text.
+    ELSE.
+      lv_name = ls_token-value.
+    ENDIF.
     advance( ).
 
     IF current( )-kind = zcl_sqlite_tokenizer=>c_lparen.

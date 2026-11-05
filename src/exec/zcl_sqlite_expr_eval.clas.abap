@@ -35,6 +35,8 @@ CLASS zcl_sqlite_expr_eval DEFINITION
              next    TYPE i,
            END OF ty_glob_class.
 
+    TYPES ty_values TYPE STANDARD TABLE OF REF TO zcl_sqlite_value WITH DEFAULT KEY.
+
     " ANORMALY: large int8 constant literals lose precision in the transpiler
     CONSTANTS c_max_integer TYPE int8 VALUE '9223372036854775807'.
     CONSTANTS c_min_integer TYPE int8 VALUE -9223372036854775808.
@@ -106,6 +108,93 @@ CLASS zcl_sqlite_expr_eval DEFINITION
     CLASS-METHODS evaluate_function
       IMPORTING io_function     TYPE REF TO zcl_sqlite_ast_function
                 io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS evaluate_arguments
+      IMPORTING io_function      TYPE REF TO zcl_sqlite_ast_function
+                io_context       TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(rt_values) TYPE ty_values
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS require_arity
+      IMPORTING iv_name  TYPE string
+                iv_count TYPE i
+                iv_min   TYPE i
+                iv_max   TYPE i
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_abs
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_length
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_case
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+                iv_upper        TYPE abap_bool
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_substr
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+                io_start        TYPE REF TO zcl_sqlite_value
+                io_length       TYPE REF TO zcl_sqlite_value OPTIONAL
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_trim
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+                io_characters   TYPE REF TO zcl_sqlite_value OPTIONAL
+                iv_mode         TYPE string
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_replace
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+                io_pattern      TYPE REF TO zcl_sqlite_value
+                io_replacement  TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_instr
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+                io_needle       TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_typeof
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_round
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+                io_digits       TYPE REF TO zcl_sqlite_value OPTIONAL
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_hex
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_quote
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_minmax
+      IMPORTING it_values       TYPE ty_values
+                iv_min          TYPE abap_bool
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS function_random
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
@@ -312,6 +401,56 @@ CLASS zcl_sqlite_expr_eval DEFINITION
     CLASS-METHODS ascii_lower
       IMPORTING iv_text        TYPE string
       RETURNING VALUE(rv_text) TYPE string.
+
+    CLASS-METHODS ascii_upper_char
+      IMPORTING iv_char        TYPE string
+      RETURNING VALUE(rv_char) TYPE string.
+
+    CLASS-METHODS ascii_upper
+      IMPORTING iv_text        TYPE string
+      RETURNING VALUE(rv_text) TYPE string.
+
+    CLASS-METHODS text_char_length
+      IMPORTING iv_text          TYPE string
+      RETURNING VALUE(rv_length) TYPE i
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS text_char_substring
+      IMPORTING iv_text        TYPE string
+                iv_offset      TYPE i
+                iv_length      TYPE i
+      RETURNING VALUE(rv_text) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS text_contains_char
+      IMPORTING iv_text         TYPE string
+                iv_char         TYPE string
+      RETURNING VALUE(rv_found) TYPE abap_bool
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS text_index_of
+      IMPORTING iv_text         TYPE string
+                iv_needle       TYPE string
+      RETURNING VALUE(rv_index) TYPE i
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS bytes_index_of
+      IMPORTING iv_text         TYPE xstring
+                iv_needle       TYPE xstring
+      RETURNING VALUE(rv_index) TYPE i.
+
+    CLASS-METHODS data_to_hex
+      IMPORTING iv_data        TYPE xstring
+      RETURNING VALUE(rv_text) TYPE string.
+
+    CLASS-METHODS quote_text
+      IMPORTING iv_text        TYPE string
+      RETURNING VALUE(rv_text) TYPE string.
+
+    CLASS-METHODS round_real
+      IMPORTING iv_value        TYPE f
+                iv_digits       TYPE i
+      RETURNING VALUE(rv_value) TYPE f.
 
     CLASS-METHODS rtrim_spaces
       IMPORTING iv_text        TYPE string
@@ -1129,7 +1268,826 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD evaluate_function.
-    raise_error( |function { io_function->get_name( ) } is not supported yet| ).
+    DATA lv_name      TYPE string.
+    DATA lv_display   TYPE string.
+    DATA lv_count     TYPE i.
+    DATA lt_arguments TYPE zcl_sqlite_ast_node=>ty_nodes.
+    DATA lt_values    TYPE ty_values.
+    DATA lo_argument  TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_value     TYPE REF TO zcl_sqlite_value.
+    DATA lo_other     TYPE REF TO zcl_sqlite_value.
+
+    lv_display = io_function->get_name( ).
+    lv_name = to_upper( lv_display ).
+    lt_arguments = io_function->get_arguments( ).
+    lv_count = lines( lt_arguments ).
+
+    CASE lv_name.
+      WHEN 'ABS'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_abs( lt_values[ 1 ] ).
+      WHEN 'COALESCE'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = -1 ).
+        LOOP AT lt_arguments INTO lo_argument.
+          lo_value = evaluate( io_expression = lo_argument io_context = io_context ).
+          IF lo_value->is_null( ) = abap_false.
+            ro_value = lo_value.
+            RETURN.
+          ENDIF.
+        ENDLOOP.
+        ro_value = zcl_sqlite_value=>null( ).
+      WHEN 'IFNULL'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = 2 ).
+        lo_value = evaluate( io_expression = lt_arguments[ 1 ] io_context = io_context ).
+        IF lo_value->is_null( ) = abap_true.
+          lo_value = evaluate( io_expression = lt_arguments[ 2 ] io_context = io_context ).
+        ENDIF.
+        ro_value = lo_value.
+      WHEN 'NULLIF'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = 2 ).
+        lo_value = evaluate( io_expression = lt_arguments[ 1 ] io_context = io_context ).
+        lo_other = evaluate( io_expression = lt_arguments[ 2 ] io_context = io_context ).
+        IF lo_value->is_null( ) = abap_true.
+          ro_value = zcl_sqlite_value=>null( ).
+        ELSEIF lo_other->is_null( ) = abap_true.
+          ro_value = lo_value.
+        ELSEIF compare_non_null( io_left = lo_value io_right = lo_other ) = 0.
+          ro_value = zcl_sqlite_value=>null( ).
+        ELSE.
+          ro_value = lo_value.
+        ENDIF.
+      WHEN 'IIF'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = -1 ).
+        lo_value = evaluate( io_expression = lt_arguments[ 1 ] io_context = io_context ).
+        IF is_true( lo_value ) = abap_true.
+          ro_value = evaluate( io_expression = lt_arguments[ 2 ] io_context = io_context ).
+        ELSEIF lv_count = 2.
+          ro_value = zcl_sqlite_value=>null( ).
+        ELSE.
+          ro_value = evaluate( io_expression = lt_arguments[ lv_count ] io_context = io_context ).
+        ENDIF.
+      WHEN 'LENGTH'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_length( lt_values[ 1 ] ).
+      WHEN 'LOWER'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_case( io_value = lt_values[ 1 ] iv_upper = abap_false ).
+      WHEN 'UPPER'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_case( io_value = lt_values[ 1 ] iv_upper = abap_true ).
+      WHEN 'SUBSTR'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = 3 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        IF lv_count = 3.
+          ro_value = function_substr(
+            io_value  = lt_values[ 1 ]
+            io_start  = lt_values[ 2 ]
+            io_length = lt_values[ 3 ] ).
+        ELSE.
+          ro_value = function_substr(
+            io_value = lt_values[ 1 ]
+            io_start = lt_values[ 2 ] ).
+        ENDIF.
+      WHEN 'TRIM'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 2 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        IF lv_count = 2.
+          ro_value = function_trim(
+            io_value      = lt_values[ 1 ]
+            io_characters = lt_values[ 2 ]
+            iv_mode       = 'BOTH' ).
+        ELSE.
+          ro_value = function_trim( io_value = lt_values[ 1 ] iv_mode = 'BOTH' ).
+        ENDIF.
+      WHEN 'LTRIM'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 2 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        IF lv_count = 2.
+          ro_value = function_trim(
+            io_value      = lt_values[ 1 ]
+            io_characters = lt_values[ 2 ]
+            iv_mode       = 'LEFT' ).
+        ELSE.
+          ro_value = function_trim( io_value = lt_values[ 1 ] iv_mode = 'LEFT' ).
+        ENDIF.
+      WHEN 'RTRIM'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 2 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        IF lv_count = 2.
+          ro_value = function_trim(
+            io_value      = lt_values[ 1 ]
+            io_characters = lt_values[ 2 ]
+            iv_mode       = 'RIGHT' ).
+        ELSE.
+          ro_value = function_trim( io_value = lt_values[ 1 ] iv_mode = 'RIGHT' ).
+        ENDIF.
+      WHEN 'REPLACE'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 3 iv_max = 3 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_replace(
+          io_value       = lt_values[ 1 ]
+          io_pattern     = lt_values[ 2 ]
+          io_replacement = lt_values[ 3 ] ).
+      WHEN 'INSTR'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = 2 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_instr(
+          io_value  = lt_values[ 1 ]
+          io_needle = lt_values[ 2 ] ).
+      WHEN 'TYPEOF'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_typeof( lt_values[ 1 ] ).
+      WHEN 'ROUND'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 2 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        IF lv_count = 2.
+          ro_value = function_round(
+            io_value  = lt_values[ 1 ]
+            io_digits = lt_values[ 2 ] ).
+        ELSE.
+          ro_value = function_round( io_value = lt_values[ 1 ] ).
+        ENDIF.
+      WHEN 'HEX'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_hex( lt_values[ 1 ] ).
+      WHEN 'QUOTE'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_quote( lt_values[ 1 ] ).
+      WHEN 'MIN'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = -1 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_minmax( it_values = lt_values iv_min = abap_true ).
+      WHEN 'MAX'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = -1 ).
+        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        ro_value = function_minmax( it_values = lt_values iv_min = abap_false ).
+      WHEN 'RANDOM'.
+        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 0 iv_max = 0 ).
+        ro_value = function_random( ).
+      WHEN OTHERS.
+        raise_error( |function { lv_display } is not supported yet| ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD evaluate_arguments.
+    DATA lt_arguments TYPE zcl_sqlite_ast_node=>ty_nodes.
+    DATA lo_argument  TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_value     TYPE REF TO zcl_sqlite_value.
+
+    lt_arguments = io_function->get_arguments( ).
+    LOOP AT lt_arguments INTO lo_argument.
+      lo_value = evaluate( io_expression = lo_argument io_context = io_context ).
+      APPEND lo_value TO rt_values.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD require_arity.
+    IF iv_count < iv_min OR ( iv_max >= 0 AND iv_count > iv_max ).
+      raise_error( |wrong number of arguments to function { iv_name }()| ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD function_abs.
+    DATA lo_numeric TYPE REF TO zcl_sqlite_value.
+    DATA lv_integer TYPE int8.
+    DATA lv_real    TYPE f.
+
+    CASE io_value->value_type( ).
+      WHEN zcl_sqlite_value=>c_null.
+        ro_value = zcl_sqlite_value=>null( ).
+      WHEN zcl_sqlite_value=>c_integer.
+        lv_integer = io_value->as_integer( ).
+        IF lv_integer = c_min_integer.
+          raise_error( 'integer overflow' ).
+        ENDIF.
+        IF lv_integer < 0.
+          lv_integer = 0 - lv_integer.
+        ENDIF.
+        ro_value = zcl_sqlite_value=>integer( lv_integer ).
+      WHEN zcl_sqlite_value=>c_real.
+        lv_real = io_value->as_real( ).
+        IF lv_real < 0.
+          lv_real = 0 - lv_real.
+        ENDIF.
+        ro_value = zcl_sqlite_value=>real( lv_real ).
+      WHEN OTHERS.
+        lo_numeric = cast_to_numeric( io_value ).
+        lv_real = real_of( lo_numeric ).
+        IF lv_real < 0.
+          lv_real = 0 - lv_real.
+        ENDIF.
+        ro_value = zcl_sqlite_value=>real( lv_real ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD function_length.
+    DATA lv_text TYPE string.
+
+    CASE io_value->value_type( ).
+      WHEN zcl_sqlite_value=>c_null.
+        ro_value = zcl_sqlite_value=>null( ).
+      WHEN zcl_sqlite_value=>c_blob.
+        ro_value = zcl_sqlite_value=>integer( xstrlen( io_value->as_blob( ) ) ).
+      WHEN OTHERS.
+        lv_text = cast_to_text( io_value )->as_text( ).
+        ro_value = zcl_sqlite_value=>integer( text_char_length( lv_text ) ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD function_case.
+    DATA lv_text TYPE string.
+
+    IF io_value->is_null( ) = abap_true.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+
+    lv_text = cast_to_text( io_value )->as_text( ).
+    IF iv_upper = abap_true.
+      ro_value = zcl_sqlite_value=>text( ascii_upper( lv_text ) ).
+    ELSE.
+      ro_value = zcl_sqlite_value=>text( ascii_lower( lv_text ) ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD function_substr.
+    DATA lv_blob       TYPE xstring.
+    DATA lv_text       TYPE string.
+    DATA lv_count      TYPE i.
+    DATA lv_start_arg  TYPE int8.
+    DATA lv_length_arg TYPE int8.
+    DATA lv_start_zero TYPE int8.
+    DATA lv_from         TYPE int8.
+    DATA lv_to           TYPE int8.
+    DATA lv_from_index   TYPE i.
+    DATA lv_to_index     TYPE i.
+    DATA lv_slice_length TYPE i.
+    DATA lv_slice        TYPE xstring.
+
+    IF io_value->is_null( ) = abap_true OR io_start->is_null( ) = abap_true.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+    IF io_length IS BOUND AND io_length->is_null( ) = abap_true.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+
+    IF io_value->value_type( ) = zcl_sqlite_value=>c_blob.
+      lv_blob = io_value->as_blob( ).
+      lv_count = xstrlen( lv_blob ).
+    ELSE.
+      lv_text = cast_to_text( io_value )->as_text( ).
+      lv_count = text_char_length( lv_text ).
+    ENDIF.
+
+    lv_start_arg = integer_of( io_start ).
+    IF lv_start_arg > 0.
+      lv_start_zero = lv_start_arg - 1.
+    ELSEIF lv_start_arg < 0.
+      lv_start_zero = lv_count + lv_start_arg.
+    ELSE.
+      lv_start_zero = -1.
+    ENDIF.
+
+    IF io_length IS BOUND.
+      lv_length_arg = integer_of( io_length ).
+      IF lv_length_arg >= 0.
+        lv_from = lv_start_zero.
+        IF lv_from < 0.
+          lv_from = 0.
+        ENDIF.
+        lv_to = lv_start_zero + lv_length_arg.
+        IF lv_to > lv_count.
+          lv_to = lv_count.
+        ELSEIF lv_to < 0.
+          lv_to = 0.
+        ENDIF.
+      ELSE.
+        lv_from = lv_start_zero + lv_length_arg.
+        IF lv_from < 0.
+          lv_from = 0.
+        ENDIF.
+        lv_to = lv_start_zero.
+        IF lv_to < 0.
+          lv_to = 0.
+        ELSEIF lv_to > lv_count.
+          lv_to = lv_count.
+        ENDIF.
+      ENDIF.
+    ELSE.
+      lv_from = lv_start_zero.
+      IF lv_from < 0.
+        lv_from = 0.
+      ENDIF.
+      lv_to = lv_count.
+    ENDIF.
+
+    IF lv_from > lv_count.
+      lv_from = lv_count.
+    ENDIF.
+    IF lv_to < lv_from.
+      lv_to = lv_from.
+    ENDIF.
+
+    lv_from_index = lv_from.
+    lv_to_index = lv_to.
+
+    lv_slice_length = lv_to_index - lv_from_index.
+
+    IF io_value->value_type( ) = zcl_sqlite_value=>c_blob.
+      lv_slice = lv_blob+lv_from_index(lv_slice_length).
+      ro_value = zcl_sqlite_value=>blob( lv_slice ).
+    ELSE.
+      ro_value = zcl_sqlite_value=>text( text_char_substring(
+        iv_text   = lv_text
+        iv_offset = lv_from_index
+        iv_length = lv_to_index - lv_from_index ) ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD function_trim.
+    DATA lv_text       TYPE string.
+    DATA lv_characters TYPE string.
+    DATA lv_length     TYPE i.
+    DATA lv_start      TYPE i.
+    DATA lv_end        TYPE i.
+    DATA lv_char       TYPE string.
+
+    IF io_value->is_null( ) = abap_true.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+    IF io_characters IS BOUND AND io_characters->is_null( ) = abap_true.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+
+    lv_text = cast_to_text( io_value )->as_text( ).
+    IF io_characters IS BOUND.
+      lv_characters = cast_to_text( io_characters )->as_text( ).
+    ELSE.
+      lv_characters = | |.
+    ENDIF.
+    IF lv_characters IS INITIAL.
+      ro_value = zcl_sqlite_value=>text( lv_text ).
+      RETURN.
+    ENDIF.
+
+    lv_length = text_char_length( lv_text ).
+    lv_start = 0.
+    lv_end = lv_length.
+
+    IF iv_mode = 'BOTH' OR iv_mode = 'LEFT'.
+      WHILE lv_start < lv_end.
+        lv_char = text_char_substring(
+          iv_text = lv_text iv_offset = lv_start iv_length = 1 ).
+        IF text_contains_char( iv_text = lv_characters iv_char = lv_char ) = abap_false.
+          EXIT.
+        ENDIF.
+        lv_start = lv_start + 1.
+      ENDWHILE.
+    ENDIF.
+
+    IF iv_mode = 'BOTH' OR iv_mode = 'RIGHT'.
+      WHILE lv_end > lv_start.
+        lv_char = text_char_substring(
+          iv_text = lv_text iv_offset = lv_end - 1 iv_length = 1 ).
+        IF text_contains_char( iv_text = lv_characters iv_char = lv_char ) = abap_false.
+          EXIT.
+        ENDIF.
+        lv_end = lv_end - 1.
+      ENDWHILE.
+    ENDIF.
+
+    ro_value = zcl_sqlite_value=>text( text_char_substring(
+      iv_text = lv_text iv_offset = lv_start iv_length = lv_end - lv_start ) ).
+  ENDMETHOD.
+
+  METHOD function_replace.
+    DATA lv_text        TYPE string.
+    DATA lv_pattern     TYPE string.
+    DATA lv_replacement TYPE string.
+
+    IF io_value->is_null( ) = abap_true
+        OR io_pattern->is_null( ) = abap_true
+        OR io_replacement->is_null( ) = abap_true.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+
+    lv_text = cast_to_text( io_value )->as_text( ).
+    lv_pattern = cast_to_text( io_pattern )->as_text( ).
+    lv_replacement = cast_to_text( io_replacement )->as_text( ).
+
+    IF lv_pattern IS NOT INITIAL.
+      REPLACE ALL OCCURRENCES OF lv_pattern IN lv_text WITH lv_replacement.
+    ENDIF.
+
+    ro_value = zcl_sqlite_value=>text( lv_text ).
+  ENDMETHOD.
+
+  METHOD function_instr.
+    DATA lv_value_is_blob  TYPE abap_bool.
+    DATA lv_needle_is_blob TYPE abap_bool.
+    DATA lv_index          TYPE int8.
+    DATA lv_text           TYPE string.
+    DATA lv_needle         TYPE string.
+
+    IF io_value->is_null( ) = abap_true OR io_needle->is_null( ) = abap_true.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+
+    lv_value_is_blob = boolc( io_value->value_type( ) = zcl_sqlite_value=>c_blob ).
+    lv_needle_is_blob = boolc( io_needle->value_type( ) = zcl_sqlite_value=>c_blob ).
+
+    IF lv_value_is_blob = abap_true AND lv_needle_is_blob = abap_true.
+      lv_index = bytes_index_of(
+        iv_text = io_value->as_blob( ) iv_needle = io_needle->as_blob( ) ).
+      IF lv_index >= 0.
+        lv_index = lv_index + 1.
+      ELSE.
+        lv_index = 0.
+      ENDIF.
+    ELSEIF lv_value_is_blob = abap_true.
+      lv_index = 0.
+    ELSE.
+      lv_text = cast_to_text( io_value )->as_text( ).
+      lv_needle = cast_to_text( io_needle )->as_text( ).
+      lv_index = text_index_of( iv_text = lv_text iv_needle = lv_needle ).
+    ENDIF.
+
+    ro_value = zcl_sqlite_value=>integer( lv_index ).
+  ENDMETHOD.
+
+  METHOD function_typeof.
+    CASE io_value->value_type( ).
+      WHEN zcl_sqlite_value=>c_null.
+        ro_value = zcl_sqlite_value=>text( 'null' ).
+      WHEN zcl_sqlite_value=>c_integer.
+        ro_value = zcl_sqlite_value=>text( 'integer' ).
+      WHEN zcl_sqlite_value=>c_real.
+        ro_value = zcl_sqlite_value=>text( 'real' ).
+      WHEN zcl_sqlite_value=>c_text.
+        ro_value = zcl_sqlite_value=>text( 'text' ).
+      WHEN zcl_sqlite_value=>c_blob.
+        ro_value = zcl_sqlite_value=>text( 'blob' ).
+      WHEN OTHERS.
+        raise_error( 'unknown value type' ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD function_round.
+    DATA lo_numeric TYPE REF TO zcl_sqlite_value.
+    DATA lv_value   TYPE f.
+    DATA lv_digits  TYPE int8.
+    DATA lv_places  TYPE i.
+
+    IF io_value->is_null( ) = abap_true.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+    IF io_digits IS BOUND AND io_digits->is_null( ) = abap_true.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+
+    lo_numeric = cast_to_numeric( io_value ).
+    lv_value = real_of( lo_numeric ).
+
+    IF io_digits IS BOUND.
+      lv_digits = integer_of( io_digits ).
+      IF lv_digits < 0.
+        lv_places = 0.
+      ELSEIF lv_digits > 30.
+        lv_places = 30.
+      ELSE.
+        lv_places = lv_digits.
+      ENDIF.
+    ELSE.
+      lv_places = 0.
+    ENDIF.
+
+    ro_value = zcl_sqlite_value=>real( round_real(
+      iv_value = lv_value iv_digits = lv_places ) ).
+  ENDMETHOD.
+
+  METHOD function_hex.
+    DATA lv_data TYPE xstring.
+
+    CASE io_value->value_type( ).
+      WHEN zcl_sqlite_value=>c_null.
+        ro_value = zcl_sqlite_value=>text( '' ).
+      WHEN zcl_sqlite_value=>c_blob.
+        lv_data = io_value->as_blob( ).
+        ro_value = zcl_sqlite_value=>text( data_to_hex( lv_data ) ).
+      WHEN OTHERS.
+        TRY.
+            lv_data = zcl_sqlite_utf8=>encode( cast_to_text( io_value )->as_text( ) ).
+          CATCH cx_sy_conversion_codepage.
+            raise_error( 'text is not valid UTF-8' ).
+        ENDTRY.
+        ro_value = zcl_sqlite_value=>text( data_to_hex( lv_data ) ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD function_quote.
+    CASE io_value->value_type( ).
+      WHEN zcl_sqlite_value=>c_null.
+        ro_value = zcl_sqlite_value=>text( 'NULL' ).
+      WHEN zcl_sqlite_value=>c_text.
+        ro_value = zcl_sqlite_value=>text( quote_text( io_value->as_text( ) ) ).
+      WHEN zcl_sqlite_value=>c_blob.
+        ro_value = zcl_sqlite_value=>text( |X'{ data_to_hex( io_value->as_blob( ) ) }'| ).
+      WHEN OTHERS.
+        ro_value = zcl_sqlite_value=>text( cast_to_text( io_value )->as_text( ) ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD function_minmax.
+    DATA lo_value   TYPE REF TO zcl_sqlite_value.
+    DATA lv_compare TYPE i.
+
+    IF lines( it_values ) = 0.
+      raise_error( 'wrong number of arguments to function min/max()' ).
+    ENDIF.
+
+    LOOP AT it_values INTO lo_value.
+      IF lo_value->is_null( ) = abap_true.
+        ro_value = zcl_sqlite_value=>null( ).
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+    ro_value = it_values[ 1 ].
+    LOOP AT it_values INTO lo_value FROM 2.
+      lv_compare = compare_non_null( io_left = lo_value io_right = ro_value ).
+      IF iv_min = abap_true AND lv_compare <= 0.
+        ro_value = lo_value.
+      ELSEIF iv_min = abap_false AND lv_compare > 0.
+        ro_value = lo_value.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD function_random.
+    DATA lo_random TYPE REF TO cl_abap_random.
+    DATA lv_value  TYPE int8.
+
+    " ANORMALY: cl_abap_random_int's default negative range trips an assertion
+    " in the transpiler, so use cl_abap_random directly.
+    TRY.
+        lo_random = cl_abap_random=>create( ).
+        lv_value = lo_random->int( ).
+      CATCH cx_abap_random.
+        raise_error( 'random number generation failed' ).
+    ENDTRY.
+
+    ro_value = zcl_sqlite_value=>integer( lv_value ).
+  ENDMETHOD.
+
+  METHOD ascii_upper_char.
+    IF iv_char >= |a| AND iv_char <= |z|.
+      rv_char = to_upper( iv_char ).
+    ELSE.
+      rv_char = iv_char.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD ascii_upper.
+    DATA lv_length TYPE i.
+    DATA lv_index  TYPE i.
+    DATA lv_char   TYPE string.
+
+    lv_length = strlen( iv_text ).
+    DO lv_length TIMES.
+      lv_index = sy-index - 1.
+      lv_char = substring( val = iv_text off = lv_index len = 1 ).
+      rv_text = rv_text && ascii_upper_char( lv_char ).
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD text_char_length.
+    DATA lv_data  TYPE xstring.
+    DATA lv_index TYPE i.
+    DATA lv_byte  TYPE int8.
+
+    TRY.
+        lv_data = zcl_sqlite_utf8=>encode( iv_text ).
+      CATCH cx_sy_conversion_codepage.
+        raise_error( 'text is not valid UTF-8' ).
+    ENDTRY.
+
+    DO xstrlen( lv_data ) TIMES.
+      lv_index = sy-index - 1.
+      TRY.
+          lv_byte = zcl_sqlite_bytes=>read_u8(
+            iv_data = lv_data iv_offset = lv_index ).
+        CATCH cx_sy_range_out_of_bounds.
+          EXIT.
+      ENDTRY.
+      IF lv_byte < 128 OR lv_byte > 191.
+        rv_length = rv_length + 1.
+      ENDIF.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD text_char_substring.
+    DATA lv_data       TYPE xstring.
+    DATA lv_index      TYPE i.
+    DATA lv_byte       TYPE int8.
+    DATA lv_char_index TYPE i.
+    DATA lv_start_byte TYPE i.
+    DATA lv_end_byte   TYPE i.
+    DATA lv_slice_length TYPE i.
+    DATA lv_slice      TYPE xstring.
+
+    IF iv_offset < 0 OR iv_length <= 0.
+      RETURN.
+    ENDIF.
+
+    TRY.
+        lv_data = zcl_sqlite_utf8=>encode( iv_text ).
+      CATCH cx_sy_conversion_codepage.
+        raise_error( 'text is not valid UTF-8' ).
+    ENDTRY.
+
+    lv_start_byte = -1.
+    lv_end_byte = -1.
+    DO xstrlen( lv_data ) TIMES.
+      lv_index = sy-index - 1.
+      TRY.
+          lv_byte = zcl_sqlite_bytes=>read_u8(
+            iv_data = lv_data iv_offset = lv_index ).
+        CATCH cx_sy_range_out_of_bounds.
+          EXIT.
+      ENDTRY.
+      IF lv_byte < 128 OR lv_byte > 191.
+        IF lv_char_index = iv_offset AND lv_start_byte < 0.
+          lv_start_byte = lv_index.
+        ENDIF.
+        IF lv_char_index = iv_offset + iv_length.
+          lv_end_byte = lv_index.
+          EXIT.
+        ENDIF.
+        lv_char_index = lv_char_index + 1.
+      ENDIF.
+    ENDDO.
+
+    IF lv_start_byte < 0.
+      RETURN.
+    ENDIF.
+    IF lv_end_byte < 0.
+      lv_end_byte = xstrlen( lv_data ).
+    ENDIF.
+    IF lv_end_byte <= lv_start_byte.
+      RETURN.
+    ENDIF.
+
+    lv_slice_length = lv_end_byte - lv_start_byte.
+    lv_slice = lv_data+lv_start_byte(lv_slice_length).
+
+    TRY.
+        rv_text = zcl_sqlite_utf8=>decode( lv_slice ).
+      CATCH cx_sy_conversion_codepage.
+        raise_error( 'text is not valid UTF-8' ).
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD text_contains_char.
+    DATA lv_length TYPE i.
+
+    IF iv_char IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    lv_length = text_char_length( iv_text ).
+    DO lv_length TIMES.
+      IF text_char_substring(
+          iv_text   = iv_text
+          iv_offset = sy-index - 1
+          iv_length = 1 ) = iv_char.
+        rv_found = abap_true.
+        RETURN.
+      ENDIF.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD text_index_of.
+    DATA lv_text_data   TYPE xstring.
+    DATA lv_needle_data TYPE xstring.
+    DATA lv_byte_index  TYPE i.
+    DATA lv_prefix_data TYPE xstring.
+    DATA lv_prefix      TYPE string.
+
+    IF iv_needle IS INITIAL.
+      rv_index = 1.
+      RETURN.
+    ENDIF.
+
+    TRY.
+        lv_text_data = zcl_sqlite_utf8=>encode( iv_text ).
+        lv_needle_data = zcl_sqlite_utf8=>encode( iv_needle ).
+      CATCH cx_sy_conversion_codepage.
+        raise_error( 'text is not valid UTF-8' ).
+    ENDTRY.
+
+    lv_byte_index = bytes_index_of(
+      iv_text = lv_text_data iv_needle = lv_needle_data ).
+    IF lv_byte_index < 0.
+      rv_index = 0.
+      RETURN.
+    ENDIF.
+
+    lv_prefix_data = lv_text_data+0(lv_byte_index).
+
+    TRY.
+        lv_prefix = zcl_sqlite_utf8=>decode( lv_prefix_data ).
+      CATCH cx_sy_conversion_codepage.
+        raise_error( 'text is not valid UTF-8' ).
+    ENDTRY.
+
+    rv_index = text_char_length( lv_prefix ) + 1.
+  ENDMETHOD.
+
+  METHOD bytes_index_of.
+    DATA lv_text_length   TYPE i.
+    DATA lv_needle_length TYPE i.
+    DATA lv_index         TYPE i.
+
+    lv_text_length = xstrlen( iv_text ).
+    lv_needle_length = xstrlen( iv_needle ).
+
+    IF lv_needle_length = 0.
+      rv_index = 0.
+      RETURN.
+    ENDIF.
+    IF lv_needle_length > lv_text_length.
+      rv_index = -1.
+      RETURN.
+    ENDIF.
+
+    lv_index = 0.
+    WHILE lv_index <= lv_text_length - lv_needle_length.
+      IF iv_text+lv_index(lv_needle_length) = iv_needle.
+        rv_index = lv_index.
+        RETURN.
+      ENDIF.
+      lv_index = lv_index + 1.
+    ENDWHILE.
+
+    rv_index = -1.
+  ENDMETHOD.
+
+  METHOD data_to_hex.
+    DATA lv_digits TYPE string VALUE '0123456789ABCDEF'.
+    DATA lv_index  TYPE i.
+    DATA lv_byte   TYPE int8.
+    DATA lv_high   TYPE i.
+    DATA lv_low    TYPE i.
+
+    DO xstrlen( iv_data ) TIMES.
+      lv_index = sy-index - 1.
+      TRY.
+          lv_byte = zcl_sqlite_bytes=>read_u8(
+            iv_data = iv_data iv_offset = lv_index ).
+        CATCH cx_sy_range_out_of_bounds.
+          EXIT.
+      ENDTRY.
+      lv_high = lv_byte DIV 16.
+      lv_low = lv_byte MOD 16.
+      rv_text = rv_text
+        && substring( val = lv_digits off = lv_high len = 1 )
+        && substring( val = lv_digits off = lv_low len = 1 ).
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD quote_text.
+    rv_text = iv_text.
+    REPLACE ALL OCCURRENCES OF '''' IN rv_text WITH ''''''.
+    rv_text = |'{ rv_text }'|.
+  ENDMETHOD.
+
+  METHOD round_real.
+    DATA lv_scale  TYPE f.
+    DATA lv_scaled TYPE f.
+
+    lv_scale = power_of_ten( iv_digits ).
+    lv_scaled = iv_value * lv_scale.
+    IF lv_scaled >= 0.
+      lv_scaled = floor( val = lv_scaled + c_half ).
+    ELSE.
+      lv_scaled = 0 - floor( val = 0 - lv_scaled + c_half ).
+    ENDIF.
+    rv_value = lv_scaled / lv_scale.
   ENDMETHOD.
 
   METHOD evaluate_like.

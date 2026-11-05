@@ -208,6 +208,9 @@ CLASS ltcl_parser IMPLEMENTATION.
       iv_sql = |printf('%d', a)|
       iv_expected = |FUNCTION(printf, STRING('%d'), COLUMN(a))| ).
     assert_parse(
+      iv_sql = |replace('abc', 'a', 'x')|
+      iv_expected = |FUNCTION(replace, STRING('abc'), STRING('a'), STRING('x'))| ).
+    assert_parse(
       iv_sql = 'sum(a + b)'
       iv_expected = 'FUNCTION(sum, BINARY(+, COLUMN(a), COLUMN(b)))' ).
   ENDMETHOD.

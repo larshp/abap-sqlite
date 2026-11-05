@@ -389,6 +389,27 @@ Expected: `lv_text` is `a, b`. Actual: `lv_text` is `a,b`; `abap.operators.conca
 `|, |` and `| |`. Search tag `ANORMALY:` in the AST dump classes and the parser's type-name
 normalizer.
 
+## CL_ABAP_RANDOM_INT default range violates its own assertion
+
+- **Component:** open-abap-core
+- **Version:** open-abap-core f735eed652288c8ed85b3083a187cc3e7e4a9b97
+- **Found in:** M4.6 `src/exec/zcl_sqlite_expr_eval.clas.abap`
+- **Status:** open
+- **Upstream:** none yet
+
+```abap
+DATA lo_random TYPE REF TO cl_abap_random_int.
+lo_random = cl_abap_random_int=>create( ).
+lo_random->get_next( ).
+```
+
+Expected: a random 32-bit integer. Actual: `ASSERTION_FAILED` from
+`cl_abap_random.intinrange`; the default `min = -2147483648` violates that method's
+`low >= 0` precondition.
+
+**Workaround:** use `cl_abap_random=>create( )->int( )`, or pass an explicit non-negative
+range. Search tag `ANORMALY:` in `function_random`.
+
 ## Closed entries
 
 None yet.

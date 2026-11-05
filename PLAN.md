@@ -433,7 +433,7 @@ valid corpus (~200 statements) still passes.
 
 #### M4.6 Scalar functions
 
-- [ ] `abs`, `coalesce`, `ifnull`, `nullif`, `iif`, `length`, `lower`, `upper`, `substr`,
+- [x] `abs`, `coalesce`, `ifnull`, `nullif`, `iif`, `length`, `lower`, `upper`, `substr`,
       `trim/ltrim/rtrim`, `replace`, `instr`, `typeof`, `round`, `hex`, `quote`, `min/max`
       (scalar), `random`
 

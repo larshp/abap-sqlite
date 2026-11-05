@@ -19,6 +19,12 @@ CLASS ltcl_expr_eval DEFINITION FINAL FOR TESTING
     METHODS glob_patterns FOR TESTING RAISING zcx_sqlite_error.
     METHODS pattern_errors FOR TESTING.
     METHODS hex_error FOR TESTING.
+    METHODS scalar_numeric FOR TESTING RAISING zcx_sqlite_error.
+    METHODS scalar_text FOR TESTING RAISING zcx_sqlite_error.
+    METHODS scalar_conditional FOR TESTING RAISING zcx_sqlite_error.
+    METHODS scalar_blobs FOR TESTING RAISING zcx_sqlite_error.
+    METHODS function_errors FOR TESTING.
+    METHODS random_function FOR TESTING RAISING zcx_sqlite_error.
 
     METHODS assert_integer
       IMPORTING iv_sql      TYPE string
@@ -346,6 +352,115 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->message exp = 'hex literal too big: 0x10000000000000000' ).
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD scalar_numeric.
+    assert_integer( iv_sql = 'SELECT abs(-3)' iv_expected = 3 ).
+    assert_real( iv_sql = 'SELECT abs(-3.5)' iv_expected = '3.5' ).
+    assert_real( iv_sql = 'SELECT abs(''-4x'')' iv_expected = '4.0' ).
+    assert_null( 'SELECT abs(NULL)' ).
+    assert_real( iv_sql = 'SELECT round(2.5)' iv_expected = '3.0' ).
+    assert_real( iv_sql = 'SELECT round(-2.5)' iv_expected = '-3.0' ).
+    assert_real( iv_sql = 'SELECT round(123.456, 2)' iv_expected = '123.46' ).
+    assert_real( iv_sql = 'SELECT round(123.456, -1)' iv_expected = '123.0' ).
+    assert_null( 'SELECT round(NULL, 2)' ).
+    assert_integer( iv_sql = 'SELECT min(3, 1, 2)' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT max(3, 1, 2)' iv_expected = 3 ).
+    assert_integer( iv_sql = 'SELECT min(''2'', 10)' iv_expected = 10 ).
+    assert_text( iv_sql = 'SELECT max(''2'', 10)' iv_expected = '2' ).
+    assert_real( iv_sql = 'SELECT min(1, 1.0)' iv_expected = '1.0' ).
+    assert_integer( iv_sql = 'SELECT max(1, 1.0)' iv_expected = 1 ).
+    assert_null( 'SELECT min(NULL, 1)' ).
+  ENDMETHOD.
+
+  METHOD scalar_text.
+    assert_integer( iv_sql = 'SELECT length(''abc'')' iv_expected = 3 ).
+    assert_integer( iv_sql = 'SELECT length(1.0)' iv_expected = 3 ).
+    assert_integer( iv_sql = 'SELECT length(x''000102'')' iv_expected = 3 ).
+    assert_text( iv_sql = 'SELECT lower(''AbC'')' iv_expected = 'abc' ).
+    assert_text( iv_sql = 'SELECT upper(''AbC'')' iv_expected = 'ABC' ).
+    assert_text( iv_sql = 'SELECT substr(''abcdef'', 2, 3)' iv_expected = 'bcd' ).
+    assert_text( iv_sql = 'SELECT substr(''abcdef'', -2)' iv_expected = 'ef' ).
+    assert_text( iv_sql = 'SELECT substr(''abcdef'', 0, 2)' iv_expected = 'a' ).
+    assert_text( iv_sql = 'SELECT substr(''abcdef'', 2, -1)' iv_expected = 'a' ).
+    assert_text( iv_sql = 'SELECT trim(''  abc  '')' iv_expected = 'abc' ).
+    assert_text( iv_sql = 'SELECT ltrim(''xxabc'', ''x'')' iv_expected = 'abc' ).
+    assert_text( iv_sql = 'SELECT rtrim(''abcxx'', ''x'')' iv_expected = 'abc' ).
+    assert_text( iv_sql = 'SELECT trim(''xxabcxx'', ''x'')' iv_expected = 'abc' ).
+    assert_text( iv_sql = 'SELECT replace(''abcabc'', ''ab'', ''X'')' iv_expected = 'XcXc' ).
+    assert_text( iv_sql = 'SELECT replace(''abc'', '''', ''X'')' iv_expected = 'abc' ).
+    assert_integer( iv_sql = 'SELECT instr(''abcdef'', ''cd'')' iv_expected = 3 ).
+    assert_integer( iv_sql = 'SELECT instr(''abc'', '''')' iv_expected = 1 ).
+    assert_integer( iv_sql = 'SELECT instr(12345, 34)' iv_expected = 3 ).
+    assert_text( iv_sql = 'SELECT hex(''abc'')' iv_expected = '616263' ).
+    assert_text( iv_sql = 'SELECT hex(NULL)' iv_expected = '' ).
+    assert_text( iv_sql = 'SELECT quote(NULL)' iv_expected = 'NULL' ).
+    assert_text( iv_sql = 'SELECT quote(123)' iv_expected = '123' ).
+    assert_text( iv_sql = 'SELECT typeof(NULL)' iv_expected = 'null' ).
+    assert_text( iv_sql = 'SELECT typeof(1.5)' iv_expected = 'real' ).
+  ENDMETHOD.
+
+  METHOD scalar_conditional.
+    assert_integer( iv_sql = 'SELECT coalesce(NULL, NULL, 3)' iv_expected = 3 ).
+    assert_text( iv_sql = 'SELECT coalesce(NULL, ''x'')' iv_expected = 'x' ).
+    assert_integer( iv_sql = 'SELECT ifnull(NULL, 2)' iv_expected = 2 ).
+    assert_integer( iv_sql = 'SELECT ifnull(1, 2)' iv_expected = 1 ).
+    assert_null( 'SELECT nullif(1, 1)' ).
+    assert_integer( iv_sql = 'SELECT nullif(1, 2)' iv_expected = 1 ).
+    assert_text( iv_sql = 'SELECT iif(1, ''yes'', ''no'')' iv_expected = 'yes' ).
+    assert_text( iv_sql = 'SELECT iif(0, ''yes'', ''no'')' iv_expected = 'no' ).
+    assert_null( 'SELECT iif(0, ''yes'')' ).
+  ENDMETHOD.
+
+  METHOD scalar_blobs.
+    assert_blob( iv_sql = 'SELECT substr(x''00010203'', 2, 2)' iv_expected = '0102' ).
+    assert_blob( iv_sql = 'SELECT substr(x''00010203'', -2)' iv_expected = '0203' ).
+    assert_text( iv_sql = 'SELECT lower(x''4142'')' iv_expected = 'ab' ).
+    assert_text( iv_sql = 'SELECT trim(x''20612020'')' iv_expected = 'a' ).
+    assert_text( iv_sql = 'SELECT replace(x''616263'', x''62'', x''58'')' iv_expected = 'aXc' ).
+    assert_integer( iv_sql = 'SELECT instr(x''00010203'', x''0102'')' iv_expected = 2 ).
+    assert_integer( iv_sql = 'SELECT instr(x''00010203'', x'''')' iv_expected = 1 ).
+    assert_text( iv_sql = 'SELECT hex(x''00AB'')' iv_expected = '00AB' ).
+    assert_text( iv_sql = 'SELECT quote(x''00AB'')' iv_expected = |X'00AB'| ).
+  ENDMETHOD.
+
+  METHOD function_errors.
+    TRY.
+        zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT abs()' ).
+        cl_abap_unit_assert=>fail( msg = 'expected arity error' ).
+      CATCH zcx_sqlite_error INTO DATA(lo_error).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'wrong number of arguments to function abs()' ).
+    ENDTRY.
+
+    TRY.
+        zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT abs(-9223372036854775808)' ).
+        cl_abap_unit_assert=>fail( msg = 'expected overflow error' ).
+      CATCH zcx_sqlite_error INTO DATA(lo_overflow).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_overflow->message exp = 'integer overflow' ).
+    ENDTRY.
+
+    TRY.
+        zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT replace()' ).
+        cl_abap_unit_assert=>fail( msg = 'expected replace arity error' ).
+      CATCH zcx_sqlite_error INTO DATA(lo_replace).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_replace->message
+          exp = 'wrong number of arguments to function replace()' ).
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD random_function.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+
+    lo_value = zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT random()' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->value_type( )
+      exp = zcl_sqlite_value=>c_integer
+      msg = 'random() returns an integer' ).
+    assert_text( iv_sql = 'SELECT typeof(random())' iv_expected = 'integer' ).
   ENDMETHOD.
 
   METHOD assert_integer.
