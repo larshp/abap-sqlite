@@ -23,6 +23,23 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
+    CLASS-METHODS compare_values
+      IMPORTING io_left           TYPE REF TO zcl_sqlite_value
+                io_right          TYPE REF TO zcl_sqlite_value
+                iv_collation      TYPE string DEFAULT 'BINARY'
+      RETURNING VALUE(rv_compare) TYPE i
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS collation_of_expression
+      IMPORTING io_expression       TYPE REF TO zcl_sqlite_ast_node
+      RETURNING VALUE(rv_collation) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS value_to_integer
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(rv_value) TYPE int8
+      RAISING   zcx_sqlite_error.
+
   PRIVATE SECTION.
     TYPES: BEGIN OF ty_integer_parse,
              value    TYPE int8,
@@ -2641,6 +2658,21 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     lo_integer = cast_to_integer( io_value ).
     rv_value = lo_integer->as_integer( ).
+  ENDMETHOD.
+
+  METHOD compare_values.
+    rv_compare = compare_non_null(
+      io_left = io_left
+      io_right = io_right
+      iv_collation = iv_collation ).
+  ENDMETHOD.
+
+  METHOD collation_of_expression.
+    rv_collation = collation_of( io_expression ).
+  ENDMETHOD.
+
+  METHOD value_to_integer.
+    rv_value = integer_of( io_value ).
   ENDMETHOD.
 
   METHOD real_of.

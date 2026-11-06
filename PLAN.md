@@ -441,7 +441,7 @@ valid corpus (~200 statements) still passes.
 
 #### M4.7 Sort, limit, distinct
 
-- [ ] Operators `Sort` (multi-key, `ASC/DESC`, `NULLS FIRST/LAST`, collations), `Limit/Offset`, `Distinct`
+- [x] Operators `Sort` (multi-key, `ASC/DESC`, `NULLS FIRST/LAST`, collations), `Limit/Offset`, `Distinct`
 
 **Done when:** an ordering corpus matches sql.js row for row.
 

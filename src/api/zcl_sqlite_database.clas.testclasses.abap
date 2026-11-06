@@ -9,6 +9,8 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS constant_select FOR TESTING RAISING zcx_sqlite_error.
     METHODS without_rowid_scan FOR TESTING RAISING zcx_sqlite_error.
     METHODS unknown_column FOR TESTING RAISING zcx_sqlite_error.
+    METHODS order_limit_distinct FOR TESTING RAISING zcx_sqlite_error.
+    METHODS order_limit_errors FOR TESTING RAISING zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -158,6 +160,76 @@ CLASS ltcl_database IMPLEMENTATION.
           exp = 'no such column: nope'
           msg = 'error message' ).
     ENDTRY.
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD order_limit_distinct.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/ordering.db' ).
+    rs_result = lo_database->query( 'SELECT DISTINCT grp, val FROM ordering ORDER BY grp, val LIMIT 3 OFFSET 1' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 3 msg = 'row count' ).
+
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = 'a' msg = 'first group' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( ) exp = abap_true msg = 'first value' ).
+
+    READ TABLE rs_result-rows INTO ls_row INDEX 2.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = 'a' msg = 'second group' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 2 msg = 'second value' ).
+
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD order_limit_errors.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/ordering.db' ).
+
+    TRY.
+        lo_database->query( 'SELECT id FROM ordering LIMIT NULL' ).
+        cl_abap_unit_assert=>fail( 'expected LIMIT NULL error' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'datatype mismatch'
+          msg = 'LIMIT NULL' ).
+    ENDTRY.
+
+    TRY.
+        lo_database->query( 'SELECT id FROM ordering LIMIT 2.5' ).
+        cl_abap_unit_assert=>fail( 'expected fractional LIMIT error' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'datatype mismatch'
+          msg = 'fractional LIMIT' ).
+    ENDTRY.
+
+    TRY.
+        lo_database->query( 'SELECT id FROM ordering ORDER BY 99' ).
+        cl_abap_unit_assert=>fail( 'expected ORDER BY range error' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'ORDER BY term out of range'
+          msg = 'ORDER BY range' ).
+    ENDTRY.
+
     lo_database->close( ).
   ENDMETHOD.
 

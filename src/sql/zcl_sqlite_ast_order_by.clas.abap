@@ -15,6 +15,15 @@ CLASS zcl_sqlite_ast_order_by DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_expression
+      RETURNING VALUE(ro_expression) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_direction
+      RETURNING VALUE(rv_direction) TYPE string.
+
+    METHODS get_nulls
+      RETURNING VALUE(rv_nulls) TYPE string.
+
   PRIVATE SECTION.
     DATA mo_expression TYPE REF TO zcl_sqlite_ast_node.
     DATA mv_direction  TYPE string.
@@ -29,6 +38,18 @@ CLASS zcl_sqlite_ast_order_by IMPLEMENTATION.
     mo_expression = io_expression.
     mv_direction = iv_direction.
     mv_nulls = iv_nulls.
+  ENDMETHOD.
+
+  METHOD get_expression.
+    ro_expression = mo_expression.
+  ENDMETHOD.
+
+  METHOD get_direction.
+    rv_direction = mv_direction.
+  ENDMETHOD.
+
+  METHOD get_nulls.
+    rv_nulls = mv_nulls.
   ENDMETHOD.
 
   METHOD dump.

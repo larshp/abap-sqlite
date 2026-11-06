@@ -370,6 +370,35 @@ function nullsDatabase() {
   return db;
 }
 
+function orderingDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 512");
+  db.run(`
+    CREATE TABLE ordering (
+      id INTEGER NOT NULL,
+      grp TEXT,
+      val,
+      label TEXT
+    )`);
+  db.run(`
+    INSERT INTO ordering (id, grp, val, label) VALUES
+      (1, 'a', 2, 'Beta'),
+      (2, 'a', NULL, 'alpha'),
+      (3, 'a', 10, 'gamma'),
+      (4, 'b', 1, 'Alpha'),
+      (5, 'b', 1, 'beta'),
+      (6, 'b', NULL, 'ALPHA'),
+      (7, 'c', '2', 'delta'),
+      (8, 'c', 2, 'Delta'),
+      (9, NULL, 3, 'epsilon'),
+      (10, 'c', 3.5, 'zeta'),
+      (11, 'a', 2, 'alpha'),
+      (12, 'd', 0, 'same'),
+      (13, 'd', 0, 'same '),
+      (14, 'b', NULL, 'omega')`);
+  return db;
+}
+
 function manyIndexesDatabase() {
   const db = new SQL.Database();
   db.run("PRAGMA page_size = 512");
@@ -734,6 +763,126 @@ const queryDefinitions = [
       hex('ä') AS g8,
       instr('a😀b', 'b') AS g9`,
   },
+  {
+    name: "ordering.multi_key",
+    database: "ordering.db",
+    sql: "SELECT id, grp, val FROM ordering ORDER BY grp, val, id",
+  },
+  {
+    name: "ordering.desc_default_nulls",
+    database: "ordering.db",
+    sql: "SELECT id, val FROM ordering ORDER BY val DESC, id",
+  },
+  {
+    name: "ordering.nulls_last_asc",
+    database: "ordering.db",
+    sql: "SELECT id, val FROM ordering ORDER BY val ASC NULLS LAST, id",
+  },
+  {
+    name: "ordering.nulls_first_desc",
+    database: "ordering.db",
+    sql: "SELECT id, val FROM ordering ORDER BY val DESC NULLS FIRST, id",
+  },
+  {
+    name: "ordering.collation_nocase",
+    database: "ordering.db",
+    sql: "SELECT id, label FROM ordering ORDER BY label COLLATE NOCASE, id",
+  },
+  {
+    name: "ordering.collation_rtrim",
+    database: "ordering.db",
+    sql: "SELECT id, label FROM ordering WHERE grp = 'd' ORDER BY label COLLATE RTRIM, id DESC",
+  },
+  {
+    name: "ordering.ordinal",
+    database: "ordering.db",
+    sql: "SELECT id, label FROM ordering WHERE grp = 'a' ORDER BY 2, 1",
+  },
+  {
+    name: "ordering.alias",
+    database: "ordering.db",
+    sql: "SELECT id, lower(label) AS l FROM ordering WHERE grp = 'b' ORDER BY l, id",
+  },
+  {
+    name: "ordering.hidden_expr",
+    database: "ordering.db",
+    sql: "SELECT id, label FROM ordering WHERE grp = 'a' ORDER BY length(label), id",
+  },
+  {
+    name: "ordering.qualified_hidden",
+    database: "ordering.db",
+    sql: "SELECT o.id FROM ordering AS o ORDER BY o.grp, o.id",
+  },
+  {
+    name: "ordering.expression_key",
+    database: "ordering.db",
+    sql: "SELECT id, val FROM ordering WHERE grp = 'a' ORDER BY val IS NULL, val, id",
+  },
+  {
+    name: "ordering.stable",
+    database: "ordering.db",
+    sql: "SELECT id, grp FROM ordering ORDER BY grp",
+  },
+  {
+    name: "ordering.limit_offset",
+    database: "ordering.db",
+    sql: "SELECT id FROM ordering ORDER BY id LIMIT 4 OFFSET 2",
+  },
+  {
+    name: "ordering.limit_comma",
+    database: "ordering.db",
+    sql: "SELECT id FROM ordering ORDER BY id LIMIT 2, 3",
+  },
+  {
+    name: "ordering.limit_expr",
+    database: "ordering.db",
+    sql: "SELECT id FROM ordering WHERE grp = 'a' ORDER BY id LIMIT 2 + 1",
+  },
+  {
+    name: "ordering.limit_text",
+    database: "ordering.db",
+    sql: "SELECT id FROM ordering WHERE grp = 'a' ORDER BY id LIMIT ' 2 '",
+  },
+  {
+    name: "ordering.limit_real",
+    database: "ordering.db",
+    sql: "SELECT id FROM ordering WHERE grp = 'a' ORDER BY id LIMIT 2.0",
+  },
+  {
+    name: "ordering.negative_limit",
+    database: "ordering.db",
+    sql: "SELECT id FROM ordering WHERE grp = 'a' ORDER BY id LIMIT -1 OFFSET 1",
+  },
+  {
+    name: "ordering.negative_offset",
+    database: "ordering.db",
+    sql: "SELECT id FROM ordering WHERE grp = 'a' ORDER BY id LIMIT 2 OFFSET -1",
+  },
+  {
+    name: "ordering.limit_zero",
+    database: "ordering.db",
+    sql: "SELECT id FROM ordering ORDER BY id LIMIT 0",
+  },
+  {
+    name: "ordering.offset_beyond",
+    database: "ordering.db",
+    sql: "SELECT id FROM ordering ORDER BY id LIMIT 5 OFFSET 100",
+  },
+  {
+    name: "ordering.distinct",
+    database: "ordering.db",
+    sql: "SELECT DISTINCT grp, val FROM ordering ORDER BY grp, val",
+  },
+  {
+    name: "ordering.distinct_alias",
+    database: "ordering.db",
+    sql: "SELECT DISTINCT grp AS g, val FROM ordering ORDER BY g, val",
+  },
+  {
+    name: "ordering.distinct_limit",
+    database: "ordering.db",
+    sql: "SELECT DISTINCT grp, val FROM ordering ORDER BY grp, val LIMIT 3 OFFSET 1",
+  },
 ];
 
 function querySql(sql) {
@@ -859,5 +1008,6 @@ await writeFixture("auto_vacuum", autoVacuumDatabase());
 await writeFixture("without_rowid", withoutRowidDatabase());
 await writeFixture("nulls", nullsDatabase());
 await writeFixture("many_indexes", manyIndexesDatabase());
+await writeFixture("ordering", orderingDatabase());
 
 await writeQueries();

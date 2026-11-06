@@ -1517,6 +1517,1741 @@
           }
         ]
       ]
+    },
+    {
+      "name": "ordering.multi_key",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, grp, val FROM ordering ORDER BY grp, val, id",
+      "columns": [
+        "id",
+        "grp",
+        "val"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "9"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "14"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "8"
+          },
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "real",
+            "value": "3.5"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "7"
+          },
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "text",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "12"
+          },
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "13"
+          },
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.desc_default_nulls",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, val FROM ordering ORDER BY val DESC, id",
+      "columns": [
+        "id",
+        "val"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "7"
+          },
+          {
+            "type": "text",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "real",
+            "value": "3.5"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "9"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "8"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "12"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "13"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "14"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.nulls_last_asc",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, val FROM ordering ORDER BY val ASC NULLS LAST, id",
+      "columns": [
+        "id",
+        "val"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "12"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "13"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "8"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "9"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "real",
+            "value": "3.5"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "7"
+          },
+          {
+            "type": "text",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "14"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.nulls_first_desc",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, val FROM ordering ORDER BY val DESC NULLS FIRST, id",
+      "columns": [
+        "id",
+        "val"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "14"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "7"
+          },
+          {
+            "type": "text",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "real",
+            "value": "3.5"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "9"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "8"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "12"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "13"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.collation_nocase",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, label FROM ordering ORDER BY label COLLATE NOCASE, id",
+      "columns": [
+        "id",
+        "label"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          },
+          {
+            "type": "text",
+            "value": "ALPHA"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "beta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "7"
+          },
+          {
+            "type": "text",
+            "value": "delta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "8"
+          },
+          {
+            "type": "text",
+            "value": "Delta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "9"
+          },
+          {
+            "type": "text",
+            "value": "epsilon"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "gamma"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "14"
+          },
+          {
+            "type": "text",
+            "value": "omega"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "12"
+          },
+          {
+            "type": "text",
+            "value": "same"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "13"
+          },
+          {
+            "type": "text",
+            "value": "same "
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "text",
+            "value": "zeta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.collation_rtrim",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, label FROM ordering WHERE grp = 'd' ORDER BY label COLLATE RTRIM, id DESC",
+      "columns": [
+        "id",
+        "label"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "13"
+          },
+          {
+            "type": "text",
+            "value": "same "
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "12"
+          },
+          {
+            "type": "text",
+            "value": "same"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.ordinal",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, label FROM ordering WHERE grp = 'a' ORDER BY 2, 1",
+      "columns": [
+        "id",
+        "label"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "gamma"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.alias",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, lower(label) AS l FROM ordering WHERE grp = 'b' ORDER BY l, id",
+      "columns": [
+        "id",
+        "l"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "beta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "14"
+          },
+          {
+            "type": "text",
+            "value": "omega"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.hidden_expr",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, label FROM ordering WHERE grp = 'a' ORDER BY length(label), id",
+      "columns": [
+        "id",
+        "label"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "gamma"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.qualified_hidden",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT o.id FROM ordering AS o ORDER BY o.grp, o.id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "9"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "14"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "7"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "8"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "12"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "13"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.expression_key",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, val FROM ordering WHERE grp = 'a' ORDER BY val IS NULL, val, id",
+      "columns": [
+        "id",
+        "val"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.stable",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id, grp FROM ordering ORDER BY grp",
+      "columns": [
+        "id",
+        "grp"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "9"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "14"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "7"
+          },
+          {
+            "type": "text",
+            "value": "c"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "8"
+          },
+          {
+            "type": "text",
+            "value": "c"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "text",
+            "value": "c"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "12"
+          },
+          {
+            "type": "text",
+            "value": "d"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "13"
+          },
+          {
+            "type": "text",
+            "value": "d"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.limit_offset",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id FROM ordering ORDER BY id LIMIT 4 OFFSET 2",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.limit_comma",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id FROM ordering ORDER BY id LIMIT 2, 3",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.limit_expr",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id FROM ordering WHERE grp = 'a' ORDER BY id LIMIT 2 + 1",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.limit_text",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id FROM ordering WHERE grp = 'a' ORDER BY id LIMIT ' 2 '",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.limit_real",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id FROM ordering WHERE grp = 'a' ORDER BY id LIMIT 2.0",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.negative_limit",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id FROM ordering WHERE grp = 'a' ORDER BY id LIMIT -1 OFFSET 1",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "11"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.negative_offset",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id FROM ordering WHERE grp = 'a' ORDER BY id LIMIT 2 OFFSET -1",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.limit_zero",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id FROM ordering ORDER BY id LIMIT 0",
+      "columns": [
+        "id"
+      ],
+      "rows": []
+    },
+    {
+      "name": "ordering.offset_beyond",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT id FROM ordering ORDER BY id LIMIT 5 OFFSET 100",
+      "columns": [
+        "id"
+      ],
+      "rows": []
+    },
+    {
+      "name": "ordering.distinct",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT DISTINCT grp, val FROM ordering ORDER BY grp, val",
+      "columns": [
+        "grp",
+        "val"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "real",
+            "value": "3.5"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "text",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.distinct_alias",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT DISTINCT grp AS g, val FROM ordering ORDER BY g, val",
+      "columns": [
+        "g",
+        "val"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "real",
+            "value": "3.5"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "text",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ordering.distinct_limit",
+      "database": "fixtures/ordering.db",
+      "sql": "SELECT DISTINCT grp, val FROM ordering ORDER BY grp, val LIMIT 3 OFFSET 1",
+      "columns": [
+        "grp",
+        "val"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ]
+      ]
     }
   ]
 }
