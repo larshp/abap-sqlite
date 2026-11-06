@@ -3252,6 +3252,1847 @@
           }
         ]
       ]
+    },
+    {
+      "name": "aggregates.count_all",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT count(*), count(val), count(label) FROM agg",
+      "columns": [
+        "count(*)",
+        "count(val)",
+        "count(label)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "19"
+          },
+          {
+            "type": "integer",
+            "value": "15"
+          },
+          {
+            "type": "integer",
+            "value": "17"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.numeric",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT sum(val), total(val), avg(val), min(val), max(val) FROM agg",
+      "columns": [
+        "sum(val)",
+        "total(val)",
+        "avg(val)",
+        "min(val)",
+        "max(val)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "real",
+            "value": "9223372036854776000"
+          },
+          {
+            "type": "real",
+            "value": "9223372036854776000"
+          },
+          {
+            "type": "real",
+            "value": "614891469123651700"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          },
+          {
+            "type": "text",
+            "value": "abc"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.distinct_values",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT count(DISTINCT grp), count(DISTINCT val), count(DISTINCT label) FROM agg",
+      "columns": [
+        "count(DISTINCT grp)",
+        "count(DISTINCT val)",
+        "count(DISTINCT label)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "6"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "16"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.numeric_distinct",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT sum(DISTINCT val), total(DISTINCT val), avg(DISTINCT val), min(DISTINCT val), max(DISTINCT val) FROM agg",
+      "columns": [
+        "sum(DISTINCT val)",
+        "total(DISTINCT val)",
+        "avg(DISTINCT val)",
+        "min(DISTINCT val)",
+        "max(DISTINCT val)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "real",
+            "value": "9223372036854776000"
+          },
+          {
+            "type": "real",
+            "value": "9223372036854776000"
+          },
+          {
+            "type": "real",
+            "value": "922337203685477600"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          },
+          {
+            "type": "text",
+            "value": "abc"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.empty_input",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT count(*), count(val), sum(val), total(val), avg(val), min(val), max(val), group_concat(label) FROM agg WHERE id > 99",
+      "columns": [
+        "count(*)",
+        "count(val)",
+        "sum(val)",
+        "total(val)",
+        "avg(val)",
+        "min(val)",
+        "max(val)",
+        "group_concat(label)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "0"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "real",
+            "value": "0"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.group_summary",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, count(*), count(val), sum(val), total(val), avg(val), min(val), max(val) FROM agg GROUP BY grp ORDER BY grp",
+      "columns": [
+        "grp",
+        "count(*)",
+        "count(val)",
+        "sum(val)",
+        "total(val)",
+        "avg(val)",
+        "min(val)",
+        "max(val)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "real",
+            "value": "3"
+          },
+          {
+            "type": "real",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "14"
+          },
+          {
+            "type": "real",
+            "value": "14"
+          },
+          {
+            "type": "real",
+            "value": "4.666666666666667"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "real",
+            "value": "2"
+          },
+          {
+            "type": "real",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "real",
+            "value": "7.5"
+          },
+          {
+            "type": "real",
+            "value": "7.5"
+          },
+          {
+            "type": "real",
+            "value": "2.5"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          },
+          {
+            "type": "real",
+            "value": "0"
+          },
+          {
+            "type": "real",
+            "value": "0"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "real",
+            "value": "9223372036854776000"
+          },
+          {
+            "type": "real",
+            "value": "9223372036854776000"
+          },
+          {
+            "type": "real",
+            "value": "3074457345618258400"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "abc"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "real",
+            "value": "0"
+          },
+          {
+            "type": "real",
+            "value": "0"
+          },
+          {
+            "type": "real",
+            "value": "0"
+          },
+          {
+            "type": "text",
+            "value": ""
+          },
+          {
+            "type": "text",
+            "value": ""
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.group_concat",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, group_concat(label), group_concat(DISTINCT label), group_concat(val, '|') FROM agg GROUP BY grp ORDER BY grp",
+      "columns": [
+        "grp",
+        "group_concat(label)",
+        "group_concat(DISTINCT label)",
+        "group_concat(val, '|')"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "text",
+            "value": "epsilon"
+          },
+          {
+            "type": "text",
+            "value": "epsilon"
+          },
+          {
+            "type": "text",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "text",
+            "value": "Beta,alpha,gamma,alpha"
+          },
+          {
+            "type": "text",
+            "value": "Beta,alpha,gamma"
+          },
+          {
+            "type": "text",
+            "value": "2|10|2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "text",
+            "value": "Alpha,beta,ALPHA,omega"
+          },
+          {
+            "type": "text",
+            "value": "Alpha,beta,ALPHA,omega"
+          },
+          {
+            "type": "text",
+            "value": "1|1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "text",
+            "value": "delta,Delta,zeta"
+          },
+          {
+            "type": "text",
+            "value": "delta,Delta,zeta"
+          },
+          {
+            "type": "text",
+            "value": "2|2|3.5"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "text",
+            "value": "same,same "
+          },
+          {
+            "type": "text",
+            "value": "same,same "
+          },
+          {
+            "type": "text",
+            "value": "0|0"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "text",
+            "value": "max,one"
+          },
+          {
+            "type": "text",
+            "value": "max,one"
+          },
+          {
+            "type": "text",
+            "value": "abc|9223372036854775807|1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "text",
+            "value": "empty"
+          },
+          {
+            "type": "text",
+            "value": "empty"
+          },
+          {
+            "type": "text",
+            "value": ""
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.group_concat_empty",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT group_concat(label), group_concat(label, '-') FROM agg WHERE grp = 'f'",
+      "columns": [
+        "group_concat(label)",
+        "group_concat(label, '-')"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "empty"
+          },
+          {
+            "type": "text",
+            "value": "empty"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.having_aggregate",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, count(*) FROM agg GROUP BY grp HAVING count(*) > 3 ORDER BY grp",
+      "columns": [
+        "grp",
+        "count(*)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.having_sum",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, sum(val) FROM agg GROUP BY grp HAVING sum(val) > 3 ORDER BY grp",
+      "columns": [
+        "grp",
+        "sum(val)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "14"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "real",
+            "value": "7.5"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "real",
+            "value": "9223372036854776000"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.having_alias",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, count(*) AS c FROM agg GROUP BY grp HAVING c > 3 ORDER BY grp",
+      "columns": [
+        "grp",
+        "c"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.having_no_group",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT count(*) FROM agg HAVING count(*) > 1",
+      "columns": [
+        "count(*)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "19"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.having_no_rows",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT count(*) FROM agg HAVING count(*) > 100",
+      "columns": [
+        "count(*)"
+      ],
+      "rows": []
+    },
+    {
+      "name": "aggregates.group_bare",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, label FROM agg GROUP BY grp ORDER BY grp",
+      "columns": [
+        "grp",
+        "label"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "text",
+            "value": "epsilon"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "text",
+            "value": "delta"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "text",
+            "value": "same"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.group_expression",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT length(label), count(*) FROM agg WHERE label IS NOT NULL GROUP BY length(label) ORDER BY 1",
+      "columns": [
+        "length(label)",
+        "count(*)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "7"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.group_ordinal",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, count(*) FROM agg GROUP BY 1 ORDER BY 1",
+      "columns": [
+        "grp",
+        "count(*)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.group_alias",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT lower(grp) AS g, count(*) FROM agg GROUP BY g ORDER BY g",
+      "columns": [
+        "g",
+        "count(*)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.order_hidden",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp FROM agg GROUP BY grp ORDER BY count(*) DESC, grp",
+      "columns": [
+        "grp"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          }
+        ],
+        [
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.order_alias",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, count(*) AS c FROM agg GROUP BY grp ORDER BY c DESC, grp",
+      "columns": [
+        "grp",
+        "c"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.order_ordinal",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, count(*) FROM agg GROUP BY grp ORDER BY 2 DESC, 1",
+      "columns": [
+        "grp",
+        "count(*)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.limit",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, count(*) FROM agg GROUP BY grp ORDER BY 2 DESC, 1 LIMIT 3",
+      "columns": [
+        "grp",
+        "count(*)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.sum_overflow",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT sum(val), total(val) FROM agg WHERE grp = 'e'",
+      "columns": [
+        "sum(val)",
+        "total(val)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "real",
+            "value": "9223372036854776000"
+          },
+          {
+            "type": "real",
+            "value": "9223372036854776000"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.text_numeric",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT sum(val), total(val), avg(val) FROM agg WHERE grp = 'c'",
+      "columns": [
+        "sum(val)",
+        "total(val)",
+        "avg(val)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "real",
+            "value": "7.5"
+          },
+          {
+            "type": "real",
+            "value": "7.5"
+          },
+          {
+            "type": "real",
+            "value": "2.5"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.minmax_text",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, min(label), max(label) FROM agg GROUP BY grp ORDER BY grp",
+      "columns": [
+        "grp",
+        "min(label)",
+        "max(label)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "text",
+            "value": "epsilon"
+          },
+          {
+            "type": "text",
+            "value": "epsilon"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          },
+          {
+            "type": "text",
+            "value": "gamma"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "text",
+            "value": "ALPHA"
+          },
+          {
+            "type": "text",
+            "value": "omega"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "text",
+            "value": "Delta"
+          },
+          {
+            "type": "text",
+            "value": "zeta"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "text",
+            "value": "same"
+          },
+          {
+            "type": "text",
+            "value": "same "
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "text",
+            "value": "max"
+          },
+          {
+            "type": "text",
+            "value": "one"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "text",
+            "value": "empty"
+          },
+          {
+            "type": "text",
+            "value": "empty"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.minmax_nocase",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT min(label COLLATE NOCASE), max(label COLLATE NOCASE) FROM agg WHERE grp = 'b'",
+      "columns": [
+        "min(label COLLATE NOCASE)",
+        "max(label COLLATE NOCASE)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Alpha"
+          },
+          {
+            "type": "text",
+            "value": "omega"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.concat_global_distinct",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT group_concat(DISTINCT grp) FROM agg",
+      "columns": [
+        "group_concat(DISTINCT grp)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a,b,c,d,e,f"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.constant",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT count(*), count(1), sum(2), total(2), avg(2), min(3), max(4), group_concat('x')",
+      "columns": [
+        "count(*)",
+        "count(1)",
+        "sum(2)",
+        "total(2)",
+        "avg(2)",
+        "min(3)",
+        "max(4)",
+        "group_concat('x')"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "real",
+            "value": "2"
+          },
+          {
+            "type": "real",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "x"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.group_filtered",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, count(*) FROM agg WHERE val > 1 GROUP BY grp ORDER BY grp",
+      "columns": [
+        "grp",
+        "count(*)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.having_unselected",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp FROM agg GROUP BY grp HAVING count(*) > 2 ORDER BY grp",
+      "columns": [
+        "grp"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.expression",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, sum(val) * 2 FROM agg GROUP BY grp ORDER BY grp",
+      "columns": [
+        "grp",
+        "sum(val) * 2"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "6"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "28"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "real",
+            "value": "15"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "real",
+            "value": "18446744073709552000"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "real",
+            "value": "0"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.scalar_wrap",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT grp, abs(sum(val)) FROM agg GROUP BY grp ORDER BY grp",
+      "columns": [
+        "grp",
+        "abs(sum(val))"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "a"
+          },
+          {
+            "type": "integer",
+            "value": "14"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          },
+          {
+            "type": "real",
+            "value": "7.5"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          },
+          {
+            "type": "real",
+            "value": "9223372036854776000"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          },
+          {
+            "type": "real",
+            "value": "0"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.distinct_result",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT DISTINCT grp FROM agg WHERE grp IS NOT NULL GROUP BY grp ORDER BY grp",
+      "columns": [
+        "grp"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "a"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "c"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "e"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "f"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.count_constant",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT count(1), count(NULL) FROM agg",
+      "columns": [
+        "count(1)",
+        "count(NULL)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "19"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "aggregates.total_empty",
+      "database": "fixtures/aggregates.db",
+      "sql": "SELECT total(val), sum(val), avg(val) FROM agg WHERE id > 99",
+      "columns": [
+        "total(val)",
+        "sum(val)",
+        "avg(val)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "real",
+            "value": "0"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
     }
   ]
 }

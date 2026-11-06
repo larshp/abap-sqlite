@@ -399,6 +399,40 @@ function orderingDatabase() {
   return db;
 }
 
+function aggregatesDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 1024");
+  db.run(`
+    CREATE TABLE agg (
+      id INTEGER NOT NULL,
+      grp TEXT,
+      val,
+      label TEXT
+    )`);
+  db.run(`
+    INSERT INTO agg (id, grp, val, label) VALUES
+      (1, 'a', 2, 'Beta'),
+      (2, 'a', NULL, 'alpha'),
+      (3, 'a', 10, 'gamma'),
+      (4, 'b', 1, 'Alpha'),
+      (5, 'b', 1, 'beta'),
+      (6, 'b', NULL, 'ALPHA'),
+      (7, 'c', '2', 'delta'),
+      (8, 'c', 2, 'Delta'),
+      (9, NULL, 3, 'epsilon'),
+      (10, 'c', 3.5, 'zeta'),
+      (11, 'a', 2, 'alpha'),
+      (12, 'd', 0, 'same'),
+      (13, 'd', 0, 'same '),
+      (14, 'b', NULL, 'omega'),
+      (15, 'e', 'abc', NULL),
+      (16, 'e', 9223372036854775807, 'max'),
+      (17, 'e', 1, 'one'),
+      (18, 'f', NULL, NULL),
+      (19, 'f', '', 'empty')`);
+  return db;
+}
+
 function manyIndexesDatabase() {
   const db = new SQL.Database();
   db.run("PRAGMA page_size = 512");
@@ -883,6 +917,176 @@ const queryDefinitions = [
     database: "ordering.db",
     sql: "SELECT DISTINCT grp, val FROM ordering ORDER BY grp, val LIMIT 3 OFFSET 1",
   },
+  {
+    name: "aggregates.count_all",
+    database: "aggregates.db",
+    sql: "SELECT count(*), count(val), count(label) FROM agg",
+  },
+  {
+    name: "aggregates.numeric",
+    database: "aggregates.db",
+    sql: "SELECT sum(val), total(val), avg(val), min(val), max(val) FROM agg",
+  },
+  {
+    name: "aggregates.distinct_values",
+    database: "aggregates.db",
+    sql: "SELECT count(DISTINCT grp), count(DISTINCT val), count(DISTINCT label) FROM agg",
+  },
+  {
+    name: "aggregates.numeric_distinct",
+    database: "aggregates.db",
+    sql: "SELECT sum(DISTINCT val), total(DISTINCT val), avg(DISTINCT val), min(DISTINCT val), max(DISTINCT val) FROM agg",
+  },
+  {
+    name: "aggregates.empty_input",
+    database: "aggregates.db",
+    sql: "SELECT count(*), count(val), sum(val), total(val), avg(val), min(val), max(val), group_concat(label) FROM agg WHERE id > 99",
+  },
+  {
+    name: "aggregates.group_summary",
+    database: "aggregates.db",
+    sql: "SELECT grp, count(*), count(val), sum(val), total(val), avg(val), min(val), max(val) FROM agg GROUP BY grp ORDER BY grp",
+  },
+  {
+    name: "aggregates.group_concat",
+    database: "aggregates.db",
+    sql: "SELECT grp, group_concat(label), group_concat(DISTINCT label), group_concat(val, '|') FROM agg GROUP BY grp ORDER BY grp",
+  },
+  {
+    name: "aggregates.group_concat_empty",
+    database: "aggregates.db",
+    sql: "SELECT group_concat(label), group_concat(label, '-') FROM agg WHERE grp = 'f'",
+  },
+  {
+    name: "aggregates.having_aggregate",
+    database: "aggregates.db",
+    sql: "SELECT grp, count(*) FROM agg GROUP BY grp HAVING count(*) > 3 ORDER BY grp",
+  },
+  {
+    name: "aggregates.having_sum",
+    database: "aggregates.db",
+    sql: "SELECT grp, sum(val) FROM agg GROUP BY grp HAVING sum(val) > 3 ORDER BY grp",
+  },
+  {
+    name: "aggregates.having_alias",
+    database: "aggregates.db",
+    sql: "SELECT grp, count(*) AS c FROM agg GROUP BY grp HAVING c > 3 ORDER BY grp",
+  },
+  {
+    name: "aggregates.having_no_group",
+    database: "aggregates.db",
+    sql: "SELECT count(*) FROM agg HAVING count(*) > 1",
+  },
+  {
+    name: "aggregates.having_no_rows",
+    database: "aggregates.db",
+    sql: "SELECT count(*) FROM agg HAVING count(*) > 100",
+  },
+  {
+    name: "aggregates.group_bare",
+    database: "aggregates.db",
+    sql: "SELECT grp, label FROM agg GROUP BY grp ORDER BY grp",
+  },
+  {
+    name: "aggregates.group_expression",
+    database: "aggregates.db",
+    sql: "SELECT length(label), count(*) FROM agg WHERE label IS NOT NULL GROUP BY length(label) ORDER BY 1",
+  },
+  {
+    name: "aggregates.group_ordinal",
+    database: "aggregates.db",
+    sql: "SELECT grp, count(*) FROM agg GROUP BY 1 ORDER BY 1",
+  },
+  {
+    name: "aggregates.group_alias",
+    database: "aggregates.db",
+    sql: "SELECT lower(grp) AS g, count(*) FROM agg GROUP BY g ORDER BY g",
+  },
+  {
+    name: "aggregates.order_hidden",
+    database: "aggregates.db",
+    sql: "SELECT grp FROM agg GROUP BY grp ORDER BY count(*) DESC, grp",
+  },
+  {
+    name: "aggregates.order_alias",
+    database: "aggregates.db",
+    sql: "SELECT grp, count(*) AS c FROM agg GROUP BY grp ORDER BY c DESC, grp",
+  },
+  {
+    name: "aggregates.order_ordinal",
+    database: "aggregates.db",
+    sql: "SELECT grp, count(*) FROM agg GROUP BY grp ORDER BY 2 DESC, 1",
+  },
+  {
+    name: "aggregates.limit",
+    database: "aggregates.db",
+    sql: "SELECT grp, count(*) FROM agg GROUP BY grp ORDER BY 2 DESC, 1 LIMIT 3",
+  },
+  {
+    name: "aggregates.sum_overflow",
+    database: "aggregates.db",
+    sql: "SELECT sum(val), total(val) FROM agg WHERE grp = 'e'",
+  },
+  {
+    name: "aggregates.text_numeric",
+    database: "aggregates.db",
+    sql: "SELECT sum(val), total(val), avg(val) FROM agg WHERE grp = 'c'",
+  },
+  {
+    name: "aggregates.minmax_text",
+    database: "aggregates.db",
+    sql: "SELECT grp, min(label), max(label) FROM agg GROUP BY grp ORDER BY grp",
+  },
+  {
+    name: "aggregates.minmax_nocase",
+    database: "aggregates.db",
+    sql: "SELECT min(label COLLATE NOCASE), max(label COLLATE NOCASE) FROM agg WHERE grp = 'b'",
+  },
+  {
+    name: "aggregates.concat_global_distinct",
+    database: "aggregates.db",
+    sql: "SELECT group_concat(DISTINCT grp) FROM agg",
+  },
+  {
+    name: "aggregates.constant",
+    database: "aggregates.db",
+    sql: "SELECT count(*), count(1), sum(2), total(2), avg(2), min(3), max(4), group_concat('x')",
+  },
+  {
+    name: "aggregates.group_filtered",
+    database: "aggregates.db",
+    sql: "SELECT grp, count(*) FROM agg WHERE val > 1 GROUP BY grp ORDER BY grp",
+  },
+  {
+    name: "aggregates.having_unselected",
+    database: "aggregates.db",
+    sql: "SELECT grp FROM agg GROUP BY grp HAVING count(*) > 2 ORDER BY grp",
+  },
+  {
+    name: "aggregates.expression",
+    database: "aggregates.db",
+    sql: "SELECT grp, sum(val) * 2 FROM agg GROUP BY grp ORDER BY grp",
+  },
+  {
+    name: "aggregates.scalar_wrap",
+    database: "aggregates.db",
+    sql: "SELECT grp, abs(sum(val)) FROM agg GROUP BY grp ORDER BY grp",
+  },
+  {
+    name: "aggregates.distinct_result",
+    database: "aggregates.db",
+    sql: "SELECT DISTINCT grp FROM agg WHERE grp IS NOT NULL GROUP BY grp ORDER BY grp",
+  },
+  {
+    name: "aggregates.count_constant",
+    database: "aggregates.db",
+    sql: "SELECT count(1), count(NULL) FROM agg",
+  },
+  {
+    name: "aggregates.total_empty",
+    database: "aggregates.db",
+    sql: "SELECT total(val), sum(val), avg(val) FROM agg WHERE id > 99",
+  },
 ];
 
 function querySql(sql) {
@@ -1009,5 +1213,6 @@ await writeFixture("without_rowid", withoutRowidDatabase());
 await writeFixture("nulls", nullsDatabase());
 await writeFixture("many_indexes", manyIndexesDatabase());
 await writeFixture("ordering", orderingDatabase());
+await writeFixture("aggregates", aggregatesDatabase());
 
 await writeQueries();

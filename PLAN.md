@@ -447,7 +447,7 @@ valid corpus (~200 statements) still passes.
 
 #### M4.8 Aggregates
 
-- [ ] `count`, `sum`, `total`, `avg`, `min`, `max`, `group_concat`, with `DISTINCT`. `GROUP BY`,
+- [x] `count`, `sum`, `total`, `avg`, `min`, `max`, `group_concat`, with `DISTINCT`. `GROUP BY`,
       `HAVING`, and aggregates without `GROUP BY`.
 
 **Done when:** an aggregate corpus matches sql.js.

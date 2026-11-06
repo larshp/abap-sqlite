@@ -69,4 +69,9 @@ CLASS zcl_sqlite_row IMPLEMENTATION.
       EXPORTING iv_message = |no such column: { iv_name }|.
   ENDMETHOD.
 
+  METHOD zif_sqlite_eval_context~aggregate.
+    RAISE EXCEPTION TYPE zcx_sqlite_error
+      EXPORTING iv_message = |misuse of aggregate: { io_function->get_name( ) }()|.
+  ENDMETHOD.
+
 ENDCLASS.

@@ -11,6 +11,10 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS unknown_column FOR TESTING RAISING zcx_sqlite_error.
     METHODS order_limit_distinct FOR TESTING RAISING zcx_sqlite_error.
     METHODS order_limit_errors FOR TESTING RAISING zcx_sqlite_error.
+    METHODS aggregates_basic FOR TESTING RAISING zcx_sqlite_error.
+    METHODS aggregates_group_having FOR TESTING RAISING zcx_sqlite_error.
+    METHODS aggregates_group_concat FOR TESTING RAISING zcx_sqlite_error.
+    METHODS aggregates_empty FOR TESTING RAISING zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -229,6 +233,132 @@ CLASS ltcl_database IMPLEMENTATION.
           exp = 'ORDER BY term out of range'
           msg = 'ORDER BY range' ).
     ENDTRY.
+
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD aggregates_basic.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/aggregates.db' ).
+    rs_result = lo_database->query( 'SELECT count(*), count(val), min(val), max(val) FROM agg' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 1 msg = 'row count' ).
+
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 19 msg = 'count star' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 15 msg = 'count non-null' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 0 msg = 'minimum value' ).
+    READ TABLE ls_row INTO lo_value INDEX 4.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = 'abc' msg = 'maximum value' ).
+
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD aggregates_group_having.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/aggregates.db' ).
+    rs_result = lo_database->query( 'SELECT grp, count(*) AS c FROM agg GROUP BY grp HAVING c > 3 ORDER BY grp' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 2 msg = 'row count' ).
+
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = 'a' msg = 'first group' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 4 msg = 'first count' ).
+
+    READ TABLE rs_result-rows INTO ls_row INDEX 2.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = 'b' msg = 'second group' ).
+
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD aggregates_group_concat.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/aggregates.db' ).
+    rs_result = lo_database->query(
+      'SELECT grp, group_concat(label), count(DISTINCT label) FROM agg GROUP BY grp ORDER BY grp' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 7 msg = 'row count' ).
+
+    READ TABLE rs_result-rows INTO ls_row INDEX 2.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'Beta,alpha,gamma,alpha'
+      msg = 'concatenated labels' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 3 msg = 'distinct labels' ).
+
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD aggregates_empty.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_zero     TYPE f.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/aggregates.db' ).
+    rs_result = lo_database->query(
+      'SELECT count(*), count(val), sum(val), total(val), avg(val), min(val), max(val), group_concat(label) FROM agg WHERE id > 99' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 1 msg = 'row count' ).
+
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 0 msg = 'count star' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 0 msg = 'count non-null' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( ) exp = abap_true msg = 'sum' ).
+    READ TABLE ls_row INTO lo_value INDEX 4.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_real( ) exp = lv_zero msg = 'total' ).
+    READ TABLE ls_row INTO lo_value INDEX 5.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( ) exp = abap_true msg = 'average' ).
+    READ TABLE ls_row INTO lo_value INDEX 6.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( ) exp = abap_true msg = 'minimum' ).
+    READ TABLE ls_row INTO lo_value INDEX 7.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( ) exp = abap_true msg = 'maximum' ).
+    READ TABLE ls_row INTO lo_value INDEX 8.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( ) exp = abap_true msg = 'group_concat' ).
 
     lo_database->close( ).
   ENDMETHOD.

@@ -40,6 +40,27 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       RETURNING VALUE(rv_value) TYPE int8
       RAISING   zcx_sqlite_error.
 
+    CLASS-METHODS is_aggregate_function
+      IMPORTING iv_name             TYPE string
+                iv_count            TYPE i
+                iv_star             TYPE abap_bool
+      RETURNING VALUE(rv_aggregate) TYPE abap_bool.
+
+    CLASS-METHODS contains_aggregate
+      IMPORTING io_expression       TYPE REF TO zcl_sqlite_ast_node
+      RETURNING VALUE(rv_aggregate) TYPE abap_bool
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS value_to_aggregate_number
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS value_to_text
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
   PRIVATE SECTION.
     TYPES: BEGIN OF ty_integer_parse,
              value    TYPE int8,
@@ -53,6 +74,21 @@ CLASS zcl_sqlite_expr_eval DEFINITION
            END OF ty_glob_class.
 
     TYPES ty_values TYPE STANDARD TABLE OF REF TO zcl_sqlite_value WITH DEFAULT KEY.
+
+    CLASS-METHODS contains_aggregate_in_function
+      IMPORTING io_function         TYPE REF TO zcl_sqlite_ast_function
+      RETURNING VALUE(rv_aggregate) TYPE abap_bool
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS contains_aggregate_in_case
+      IMPORTING io_case             TYPE REF TO zcl_sqlite_ast_case
+      RETURNING VALUE(rv_aggregate) TYPE abap_bool
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS contains_aggregate_in_in
+      IMPORTING io_in               TYPE REF TO zcl_sqlite_ast_in
+      RETURNING VALUE(rv_aggregate) TYPE abap_bool
+      RAISING   zcx_sqlite_error.
 
     " ANORMALY: large int8 constant literals lose precision in the transpiler
     CONSTANTS c_max_integer TYPE int8 VALUE '9223372036854775807'.
@@ -1298,6 +1334,18 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     lv_name = to_upper( lv_display ).
     lt_arguments = io_function->get_arguments( ).
     lv_count = lines( lt_arguments ).
+
+    IF is_aggregate_function(
+        iv_name  = lv_name
+        iv_count = lv_count
+        iv_star  = io_function->get_star( ) ) = abap_true.
+      IF io_context IS BOUND.
+        ro_value = io_context->aggregate( io_function ).
+      ELSE.
+        raise_error( |misuse of aggregate: { lv_display }()| ).
+      ENDIF.
+      RETURN.
+    ENDIF.
 
     CASE lv_name.
       WHEN 'ABS'.
@@ -2673,6 +2721,177 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
   METHOD value_to_integer.
     rv_value = integer_of( io_value ).
+  ENDMETHOD.
+
+  METHOD is_aggregate_function.
+    CASE to_upper( iv_name ).
+      WHEN 'COUNT' OR 'SUM' OR 'TOTAL' OR 'AVG' OR 'GROUP_CONCAT'.
+        rv_aggregate = abap_true.
+      WHEN 'MIN' OR 'MAX'.
+        rv_aggregate = boolc(
+          iv_count = 1 AND iv_star = abap_false ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD contains_aggregate.
+    DATA lo_function   TYPE REF TO zcl_sqlite_ast_function.
+    DATA lo_unary      TYPE REF TO zcl_sqlite_ast_unary.
+    DATA lo_binary     TYPE REF TO zcl_sqlite_ast_binary.
+    DATA lo_case       TYPE REF TO zcl_sqlite_ast_case.
+    DATA lo_cast       TYPE REF TO zcl_sqlite_ast_cast.
+    DATA lo_between    TYPE REF TO zcl_sqlite_ast_between.
+    DATA lo_in         TYPE REF TO zcl_sqlite_ast_in.
+    DATA lo_collate    TYPE REF TO zcl_sqlite_ast_collate.
+    DATA lo_like       TYPE REF TO zcl_sqlite_ast_like.
+
+    IF io_expression IS NOT BOUND.
+      RETURN.
+    ENDIF.
+
+    IF io_expression IS INSTANCE OF zcl_sqlite_ast_function.
+      lo_function ?= io_expression.
+      rv_aggregate = contains_aggregate_in_function( lo_function ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_unary.
+      lo_unary ?= io_expression.
+      rv_aggregate = contains_aggregate( lo_unary->get_operand( ) ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_binary.
+      lo_binary ?= io_expression.
+      IF contains_aggregate( lo_binary->get_left( ) ) = abap_true
+          OR contains_aggregate( lo_binary->get_right( ) ) = abap_true.
+        rv_aggregate = abap_true.
+      ENDIF.
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_case.
+      lo_case ?= io_expression.
+      rv_aggregate = contains_aggregate_in_case( lo_case ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_cast.
+      lo_cast ?= io_expression.
+      rv_aggregate = contains_aggregate( lo_cast->get_expression( ) ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_between.
+      lo_between ?= io_expression.
+      IF contains_aggregate( lo_between->get_expression( ) ) = abap_true
+          OR contains_aggregate( lo_between->get_low( ) ) = abap_true
+          OR contains_aggregate( lo_between->get_high( ) ) = abap_true.
+        rv_aggregate = abap_true.
+      ENDIF.
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_in.
+      lo_in ?= io_expression.
+      rv_aggregate = contains_aggregate_in_in( lo_in ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_collate.
+      lo_collate ?= io_expression.
+      rv_aggregate = contains_aggregate( lo_collate->get_expression( ) ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_like.
+      lo_like ?= io_expression.
+      IF contains_aggregate( lo_like->get_expression( ) ) = abap_true
+          OR contains_aggregate( lo_like->get_pattern( ) ) = abap_true
+          OR contains_aggregate( lo_like->get_escape( ) ) = abap_true.
+        rv_aggregate = abap_true.
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD contains_aggregate_in_function.
+    DATA lo_argument TYPE REF TO zcl_sqlite_ast_node.
+
+    IF is_aggregate_function(
+        iv_name  = io_function->get_name( )
+        iv_count = lines( io_function->get_arguments( ) )
+        iv_star  = io_function->get_star( ) ) = abap_true.
+      rv_aggregate = abap_true.
+      RETURN.
+    ENDIF.
+
+    LOOP AT io_function->get_arguments( ) INTO lo_argument.
+      IF contains_aggregate( lo_argument ) = abap_true.
+        rv_aggregate = abap_true.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD contains_aggregate_in_case.
+    DATA ls_when TYPE zcl_sqlite_ast_case=>ty_when.
+
+    IF contains_aggregate( io_case->get_base( ) ) = abap_true.
+      rv_aggregate = abap_true.
+      RETURN.
+    ENDIF.
+
+    LOOP AT io_case->get_whens( ) INTO ls_when.
+      IF contains_aggregate( ls_when-condition ) = abap_true
+          OR contains_aggregate( ls_when-result ) = abap_true.
+        rv_aggregate = abap_true.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+    rv_aggregate = contains_aggregate( io_case->get_else( ) ).
+  ENDMETHOD.
+
+  METHOD contains_aggregate_in_in.
+    DATA lo_argument TYPE REF TO zcl_sqlite_ast_node.
+
+    IF contains_aggregate( io_in->get_expression( ) ) = abap_true.
+      rv_aggregate = abap_true.
+      RETURN.
+    ENDIF.
+
+    LOOP AT io_in->get_values( ) INTO lo_argument.
+      IF contains_aggregate( lo_argument ) = abap_true.
+        rv_aggregate = abap_true.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD value_to_aggregate_number.
+    DATA lv_text    TYPE string.
+    DATA lv_end     TYPE i.
+    DATA lv_prefix  TYPE string.
+    DATA ls_parse   TYPE ty_integer_parse.
+
+    CASE io_value->value_type( ).
+      WHEN zcl_sqlite_value=>c_null.
+        ro_value = zcl_sqlite_value=>null( ).
+      WHEN zcl_sqlite_value=>c_integer OR zcl_sqlite_value=>c_real.
+        ro_value = io_value.
+      WHEN zcl_sqlite_value=>c_text.
+        lv_text = io_value->as_text( ).
+        lv_end = numeric_prefix_end( lv_text ).
+        IF lv_end = 0.
+          ro_value = zcl_sqlite_value=>real( 0 ).
+          RETURN.
+        ENDIF.
+        lv_prefix = substring( val = lv_text len = lv_end ).
+        IF is_integer_text( lv_prefix ) = abap_true.
+          ls_parse = integer_from_text( lv_prefix ).
+          IF ls_parse-overflow = abap_false.
+            ro_value = zcl_sqlite_value=>integer( ls_parse-value ).
+          ELSE.
+            ro_value = zcl_sqlite_value=>real( real_from_text( lv_prefix ) ).
+          ENDIF.
+        ELSE.
+          ro_value = zcl_sqlite_value=>real( real_from_text( lv_prefix ) ).
+        ENDIF.
+      WHEN zcl_sqlite_value=>c_blob.
+        TRY.
+            lv_text = zcl_sqlite_utf8=>decode( io_value->as_blob( ) ).
+          CATCH cx_sy_conversion_codepage.
+            lv_text = ''.
+        ENDTRY.
+        lv_end = numeric_prefix_end( lv_text ).
+        IF lv_end = 0.
+          ro_value = zcl_sqlite_value=>real( 0 ).
+        ELSE.
+          lv_prefix = substring( val = lv_text len = lv_end ).
+          ro_value = zcl_sqlite_value=>real( real_from_text( lv_prefix ) ).
+        ENDIF.
+      WHEN OTHERS.
+        raise_error( 'unknown value type' ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD value_to_text.
+    ro_value = cast_to_text( io_value ).
   ENDMETHOD.
 
   METHOD real_of.

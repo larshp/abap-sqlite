@@ -1,6 +1,6 @@
 * Minimal read-only database API. It opens a database through the table VFS
-* and executes SELECT statements with the TableScan, Filter and Project
-* operators. Phase 6 replaces this with the polished public API.
+* and executes SELECT statements with the TableScan, Filter, Group and
+* Project operators. Phase 6 replaces this with the polished public API.
 CLASS zcl_sqlite_database DEFINITION
   PUBLIC
   FINAL
@@ -56,6 +56,13 @@ CLASS zcl_sqlite_database DEFINITION
       RETURNING VALUE(rs_result)   TYPE ty_order_result
       RAISING   zcx_sqlite_error.
 
+    METHODS resolve_group_by
+      IMPORTING it_group_by           TYPE zcl_sqlite_ast_select=>ty_expressions
+                it_project_columns    TYPE zcl_sqlite_project=>ty_columns
+                iv_visible_count      TYPE i
+      RETURNING VALUE(rt_expressions) TYPE zcl_sqlite_ast_select=>ty_expressions
+      RAISING   zcx_sqlite_error.
+
     METHODS is_star
       IMPORTING io_expression  TYPE REF TO zcl_sqlite_ast_node
       RETURNING VALUE(rv_star) TYPE abap_bool.
@@ -107,12 +114,14 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_from            TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_table_ref       TYPE REF TO zcl_sqlite_ast_table_ref.
     DATA lo_where           TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_having          TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_operator        TYPE REF TO zif_sqlite_operator.
-    DATA lo_project         TYPE REF TO zif_sqlite_operator.
     DATA lo_row             TYPE REF TO zcl_sqlite_row.
     DATA lt_from            TYPE zcl_sqlite_ast_select=>ty_from.
     DATA lt_result_columns  TYPE zcl_sqlite_ast_select=>ty_columns.
     DATA lt_project_columns TYPE zcl_sqlite_project=>ty_columns.
+    DATA lt_group_by        TYPE zcl_sqlite_ast_select=>ty_expressions.
+    DATA lt_order_by        TYPE zcl_sqlite_ast_order_by=>ty_list.
     DATA ls_order_result    TYPE ty_order_result.
     DATA ls_project_column  TYPE zcl_sqlite_project=>ty_column.
     DATA ls_table           TYPE zcl_sqlite_schema=>ty_table.
@@ -122,6 +131,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_cell_value      TYPE REF TO zcl_sqlite_value.
     DATA lv_has_table       TYPE abap_bool.
     DATA lv_visible_count   TYPE i.
+    DATA lv_aggregate       TYPE abap_bool.
 
     IF mo_pager IS NOT BOUND OR mo_schema IS NOT BOUND.
       RAISE EXCEPTION TYPE zcx_sqlite_error
@@ -134,15 +144,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         EXPORTING iv_message = 'only SELECT statements are supported'.
     ENDIF.
     lo_select ?= lo_statement.
-
-    IF lines( lo_select->get_group_by( ) ) > 0.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING iv_message = 'GROUP BY is not supported yet'.
-    ENDIF.
-    IF lo_select->get_having( ) IS BOUND.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING iv_message = 'HAVING is not supported yet'.
-    ENDIF.
 
     lt_from = lo_select->get_from( ).
     IF lines( lt_from ) > 1.
@@ -173,12 +174,30 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       it_result_columns = lt_result_columns
       it_table_columns  = ls_table-columns ).
     lv_visible_count = lines( lt_project_columns ).
+    lt_order_by = lo_select->get_order_by( ).
     ls_order_result = resolve_order_terms(
-      it_order_by        = lo_select->get_order_by( )
+      it_order_by        = lt_order_by
       it_project_columns = lt_project_columns
       iv_visible_count   = lv_visible_count ).
     lt_project_columns = ls_order_result-columns.
     lt_order_terms = ls_order_result-terms.
+
+    lt_group_by = resolve_group_by(
+      it_group_by        = lo_select->get_group_by( )
+      it_project_columns = lt_project_columns
+      iv_visible_count   = lv_visible_count ).
+    lo_having = lo_select->get_having( ).
+
+    IF lines( lt_group_by ) > 0 OR lo_having IS BOUND.
+      lv_aggregate = abap_true.
+    ELSE.
+      LOOP AT lt_project_columns INTO ls_project_column.
+        IF zcl_sqlite_expr_eval=>contains_aggregate( ls_project_column-expression ) = abap_true.
+          lv_aggregate = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
 
     IF lv_has_table = abap_true.
       lo_operator = NEW zcl_sqlite_table_scan(
@@ -193,10 +212,18 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       ENDIF.
     ENDIF.
 
-    lo_project = NEW zcl_sqlite_project(
-      io_source  = lo_operator
-      it_columns = lt_project_columns ).
-    lo_operator = lo_project.
+    IF lv_aggregate = abap_true.
+      lo_operator = NEW zcl_sqlite_group(
+        io_source        = lo_operator
+        it_group_by      = lt_group_by
+        it_columns       = lt_project_columns
+        iv_visible_count = lv_visible_count
+        io_having        = lo_having ).
+    ELSE.
+      lo_operator = NEW zcl_sqlite_project(
+        io_source  = lo_operator
+        it_columns = lt_project_columns ).
+    ENDIF.
 
     IF lo_select->get_distinct( ) = abap_true.
       lo_operator = NEW zcl_sqlite_distinct(
@@ -313,6 +340,58 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       ENDIF.
       ls_term-collation = lv_collation.
       APPEND ls_term TO rs_result-terms.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD resolve_group_by.
+    DATA lo_expression    TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_literal       TYPE REF TO zcl_sqlite_ast_literal.
+    DATA lo_name          TYPE REF TO zcl_sqlite_ast_name.
+    DATA lo_value         TYPE REF TO zcl_sqlite_value.
+    DATA ls_project       TYPE zcl_sqlite_project=>ty_column.
+    DATA lv_position      TYPE i.
+    DATA lv_index         TYPE i.
+    DATA lv_literal_value TYPE int8.
+
+    LOOP AT it_group_by INTO lo_expression.
+      lv_position = 0.
+
+      IF lo_expression IS INSTANCE OF zcl_sqlite_ast_literal.
+        lo_literal ?= lo_expression.
+        IF lo_literal->get_kind( ) = 'INTEGER'.
+          lo_value = zcl_sqlite_expr_eval=>evaluate( lo_expression ).
+          lv_literal_value = zcl_sqlite_expr_eval=>value_to_integer( lo_value ).
+          IF lv_literal_value < 1 OR lv_literal_value > iv_visible_count.
+            RAISE EXCEPTION TYPE zcx_sqlite_error
+              EXPORTING iv_message = 'GROUP BY term out of range'.
+          ENDIF.
+          lv_position = lv_literal_value.
+        ENDIF.
+      ENDIF.
+
+      IF lv_position = 0 AND lo_expression IS INSTANCE OF zcl_sqlite_ast_name.
+        lo_name ?= lo_expression.
+        IF lo_name->get_kind( ) = zcl_sqlite_ast_name=>c_column.
+          lv_index = 1.
+          LOOP AT it_project_columns INTO ls_project.
+            IF lv_index > iv_visible_count.
+              EXIT.
+            ENDIF.
+            IF to_upper( ls_project-name ) = to_upper( lo_name->get_text( ) ).
+              lv_position = lv_index.
+              EXIT.
+            ENDIF.
+            lv_index = lv_index + 1.
+          ENDLOOP.
+        ENDIF.
+      ENDIF.
+
+      IF lv_position > 0.
+        READ TABLE it_project_columns INTO ls_project INDEX lv_position.
+        APPEND ls_project-expression TO rt_expressions.
+      ELSE.
+        APPEND lo_expression TO rt_expressions.
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
 
