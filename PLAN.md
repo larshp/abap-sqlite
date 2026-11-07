@@ -461,7 +461,7 @@ valid corpus (~200 statements) still passes.
 
 #### M4.10 Planner v1
 
-- [ ] Rowid equality/range lookups, index use for `=`/range on a leftmost prefix, otherwise a
+- [x] Rowid equality/range lookups, index use for `=`/range on a leftmost prefix, otherwise a
       full scan. A plan dump for tests.
 
 **Done when:** plan-dump tests show index use, and the whole differential corpus (≥ 300 read

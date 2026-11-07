@@ -28,6 +28,11 @@ CLASS zcl_sqlite_database DEFINITION
       RETURNING VALUE(rs_result) TYPE ty_result
       RAISING   zcx_sqlite_error.
 
+    METHODS plan_dump
+      IMPORTING iv_sql         TYPE string
+      RETURNING VALUE(rv_plan) TYPE string
+      RAISING   zcx_sqlite_error.
+
   PRIVATE SECTION.
     TYPES ty_from_columns TYPE zcl_sqlite_join=>ty_columns.
 
@@ -52,21 +57,25 @@ CLASS zcl_sqlite_database DEFINITION
 
     METHODS build_from_list
       IMPORTING it_from        TYPE zcl_sqlite_ast_select=>ty_from
+                io_planner     TYPE REF TO zcl_sqlite_planner
       RETURNING VALUE(rs_plan) TYPE ty_from_plan
       RAISING   zcx_sqlite_error.
 
     METHODS build_from
       IMPORTING io_item        TYPE REF TO zcl_sqlite_ast_node
+                io_planner     TYPE REF TO zcl_sqlite_planner
       RETURNING VALUE(rs_plan) TYPE ty_from_plan
       RAISING   zcx_sqlite_error.
 
     METHODS build_table
       IMPORTING io_table_ref   TYPE REF TO zcl_sqlite_ast_table_ref
+                io_planner     TYPE REF TO zcl_sqlite_planner
       RETURNING VALUE(rs_plan) TYPE ty_from_plan
       RAISING   zcx_sqlite_error.
 
     METHODS build_join
       IMPORTING io_join        TYPE REF TO zcl_sqlite_ast_join
+                io_planner     TYPE REF TO zcl_sqlite_planner
       RETURNING VALUE(rs_plan) TYPE ty_from_plan
       RAISING   zcx_sqlite_error.
 
@@ -165,6 +174,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_where           TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_having          TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_operator        TYPE REF TO zif_sqlite_operator.
+    DATA lo_planner         TYPE REF TO zcl_sqlite_planner.
     DATA lo_row             TYPE REF TO zcl_sqlite_row.
     DATA lt_from            TYPE zcl_sqlite_ast_select=>ty_from.
     DATA lt_result_columns  TYPE zcl_sqlite_ast_select=>ty_columns.
@@ -193,9 +203,16 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ENDIF.
     lo_select ?= lo_statement.
 
+    lo_where = lo_select->get_where( ).
     lt_from = lo_select->get_from( ).
+    lo_planner = NEW zcl_sqlite_planner(
+      io_schema = mo_schema
+      it_from   = lt_from
+      io_where  = lo_where ).
     IF lines( lt_from ) > 0.
-      ls_from_plan = build_from_list( lt_from ).
+      ls_from_plan = build_from_list(
+        it_from    = lt_from
+        io_planner = lo_planner ).
     ENDIF.
 
     lt_result_columns = lo_select->get_columns( ).
@@ -234,7 +251,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
     IF ls_from_plan-operator IS BOUND.
       lo_operator = ls_from_plan-operator.
-      lo_where = lo_select->get_where( ).
       IF lo_where IS BOUND.
         lo_operator = NEW zcl_sqlite_filter(
           io_source = lo_operator
@@ -286,6 +302,30 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     LOOP AT lt_project_columns INTO ls_project_column FROM 1 TO lv_visible_count.
       APPEND ls_project_column-name TO rs_result-columns.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD plan_dump.
+    DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_select    TYPE REF TO zcl_sqlite_ast_select.
+    DATA lo_planner   TYPE REF TO zcl_sqlite_planner.
+
+    IF mo_pager IS NOT BOUND OR mo_schema IS NOT BOUND.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING iv_message = 'database is closed'.
+    ENDIF.
+
+    lo_statement = zcl_sqlite_parser=>parse_statement( iv_sql ).
+    IF lo_statement IS NOT INSTANCE OF zcl_sqlite_ast_select.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING iv_message = 'only SELECT statements are supported'.
+    ENDIF.
+    lo_select ?= lo_statement.
+
+    lo_planner = NEW zcl_sqlite_planner(
+      io_schema = mo_schema
+      it_from   = lo_select->get_from( )
+      io_where  = lo_select->get_where( ) ).
+    rv_plan = lo_planner->dump( ).
   ENDMETHOD.
 
   METHOD resolve_order_terms.
@@ -431,11 +471,15 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
     READ TABLE it_from INTO lo_item INDEX 1.
     IF sy-subrc = 0.
-      rs_plan = build_from( lo_item ).
+      rs_plan = build_from(
+        io_item    = lo_item
+        io_planner = io_planner ).
     ENDIF.
 
     LOOP AT it_from INTO lo_item FROM 2.
-      ls_right = build_from( lo_item ).
+      ls_right = build_from(
+        io_item    = lo_item
+        io_planner = io_planner ).
       rs_plan = combine_plans(
         is_left      = rs_plan
         is_right     = ls_right
@@ -449,10 +493,14 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
     IF io_item IS INSTANCE OF zcl_sqlite_ast_table_ref.
       lo_table_ref ?= io_item.
-      rs_plan = build_table( lo_table_ref ).
+      rs_plan = build_table(
+        io_table_ref = lo_table_ref
+        io_planner   = io_planner ).
     ELSEIF io_item IS INSTANCE OF zcl_sqlite_ast_join.
       lo_join ?= io_item.
-      rs_plan = build_join( lo_join ).
+      rs_plan = build_join(
+        io_join    = lo_join
+        io_planner = io_planner ).
     ELSE.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING iv_message = 'subqueries in FROM are not supported yet'.
@@ -460,10 +508,11 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_table.
-    DATA ls_table       TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_table        TYPE zcl_sqlite_schema=>ty_table.
     DATA ls_table_column TYPE zcl_sqlite_schema=>ty_column.
-    DATA ls_from_column TYPE zcl_sqlite_join=>ty_column.
-    DATA lv_table_name  TYPE string.
+    DATA ls_from_column  TYPE zcl_sqlite_join=>ty_column.
+    DATA ls_access       TYPE zcl_sqlite_planner=>ty_plan.
+    DATA lv_table_name   TYPE string.
 
     ls_table = mo_schema->table( io_table_ref->get_name( ) ).
     IF ls_table-name IS INITIAL.
@@ -476,10 +525,15 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       lv_table_name = ls_table-name.
     ENDIF.
 
+    ls_access = io_planner->plan_for(
+      iv_table_name = ls_table-name
+      iv_alias      = lv_table_name ).
+
     rs_plan-operator = NEW zcl_sqlite_table_scan(
       io_pager = mo_pager
       is_table = ls_table
-      iv_alias = io_table_ref->get_alias( ) ).
+      iv_alias = io_table_ref->get_alias( )
+      is_plan  = ls_access ).
 
     LOOP AT ls_table-columns INTO ls_table_column.
       ls_from_column-name = ls_table_column-name.
@@ -495,8 +549,12 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lt_using     TYPE zcl_sqlite_join=>ty_names.
     DATA lv_join_type TYPE string.
 
-    ls_left = build_from( io_join->get_left( ) ).
-    ls_right = build_from( io_join->get_right( ) ).
+    ls_left = build_from(
+      io_item    = io_join->get_left( )
+      io_planner = io_planner ).
+    ls_right = build_from(
+      io_item    = io_join->get_right( )
+      io_planner = io_planner ).
     lv_join_type = io_join->get_join_type( ).
 
     IF io_join->is_natural( ) = abap_true.

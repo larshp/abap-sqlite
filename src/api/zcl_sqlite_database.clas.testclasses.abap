@@ -18,6 +18,8 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS joins_inner_left FOR TESTING RAISING zcx_sqlite_error.
     METHODS joins_using_natural FOR TESTING RAISING zcx_sqlite_error.
     METHODS joins_ambiguous FOR TESTING RAISING zcx_sqlite_error.
+    METHODS planner_access_paths FOR TESTING RAISING zcx_sqlite_error.
+    METHODS planner_execution FOR TESTING RAISING zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -451,6 +453,139 @@ CLASS ltcl_database IMPLEMENTATION.
           msg = 'ambiguous column' ).
     ENDTRY.
 
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD planner_access_paths.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lv_plan     TYPE string.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/many_indexes.db' ).
+
+    lv_plan = lo_database->plan_dump( |SELECT id FROM m WHERE a = 'b' AND b = 2| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |INDEX SEEK m USING m_ba (b = 2 AND a = 'b')|
+      msg = 'index equality prefix' ).
+
+    lv_plan = lo_database->plan_dump( |SELECT id FROM m WHERE a = 'a' AND b > 1| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |INDEX RANGE m USING m_ab (a = 'a' AND b > 1)|
+      msg = 'index equality and range' ).
+
+    lv_plan = lo_database->plan_dump( |SELECT id FROM m WHERE b = 2| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |INDEX SEEK m USING m_b (b = 2)|
+      msg = 'non-leading column index' ).
+
+    lv_plan = lo_database->plan_dump( |SELECT id FROM m WHERE b BETWEEN 1 AND 2| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |INDEX RANGE m USING m_b (b >= 1 AND b <= 2)|
+      msg = 'index between' ).
+
+    lv_plan = lo_database->plan_dump( |SELECT id FROM m WHERE a = 'a' OR b = 2| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |SCAN m|
+      msg = 'or is a full scan' ).
+
+    lv_plan = lo_database->plan_dump( |SELECT id FROM m WHERE c = 'missing'| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |INDEX SEEK m USING m_c (c = 'missing')|
+      msg = 'single column index' ).
+
+    lo_database->close( ).
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/small.db' ).
+    lv_plan = lo_database->plan_dump( 'SELECT id FROM items WHERE id = 2' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |ROWID SEEK items (id = 2)|
+      msg = 'rowid equality' ).
+
+    lv_plan = lo_database->plan_dump( 'SELECT id FROM items WHERE id > 1 AND id <= 2' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |ROWID SEEK items (id > 1 AND id <= 2)|
+      msg = 'rowid range' ).
+
+    lv_plan = lo_database->plan_dump( |SELECT id FROM items WHERE name = 'beta'| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |SCAN items|
+      msg = 'non-indexed predicate is a full scan' ).
+    lo_database->close( ).
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/joins.db' ).
+    lv_plan = lo_database->plan_dump(
+      |SELECT a.name FROM authors a JOIN books b ON a.id = b.author_id WHERE a.rowid = 1| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |ROWID SEEK authors a (rowid = 1)| &&
+            cl_abap_char_utilities=>newline &&
+            |SCAN books b|
+      msg = 'join access paths' ).
+    lo_database->close( ).
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/without_rowid.db' ).
+    lv_plan = lo_database->plan_dump( |SELECT k FROM wr WHERE k = 'key-001'| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_plan
+      exp = |SCAN wr|
+      msg = 'without rowid stays a full scan' ).
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD planner_execution.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/many_indexes.db' ).
+
+    rs_result = lo_database->query( |SELECT id FROM m WHERE a = 'b' AND b = 2 ORDER BY id| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 2 msg = 'index equality row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 4 msg = 'first index equality row' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 2.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 6 msg = 'second index equality row' ).
+
+    rs_result = lo_database->query( |SELECT id FROM m WHERE a = 'a' AND b > 1 ORDER BY id| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 1 msg = 'index range row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 2 msg = 'index range row' ).
+
+    rs_result = lo_database->query( 'SELECT id FROM m WHERE b < 2 ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 3 msg = 'upper bound row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 3.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 5 msg = 'upper bound last row' ).
+
+    lo_database->close( ).
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/small.db' ).
+    rs_result = lo_database->query( 'SELECT id FROM items WHERE id > 1 AND id <= 2 ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 1 msg = 'rowid range row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 2 msg = 'rowid range row' ).
     lo_database->close( ).
   ENDMETHOD.
 

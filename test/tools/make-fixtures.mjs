@@ -1267,6 +1267,245 @@ const queryDefinitions = [
   },
 ];
 
+// Deterministic bulk cases keep the differential corpus broad enough to catch
+// planner regressions across every fixture. ORDER BY makes the row order part
+// of the expected result, rather than depending on the access path.
+function addGeneratedQueries() {
+  const add = (name, database, sql) => queryDefinitions.push({
+    name: `generated.${name}`,
+    database,
+    sql,
+  });
+
+  const comparisonOperators = ["=", "<", ">"];
+
+  for (const [operatorIndex, operator] of comparisonOperators.entries()) {
+    for (const [valueIndex, value] of ["a", "b", "z"].entries()) {
+      add(
+        `many_a_${operatorIndex}_${valueIndex}`,
+        "many_indexes.db",
+        `SELECT id, a, b, c FROM m WHERE a ${operator} '${value}' ORDER BY id`,
+      );
+    }
+  }
+  for (const [operatorIndex, operator] of comparisonOperators.entries()) {
+    for (const [valueIndex, value] of [1, 2, 3].entries()) {
+      add(
+        `many_b_${operatorIndex}_${valueIndex}`,
+        "many_indexes.db",
+        `SELECT id, a, b, c FROM m WHERE b ${operator} ${value} ORDER BY id`,
+      );
+    }
+  }
+  for (const [valueIndex, value] of ["c1", "c4", "z"].entries()) {
+    add(
+      `many_c_${valueIndex}`,
+      "many_indexes.db",
+      `SELECT id, a, c FROM m WHERE c = '${value}' ORDER BY id`,
+    );
+  }
+  [
+    "SELECT id FROM m WHERE a = 'a' AND b > 0 ORDER BY id",
+    "SELECT id FROM m WHERE a = 'a' AND b >= 2 ORDER BY id",
+    "SELECT id FROM m WHERE a = 'b' AND b < 3 ORDER BY id",
+    "SELECT id FROM m WHERE a > 'a' AND b < 3 ORDER BY id",
+    "SELECT id FROM m WHERE b = 2 AND a = 'b' ORDER BY id",
+    "SELECT id FROM m WHERE a = 'a' OR b = 2 ORDER BY id",
+    "SELECT rowid AS rid, id FROM m WHERE rowid = 3",
+    "SELECT rowid AS rid, id FROM m WHERE rowid > 4 ORDER BY id",
+    "SELECT rowid AS rid, id FROM m WHERE rowid BETWEEN 2 AND 5 ORDER BY id",
+  ].forEach((sql, index) => add(`many_combo_${index}`, "many_indexes.db", sql));
+
+  for (const [operatorIndex, operator] of ["=", "<", "<=", ">", ">="].entries()) {
+    for (const [valueIndex, value] of [0, 1, 2, 3].entries()) {
+      add(
+        `small_id_${operatorIndex}_${valueIndex}`,
+        "small.db",
+        `SELECT id, name FROM items WHERE id ${operator} ${value} ORDER BY id`,
+      );
+    }
+  }
+
+  [
+    "SELECT id, a, b FROM nulls WHERE a IS NULL ORDER BY id",
+    "SELECT id, a, b FROM nulls WHERE a IS NOT NULL ORDER BY id",
+    "SELECT id, a, b FROM nulls WHERE b IS NULL ORDER BY id",
+    "SELECT id, a, b FROM nulls WHERE b IS NOT NULL ORDER BY id",
+    "SELECT id, a, c FROM nulls WHERE c IS NULL ORDER BY id",
+    "SELECT id, a, c FROM nulls WHERE c IS NOT NULL ORDER BY id",
+    "SELECT id, a FROM nulls WHERE a = 'x' ORDER BY id",
+    "SELECT id, a FROM nulls WHERE a = 'a' ORDER BY id",
+    "SELECT id, a FROM nulls WHERE a < 'b' ORDER BY id",
+    "SELECT id, a FROM nulls WHERE a >= 'b' ORDER BY id",
+    "SELECT id, b FROM nulls WHERE b = 1 ORDER BY id",
+    "SELECT id, b FROM nulls WHERE b < 2 ORDER BY id",
+    "SELECT id, b FROM nulls WHERE b >= 2 ORDER BY id",
+    "SELECT id FROM nulls WHERE a IS NULL AND id = 2",
+    "SELECT id FROM nulls WHERE a IS NOT NULL AND b = 1 ORDER BY id",
+    "SELECT id, a, b FROM nulls ORDER BY a, id",
+    "SELECT id, b FROM nulls ORDER BY b DESC, id",
+    "SELECT id, c FROM nulls ORDER BY c, id",
+    "SELECT id FROM nulls ORDER BY id DESC LIMIT 3",
+  ].forEach((sql, index) => add(`nulls_${index}`, "nulls.db", sql));
+
+  [
+    "SELECT id, grp FROM ordering WHERE grp = 'a' ORDER BY id",
+    "SELECT id, grp FROM ordering WHERE grp = 'b' ORDER BY id",
+    "SELECT id, grp FROM ordering WHERE grp = 'c' ORDER BY id",
+    "SELECT id, grp FROM ordering WHERE grp = 'd' ORDER BY id",
+    "SELECT id, grp FROM ordering WHERE grp = 'e' ORDER BY id",
+    "SELECT id, val FROM ordering WHERE val IS NULL ORDER BY id",
+    "SELECT id, val FROM ordering WHERE val IS NOT NULL ORDER BY id",
+    "SELECT id, val FROM ordering WHERE val < 10 ORDER BY id",
+    "SELECT id, val FROM ordering WHERE val >= 10 ORDER BY id",
+    "SELECT id, val FROM ordering WHERE val BETWEEN 5 AND 15 ORDER BY id",
+    "SELECT id, label FROM ordering WHERE label = 'Beta' ORDER BY id",
+    "SELECT id, grp FROM ordering ORDER BY grp, id LIMIT 5",
+    "SELECT id, val FROM ordering ORDER BY val DESC, id LIMIT 5",
+    "SELECT id, label FROM ordering ORDER BY label, id LIMIT 5",
+    "SELECT id FROM ordering ORDER BY id DESC LIMIT 3 OFFSET 2",
+    "SELECT id FROM ordering WHERE grp = 'a' AND val IS NULL ORDER BY id",
+    "SELECT id FROM ordering WHERE grp = 'a' OR grp = 'b' ORDER BY id",
+    "SELECT id, val FROM ordering ORDER BY val IS NULL, val, id",
+    "SELECT id, label FROM ordering ORDER BY label COLLATE NOCASE, id",
+    "SELECT id, label FROM ordering ORDER BY label DESC, id",
+  ].forEach((sql, index) => add(`ordering_${index}`, "ordering.db", sql));
+
+  [
+    "SELECT grp, count(*) AS n FROM agg GROUP BY grp ORDER BY grp",
+    "SELECT grp, count(val) AS n FROM agg GROUP BY grp ORDER BY grp",
+    "SELECT grp, sum(val) AS s FROM agg GROUP BY grp ORDER BY grp",
+    "SELECT grp, avg(val) AS a FROM agg GROUP BY grp ORDER BY grp",
+    "SELECT grp, min(val) AS mn, max(val) AS mx FROM agg GROUP BY grp ORDER BY grp",
+    "SELECT count(*) AS n, count(val) AS c FROM agg",
+    "SELECT grp, count(*) AS n FROM agg GROUP BY grp HAVING count(*) > 1 ORDER BY grp",
+    "SELECT DISTINCT grp FROM agg ORDER BY grp",
+    "SELECT count(*) AS n FROM agg WHERE grp = 'a'",
+    "SELECT sum(val) AS s FROM agg WHERE val > 5",
+    "SELECT min(val) AS mn, max(val) AS mx FROM agg WHERE val IS NOT NULL",
+    "SELECT count(*) AS n FROM agg WHERE val IS NULL",
+    "SELECT avg(val) AS a FROM agg WHERE val > 5",
+    "SELECT grp, max(label) AS mx FROM agg GROUP BY grp ORDER BY grp",
+  ].forEach((sql, index) => add(`aggregates_${index}`, "aggregates.db", sql));
+
+  for (const [operatorIndex, operator] of ["=", "<", "<=", ">", ">="].entries()) {
+    for (const [valueIndex, value] of ["key-001", "key-020"].entries()) {
+      add(
+        `without_k_${operatorIndex}_${valueIndex}`,
+        "without_rowid.db",
+        `SELECT k, v, n FROM wr WHERE k ${operator} '${value}' ORDER BY k`,
+      );
+    }
+  }
+  for (const [operatorIndex, operator] of ["=", "<", ">"].entries()) {
+    for (const [valueIndex, value] of [1, 20, 40].entries()) {
+      add(
+        `without_n_${operatorIndex}_${valueIndex}`,
+        "without_rowid.db",
+        `SELECT k, n FROM wr WHERE n ${operator} ${value} ORDER BY k`,
+      );
+    }
+  }
+  [
+    "SELECT k, v FROM wr WHERE v >= 'value-020' ORDER BY k",
+    "SELECT k, n FROM wr ORDER BY k DESC LIMIT 5",
+  ].forEach((sql, index) => add(`without_${index}`, "without_rowid.db", sql));
+
+  [
+    "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE a.id = 1 ORDER BY b.id",
+    "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE b.price > 10 ORDER BY b.id",
+    "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE b.price IS NULL ORDER BY b.id",
+    "SELECT a.name, b.title FROM authors a LEFT JOIN books b ON a.id = b.author_id ORDER BY a.id, b.id",
+    "SELECT a.name, b.title FROM authors a LEFT JOIN books b ON a.id = b.author_id WHERE b.id IS NULL ORDER BY a.id",
+    "SELECT count(*) AS n FROM authors CROSS JOIN books",
+    "SELECT orders.order_id AS oid, shipments.carrier FROM orders JOIN shipments USING (order_id) ORDER BY orders.order_id",
+    "SELECT * FROM orders LEFT JOIN shipments USING (order_id) ORDER BY order_id",
+    "SELECT * FROM orders NATURAL JOIN shipments ORDER BY order_id",
+    "SELECT * FROM orders NATURAL LEFT JOIN shipments ORDER BY order_id",
+    "SELECT a.name, b.title FROM authors a, books b WHERE a.id = b.author_id ORDER BY b.id",
+    "SELECT e.name AS employee, m.name AS manager FROM authors e JOIN authors m ON e.id = m.id + 1 ORDER BY e.id",
+    "SELECT a.name, count(*) AS n, sum(b.price) AS s FROM authors a JOIN books b ON a.id = b.author_id GROUP BY a.name ORDER BY a.name",
+    "SELECT DISTINCT a.name FROM authors a JOIN books b ON a.id = b.author_id ORDER BY a.name",
+    "SELECT a.name FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id DESC LIMIT 2",
+    "SELECT b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE a.name = 'Ada' ORDER BY b.id",
+    "SELECT b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE a.id >= 2 AND b.price >= 20 ORDER BY b.id",
+    "SELECT b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE b.author_id IS NULL ORDER BY b.id",
+    "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE a.rowid <= 2 ORDER BY a.id",
+    "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE b.rowid = 3",
+  ].forEach((sql, index) => add(`joins_${index}`, "joins.db", sql));
+
+  for (const [valueIndex, value] of [1, 50, 100].entries()) {
+    add(
+      `indexed_id_eq_${valueIndex}`,
+      "indexed.db",
+      `SELECT id, value FROM items WHERE id = ${value} ORDER BY id`,
+    );
+  }
+  [
+    "SELECT id, value FROM items WHERE id < 50 ORDER BY id",
+    "SELECT id, value FROM items WHERE id > 50 ORDER BY id",
+    "SELECT id, value FROM items WHERE id BETWEEN 10 AND 20 ORDER BY id",
+  ].forEach((sql, index) => add(`indexed_id_range_${index}`, "indexed.db", sql));
+  for (const [valueIndex, value] of [1, 50, 100].entries()) {
+    const text = `value-${String(value).padStart(3, "0")}-${"x".repeat(40)}`;
+    add(
+      `indexed_value_eq_${valueIndex}`,
+      "indexed.db",
+      `SELECT id, value FROM items WHERE value = '${text}' ORDER BY id`,
+    );
+  }
+  const indexedBoundary = `value-050-${"x".repeat(40)}`;
+  add(
+    "indexed_value_range",
+    "indexed.db",
+    `SELECT id, value FROM items WHERE value >= '${indexedBoundary}' ORDER BY id`,
+  );
+  [
+    "SELECT id, value FROM items ORDER BY id LIMIT 3",
+    "SELECT id, value FROM items ORDER BY id LIMIT 3 OFFSET 5",
+  ].forEach((sql, index) => add(`indexed_order_${index}`, "indexed.db", sql));
+
+  for (const [valueIndex, value] of [1, 100, 200].entries()) {
+    add(
+      `three_pages_eq_${valueIndex}`,
+      "three_pages.db",
+      `SELECT id, value FROM items WHERE id = ${value} ORDER BY id`,
+    );
+  }
+  [
+    "SELECT id, value FROM items WHERE id BETWEEN 50 AND 60 ORDER BY id",
+    "SELECT id, value FROM items WHERE id < 5 ORDER BY id",
+    "SELECT id, value FROM items WHERE id > 195 ORDER BY id",
+    "SELECT id, value FROM items ORDER BY id LIMIT 5",
+    "SELECT id, value FROM items ORDER BY id DESC LIMIT 5",
+  ].forEach((sql, index) => add(`three_pages_${index}`, "three_pages.db", sql));
+
+  [
+    "SELECT c_null, c_int8, c_real FROM serial_types WHERE c_int8 > 0",
+    "SELECT c_int8, c_text3 FROM serial_types WHERE c_int8 IS NOT NULL ORDER BY c_int8",
+    "SELECT c_null, c_text0, c_blob0 FROM serial_types",
+    "SELECT c_int8, c_text3 FROM serial_types ORDER BY c_int8",
+    "SELECT c_real, c_text FROM serial_types WHERE c_real IS NOT NULL",
+  ].forEach((sql, index) => add(`serial_${index}`, "serial_types.db", sql));
+
+  [
+    "SELECT id, price FROM items WHERE price < 2 ORDER BY id",
+    "SELECT id, price FROM items WHERE price >= 2 ORDER BY id",
+    "SELECT id, name FROM items WHERE name > 'a' ORDER BY id",
+    "SELECT id, name FROM items WHERE name <= 'beta' ORDER BY id",
+  ].forEach((sql, index) => add(`small_extra_${index}`, "small.db", sql));
+  [
+    "SELECT id, val FROM ordering WHERE val = 2 ORDER BY id",
+    "SELECT id, grp FROM ordering WHERE grp >= 'c' ORDER BY id",
+  ].forEach((sql, index) => add(`ordering_extra_${index}`, "ordering.db", sql));
+  [
+    "SELECT k, n FROM wr WHERE n BETWEEN 10 AND 20 ORDER BY k",
+    "SELECT id, value FROM items WHERE id >= 190 ORDER BY id",
+  ].forEach((sql, index) => add(`extra_${index}`, index === 0 ? "without_rowid.db" : "three_pages.db", sql));
+}
+
+addGeneratedQueries();
+
 function querySql(sql) {
   return sql.trim().replace(/;+\s*$/, "");
 }
