@@ -454,7 +454,7 @@ valid corpus (~200 statements) still passes.
 
 #### M4.9 Joins
 
-- [ ] `NestedLoopJoin` for `INNER`, `LEFT`, `CROSS`, with `ON` / `USING` / `NATURAL`, and column
+- [x] `NestedLoopJoin` for `INNER`, `LEFT`, `CROSS`, with `ON` / `USING` / `NATURAL`, and column
       name resolution across tables
 
 **Done when:** a join corpus matches sql.js.

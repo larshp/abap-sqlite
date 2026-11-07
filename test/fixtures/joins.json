@@ -1,0 +1,244 @@
+{
+  "pragmas": {
+    "page_size": 1024,
+    "page_count": 5,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "authors",
+      "sql": "CREATE TABLE authors (\n      id INTEGER NOT NULL,\n      name TEXT\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "Ada"
+        ],
+        [
+          2,
+          "Grace"
+        ],
+        [
+          3,
+          "Linus"
+        ],
+        [
+          4,
+          "Nobody"
+        ]
+      ]
+    },
+    {
+      "name": "books",
+      "sql": "CREATE TABLE books (\n      id INTEGER NOT NULL,\n      author_id INTEGER,\n      title TEXT,\n      price\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "author_id",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "title",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 3,
+          "name": "price",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          1,
+          "Alpha",
+          10
+        ],
+        [
+          2,
+          1,
+          "Beta",
+          20
+        ],
+        [
+          3,
+          2,
+          "Gamma",
+          null
+        ],
+        [
+          4,
+          null,
+          "Orphan",
+          5
+        ],
+        [
+          5,
+          99,
+          "Ghost",
+          7
+        ]
+      ]
+    },
+    {
+      "name": "orders",
+      "sql": "CREATE TABLE orders (\n      order_id INTEGER NOT NULL,\n      customer_id INTEGER,\n      amount\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "order_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "customer_id",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "amount",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          10,
+          100
+        ],
+        [
+          2,
+          10,
+          50
+        ],
+        [
+          3,
+          20,
+          75
+        ],
+        [
+          4,
+          30,
+          25
+        ]
+      ]
+    },
+    {
+      "name": "shipments",
+      "sql": "CREATE TABLE shipments (\n      order_id INTEGER NOT NULL,\n      carrier TEXT\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "order_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "carrier",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "UPS"
+        ],
+        [
+          2,
+          "DHL"
+        ],
+        [
+          5,
+          "FedEx"
+        ]
+      ]
+    }
+  ],
+  "indexes": [],
+  "schema": [
+    {
+      "type": "table",
+      "name": "authors",
+      "tbl_name": "authors",
+      "rootpage": 2,
+      "sql": "CREATE TABLE authors (\n      id INTEGER NOT NULL,\n      name TEXT\n    )"
+    },
+    {
+      "type": "table",
+      "name": "books",
+      "tbl_name": "books",
+      "rootpage": 3,
+      "sql": "CREATE TABLE books (\n      id INTEGER NOT NULL,\n      author_id INTEGER,\n      title TEXT,\n      price\n    )"
+    },
+    {
+      "type": "table",
+      "name": "orders",
+      "tbl_name": "orders",
+      "rootpage": 4,
+      "sql": "CREATE TABLE orders (\n      order_id INTEGER NOT NULL,\n      customer_id INTEGER,\n      amount\n    )"
+    },
+    {
+      "type": "table",
+      "name": "shipments",
+      "tbl_name": "shipments",
+      "rootpage": 5,
+      "sql": "CREATE TABLE shipments (\n      order_id INTEGER NOT NULL,\n      carrier TEXT\n    )"
+    }
+  ]
+}

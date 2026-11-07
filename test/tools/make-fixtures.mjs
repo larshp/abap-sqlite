@@ -433,6 +433,59 @@ function aggregatesDatabase() {
   return db;
 }
 
+function joinsDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 1024");
+  db.run(`
+    CREATE TABLE authors (
+      id INTEGER NOT NULL,
+      name TEXT
+    )`);
+  db.run(`
+    INSERT INTO authors (id, name) VALUES
+      (1, 'Ada'),
+      (2, 'Grace'),
+      (3, 'Linus'),
+      (4, 'Nobody')`);
+  db.run(`
+    CREATE TABLE books (
+      id INTEGER NOT NULL,
+      author_id INTEGER,
+      title TEXT,
+      price
+    )`);
+  db.run(`
+    INSERT INTO books (id, author_id, title, price) VALUES
+      (1, 1, 'Alpha', 10),
+      (2, 1, 'Beta', 20),
+      (3, 2, 'Gamma', NULL),
+      (4, NULL, 'Orphan', 5),
+      (5, 99, 'Ghost', 7)`);
+  db.run(`
+    CREATE TABLE orders (
+      order_id INTEGER NOT NULL,
+      customer_id INTEGER,
+      amount
+    )`);
+  db.run(`
+    INSERT INTO orders (order_id, customer_id, amount) VALUES
+      (1, 10, 100),
+      (2, 10, 50),
+      (3, 20, 75),
+      (4, 30, 25)`);
+  db.run(`
+    CREATE TABLE shipments (
+      order_id INTEGER NOT NULL,
+      carrier TEXT
+    )`);
+  db.run(`
+    INSERT INTO shipments (order_id, carrier) VALUES
+      (1, 'UPS'),
+      (2, 'DHL'),
+      (5, 'FedEx')`);
+  return db;
+}
+
 function manyIndexesDatabase() {
   const db = new SQL.Database();
   db.run("PRAGMA page_size = 512");
@@ -1087,6 +1140,131 @@ const queryDefinitions = [
     database: "aggregates.db",
     sql: "SELECT total(val), sum(val), avg(val) FROM agg WHERE id > 99",
   },
+  {
+    name: "joins.inner_on",
+    database: "joins.db",
+    sql: "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id",
+  },
+  {
+    name: "joins.inner_qualified_star",
+    database: "joins.db",
+    sql: "SELECT a.*, b.title FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id",
+  },
+  {
+    name: "joins.inner_columns",
+    database: "joins.db",
+    sql: "SELECT a.id AS author_id, a.name AS author_name, b.id AS book_id, b.author_id AS book_author_id, b.title, b.price FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id",
+  },
+  {
+    name: "joins.left_on",
+    database: "joins.db",
+    sql: "SELECT a.name, b.title FROM authors a LEFT JOIN books b ON a.id = b.author_id ORDER BY a.id, b.id",
+  },
+  {
+    name: "joins.left_columns",
+    database: "joins.db",
+    sql: "SELECT a.id AS author_id, a.name AS author_name, b.id AS book_id, b.author_id AS book_author_id, b.title, b.price FROM authors a LEFT JOIN books b ON a.id = b.author_id ORDER BY a.id, b.id",
+  },
+  {
+    name: "joins.cross",
+    database: "joins.db",
+    sql: "SELECT a.name, b.title FROM authors a CROSS JOIN books b WHERE a.id = 1 ORDER BY b.id",
+  },
+  {
+    name: "joins.cross_star_unique",
+    database: "joins.db",
+    sql: "SELECT * FROM authors CROSS JOIN shipments WHERE authors.id = 1 ORDER BY shipments.order_id",
+  },
+  {
+    name: "joins.left_star_unique",
+    database: "joins.db",
+    sql: "SELECT * FROM authors LEFT JOIN shipments ON authors.id = shipments.order_id ORDER BY authors.id",
+  },
+  {
+    name: "joins.comma",
+    database: "joins.db",
+    sql: "SELECT a.name, b.title FROM authors a, books b WHERE a.id = b.author_id ORDER BY b.id",
+  },
+  {
+    name: "joins.using_star",
+    database: "joins.db",
+    sql: "SELECT * FROM orders JOIN shipments USING (order_id) ORDER BY order_id",
+  },
+  {
+    name: "joins.using_qualified",
+    database: "joins.db",
+    sql: "SELECT orders.order_id AS order_key, shipments.order_id AS shipment_key, orders.amount, shipments.carrier FROM orders JOIN shipments USING (order_id) ORDER BY orders.order_id",
+  },
+  {
+    name: "joins.using_left",
+    database: "joins.db",
+    sql: "SELECT * FROM orders LEFT JOIN shipments USING (order_id) ORDER BY order_id",
+  },
+  {
+    name: "joins.natural_star",
+    database: "joins.db",
+    sql: "SELECT * FROM orders NATURAL JOIN shipments ORDER BY order_id",
+  },
+  {
+    name: "joins.natural_left",
+    database: "joins.db",
+    sql: "SELECT * FROM orders NATURAL LEFT JOIN shipments ORDER BY order_id",
+  },
+  {
+    name: "joins.group",
+    database: "joins.db",
+    sql: "SELECT a.name, count(*), sum(b.price) FROM authors a JOIN books b ON a.id = b.author_id GROUP BY a.name ORDER BY a.name",
+  },
+  {
+    name: "joins.aggregate_left",
+    database: "joins.db",
+    sql: "SELECT a.name, count(b.id), sum(b.price) FROM authors a LEFT JOIN books b ON a.id = b.author_id GROUP BY a.name ORDER BY a.name",
+  },
+  {
+    name: "joins.distinct",
+    database: "joins.db",
+    sql: "SELECT DISTINCT a.name FROM authors a JOIN books b ON a.id = b.author_id ORDER BY a.name",
+  },
+  {
+    name: "joins.order_hidden",
+    database: "joins.db",
+    sql: "SELECT a.name FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id DESC LIMIT 2",
+  },
+  {
+    name: "joins.where",
+    database: "joins.db",
+    sql: "SELECT b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE b.price > 15 ORDER BY b.id",
+  },
+  {
+    name: "joins.self",
+    database: "joins.db",
+    sql: "SELECT e.name AS employee, m.name AS manager FROM authors e JOIN authors m ON e.id = m.id + 1 ORDER BY e.id",
+  },
+  {
+    name: "joins.qualified_where",
+    database: "joins.db",
+    sql: "SELECT b.title FROM authors AS a INNER JOIN books AS b ON a.id = b.author_id WHERE a.name = 'Ada' ORDER BY b.id",
+  },
+  {
+    name: "joins.cross_count",
+    database: "joins.db",
+    sql: "SELECT count(*) FROM authors CROSS JOIN books",
+  },
+  {
+    name: "joins.left_where_is_null",
+    database: "joins.db",
+    sql: "SELECT a.name, b.title FROM authors a LEFT JOIN books b ON a.id = b.author_id WHERE b.id IS NULL ORDER BY a.id",
+  },
+  {
+    name: "joins.using_where",
+    database: "joins.db",
+    sql: "SELECT * FROM orders JOIN shipments USING (order_id) WHERE amount > 60 ORDER BY order_id",
+  },
+  {
+    name: "joins.natural_qualified",
+    database: "joins.db",
+    sql: "SELECT shipments.carrier FROM orders NATURAL JOIN shipments ORDER BY order_id",
+  },
 ];
 
 function querySql(sql) {
@@ -1214,5 +1392,6 @@ await writeFixture("nulls", nullsDatabase());
 await writeFixture("many_indexes", manyIndexesDatabase());
 await writeFixture("ordering", orderingDatabase());
 await writeFixture("aggregates", aggregatesDatabase());
+await writeFixture("joins", joinsDatabase());
 
 await writeQueries();

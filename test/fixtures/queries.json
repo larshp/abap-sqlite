@@ -5093,6 +5093,1276 @@
           }
         ]
       ]
+    },
+    {
+      "name": "joins.inner_on",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id",
+      "columns": [
+        "name",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "text",
+            "value": "Gamma"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.inner_qualified_star",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.*, b.title FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id",
+      "columns": [
+        "id",
+        "name",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "text",
+            "value": "Gamma"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.inner_columns",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.id AS author_id, a.name AS author_name, b.id AS book_id, b.author_id AS book_author_id, b.title, b.price FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id",
+      "columns": [
+        "author_id",
+        "author_name",
+        "book_id",
+        "book_author_id",
+        "title",
+        "price"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          },
+          {
+            "type": "integer",
+            "value": "20"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Gamma"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.left_on",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.name, b.title FROM authors a LEFT JOIN books b ON a.id = b.author_id ORDER BY a.id, b.id",
+      "columns": [
+        "name",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "text",
+            "value": "Gamma"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Linus"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Nobody"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.left_columns",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.id AS author_id, a.name AS author_name, b.id AS book_id, b.author_id AS book_author_id, b.title, b.price FROM authors a LEFT JOIN books b ON a.id = b.author_id ORDER BY a.id, b.id",
+      "columns": [
+        "author_id",
+        "author_name",
+        "book_id",
+        "book_author_id",
+        "title",
+        "price"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          },
+          {
+            "type": "integer",
+            "value": "20"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Gamma"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "Linus"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "Nobody"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.cross",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.name, b.title FROM authors a CROSS JOIN books b WHERE a.id = 1 ORDER BY b.id",
+      "columns": [
+        "name",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Gamma"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Orphan"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Ghost"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.cross_star_unique",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT * FROM authors CROSS JOIN shipments WHERE authors.id = 1 ORDER BY shipments.order_id",
+      "columns": [
+        "id",
+        "name",
+        "order_id",
+        "carrier"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "UPS"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "DHL"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "FedEx"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.left_star_unique",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT * FROM authors LEFT JOIN shipments ON authors.id = shipments.order_id ORDER BY authors.id",
+      "columns": [
+        "id",
+        "name",
+        "order_id",
+        "carrier"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "UPS"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "DHL"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "Linus"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "Nobody"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.comma",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.name, b.title FROM authors a, books b WHERE a.id = b.author_id ORDER BY b.id",
+      "columns": [
+        "name",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "text",
+            "value": "Gamma"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.using_star",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT * FROM orders JOIN shipments USING (order_id) ORDER BY order_id",
+      "columns": [
+        "order_id",
+        "customer_id",
+        "amount",
+        "carrier"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "100"
+          },
+          {
+            "type": "text",
+            "value": "UPS"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "50"
+          },
+          {
+            "type": "text",
+            "value": "DHL"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.using_qualified",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT orders.order_id AS order_key, shipments.order_id AS shipment_key, orders.amount, shipments.carrier FROM orders JOIN shipments USING (order_id) ORDER BY orders.order_id",
+      "columns": [
+        "order_key",
+        "shipment_key",
+        "amount",
+        "carrier"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "100"
+          },
+          {
+            "type": "text",
+            "value": "UPS"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "50"
+          },
+          {
+            "type": "text",
+            "value": "DHL"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.using_left",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT * FROM orders LEFT JOIN shipments USING (order_id) ORDER BY order_id",
+      "columns": [
+        "order_id",
+        "customer_id",
+        "amount",
+        "carrier"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "100"
+          },
+          {
+            "type": "text",
+            "value": "UPS"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "50"
+          },
+          {
+            "type": "text",
+            "value": "DHL"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "20"
+          },
+          {
+            "type": "integer",
+            "value": "75"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "integer",
+            "value": "30"
+          },
+          {
+            "type": "integer",
+            "value": "25"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.natural_star",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT * FROM orders NATURAL JOIN shipments ORDER BY order_id",
+      "columns": [
+        "order_id",
+        "customer_id",
+        "amount",
+        "carrier"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "100"
+          },
+          {
+            "type": "text",
+            "value": "UPS"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "50"
+          },
+          {
+            "type": "text",
+            "value": "DHL"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.natural_left",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT * FROM orders NATURAL LEFT JOIN shipments ORDER BY order_id",
+      "columns": [
+        "order_id",
+        "customer_id",
+        "amount",
+        "carrier"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "100"
+          },
+          {
+            "type": "text",
+            "value": "UPS"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "50"
+          },
+          {
+            "type": "text",
+            "value": "DHL"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "20"
+          },
+          {
+            "type": "integer",
+            "value": "75"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "integer",
+            "value": "30"
+          },
+          {
+            "type": "integer",
+            "value": "25"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.group",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.name, count(*), sum(b.price) FROM authors a JOIN books b ON a.id = b.author_id GROUP BY a.name ORDER BY a.name",
+      "columns": [
+        "name",
+        "count(*)",
+        "sum(b.price)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "30"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.aggregate_left",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.name, count(b.id), sum(b.price) FROM authors a LEFT JOIN books b ON a.id = b.author_id GROUP BY a.name ORDER BY a.name",
+      "columns": [
+        "name",
+        "count(b.id)",
+        "sum(b.price)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "30"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Linus"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Nobody"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.distinct",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT DISTINCT a.name FROM authors a JOIN books b ON a.id = b.author_id ORDER BY a.name",
+      "columns": [
+        "name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Grace"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.order_hidden",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.name FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id DESC LIMIT 2",
+      "columns": [
+        "name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Grace"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.where",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE b.price > 15 ORDER BY b.id",
+      "columns": [
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.self",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT e.name AS employee, m.name AS manager FROM authors e JOIN authors m ON e.id = m.id + 1 ORDER BY e.id",
+      "columns": [
+        "employee",
+        "manager"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Linus"
+          },
+          {
+            "type": "text",
+            "value": "Grace"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Nobody"
+          },
+          {
+            "type": "text",
+            "value": "Linus"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.qualified_where",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT b.title FROM authors AS a INNER JOIN books AS b ON a.id = b.author_id WHERE a.name = 'Ada' ORDER BY b.id",
+      "columns": [
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Alpha"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.cross_count",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT count(*) FROM authors CROSS JOIN books",
+      "columns": [
+        "count(*)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "20"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.left_where_is_null",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.name, b.title FROM authors a LEFT JOIN books b ON a.id = b.author_id WHERE b.id IS NULL ORDER BY a.id",
+      "columns": [
+        "name",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Linus"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Nobody"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.using_where",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT * FROM orders JOIN shipments USING (order_id) WHERE amount > 60 ORDER BY order_id",
+      "columns": [
+        "order_id",
+        "customer_id",
+        "amount",
+        "carrier"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "100"
+          },
+          {
+            "type": "text",
+            "value": "UPS"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "joins.natural_qualified",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT shipments.carrier FROM orders NATURAL JOIN shipments ORDER BY order_id",
+      "columns": [
+        "carrier"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "UPS"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "DHL"
+          }
+        ]
+      ]
     }
   ]
 }

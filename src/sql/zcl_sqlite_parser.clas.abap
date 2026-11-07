@@ -1399,9 +1399,15 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
 
   METHOD parse_join.
     DATA lv_join_type TYPE string.
+    DATA lv_natural   TYPE abap_bool.
     DATA lo_right     TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_on        TYPE REF TO zcl_sqlite_ast_node.
     DATA lt_using     TYPE zcl_sqlite_ast_join=>ty_using.
+
+    IF is_keyword( 'NATURAL' ) = abap_true.
+      advance( ).
+      lv_natural = abap_true.
+    ENDIF.
 
     IF is_keyword( 'INNER' ) = abap_true.
       advance( ).
@@ -1436,12 +1442,18 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
     ENDIF.
 
+    IF lv_natural = abap_true
+        AND ( lo_on IS BOUND OR lines( lt_using ) > 0 ).
+      fail( 'NATURAL join cannot have ON or USING' ).
+    ENDIF.
+
     ro_join = NEW zcl_sqlite_ast_join(
       iv_join_type = lv_join_type
       io_left      = io_left
       io_right     = lo_right
       io_on        = lo_on
-      it_using     = lt_using ).
+      it_using     = lt_using
+      iv_natural   = lv_natural ).
   ENDMETHOD.
 
   METHOD is_join_start.
@@ -1449,7 +1461,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       is_keyword( 'JOIN' ) = abap_true
       OR is_keyword( 'INNER' ) = abap_true
       OR is_keyword( 'LEFT' ) = abap_true
-      OR is_keyword( 'CROSS' ) = abap_true ).
+      OR is_keyword( 'CROSS' ) = abap_true
+      OR is_keyword( 'NATURAL' ) = abap_true ).
   ENDMETHOD.
 
   METHOD parse_expression_list.

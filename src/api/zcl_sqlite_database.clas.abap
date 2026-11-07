@@ -1,5 +1,5 @@
 * Minimal read-only database API. It opens a database through the table VFS
-* and executes SELECT statements with the TableScan, Filter, Group and
+* and executes SELECT statements with the TableScan, Join, Filter, Group and
 * Project operators. Phase 6 replaces this with the polished public API.
 CLASS zcl_sqlite_database DEFINITION
   PUBLIC
@@ -29,10 +29,17 @@ CLASS zcl_sqlite_database DEFINITION
       RAISING   zcx_sqlite_error.
 
   PRIVATE SECTION.
+    TYPES ty_from_columns TYPE zcl_sqlite_join=>ty_columns.
+
     TYPES: BEGIN OF ty_order_result,
              columns TYPE zcl_sqlite_project=>ty_columns,
              terms   TYPE zcl_sqlite_sort=>ty_terms,
            END OF ty_order_result.
+
+    TYPES: BEGIN OF ty_from_plan,
+             operator TYPE REF TO zif_sqlite_operator,
+             columns  TYPE ty_from_columns,
+           END OF ty_from_plan.
 
     DATA mo_file   TYPE REF TO zif_sqlite_file.
     DATA mo_pager  TYPE REF TO zcl_sqlite_pager.
@@ -43,11 +50,55 @@ CLASS zcl_sqlite_database DEFINITION
                 io_pager  TYPE REF TO zcl_sqlite_pager
                 io_schema TYPE REF TO zcl_sqlite_schema.
 
+    METHODS build_from_list
+      IMPORTING it_from        TYPE zcl_sqlite_ast_select=>ty_from
+      RETURNING VALUE(rs_plan) TYPE ty_from_plan
+      RAISING   zcx_sqlite_error.
+
+    METHODS build_from
+      IMPORTING io_item        TYPE REF TO zcl_sqlite_ast_node
+      RETURNING VALUE(rs_plan) TYPE ty_from_plan
+      RAISING   zcx_sqlite_error.
+
+    METHODS build_table
+      IMPORTING io_table_ref   TYPE REF TO zcl_sqlite_ast_table_ref
+      RETURNING VALUE(rs_plan) TYPE ty_from_plan
+      RAISING   zcx_sqlite_error.
+
+    METHODS build_join
+      IMPORTING io_join        TYPE REF TO zcl_sqlite_ast_join
+      RETURNING VALUE(rs_plan) TYPE ty_from_plan
+      RAISING   zcx_sqlite_error.
+
+    METHODS combine_plans
+      IMPORTING is_left        TYPE ty_from_plan
+                is_right       TYPE ty_from_plan
+                iv_join_type   TYPE string
+                io_on          TYPE REF TO zcl_sqlite_ast_node OPTIONAL
+                it_using       TYPE zcl_sqlite_join=>ty_names OPTIONAL
+      RETURNING VALUE(rs_plan) TYPE ty_from_plan
+      RAISING   zcx_sqlite_error.
+
+    METHODS natural_columns
+      IMPORTING is_left         TYPE ty_from_plan
+                is_right        TYPE ty_from_plan
+      RETURNING VALUE(rt_names) TYPE zcl_sqlite_join=>ty_names.
+
+    METHODS validate_using
+      IMPORTING is_left  TYPE ty_from_plan
+                is_right TYPE ty_from_plan
+                it_using TYPE zcl_sqlite_join=>ty_names
+      RAISING   zcx_sqlite_error.
+
     METHODS project_columns
       IMPORTING it_result_columns TYPE zcl_sqlite_ast_select=>ty_columns
-                it_table_columns  TYPE zcl_sqlite_schema=>ty_columns OPTIONAL
+                it_table_columns  TYPE ty_from_columns OPTIONAL
       RETURNING VALUE(rt_columns) TYPE zcl_sqlite_project=>ty_columns
       RAISING   zcx_sqlite_error.
+
+    METHODS star_qualifier
+      IMPORTING io_expression       TYPE REF TO zcl_sqlite_ast_node
+      RETURNING VALUE(rv_qualifier) TYPE string.
 
     METHODS resolve_order_terms
       IMPORTING it_order_by        TYPE zcl_sqlite_ast_order_by=>ty_list
@@ -111,8 +162,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
   METHOD query.
     DATA lo_statement       TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_select          TYPE REF TO zcl_sqlite_ast_select.
-    DATA lo_from            TYPE REF TO zcl_sqlite_ast_node.
-    DATA lo_table_ref       TYPE REF TO zcl_sqlite_ast_table_ref.
     DATA lo_where           TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_having          TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_operator        TYPE REF TO zif_sqlite_operator.
@@ -124,12 +173,11 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lt_order_by        TYPE zcl_sqlite_ast_order_by=>ty_list.
     DATA ls_order_result    TYPE ty_order_result.
     DATA ls_project_column  TYPE zcl_sqlite_project=>ty_column.
-    DATA ls_table           TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_from_plan       TYPE ty_from_plan.
     DATA lt_order_terms     TYPE zcl_sqlite_sort=>ty_terms.
     DATA lt_result_row      TYPE ty_row.
     DATA lt_values          TYPE zcl_sqlite_record=>ty_values.
     DATA lo_cell_value      TYPE REF TO zcl_sqlite_value.
-    DATA lv_has_table       TYPE abap_bool.
     DATA lv_visible_count   TYPE i.
     DATA lv_aggregate       TYPE abap_bool.
 
@@ -146,23 +194,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     lo_select ?= lo_statement.
 
     lt_from = lo_select->get_from( ).
-    IF lines( lt_from ) > 1.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING iv_message = 'joins are not supported yet'.
-    ENDIF.
-    IF lines( lt_from ) = 1.
-      READ TABLE lt_from INTO lo_from INDEX 1.
-      IF lo_from IS NOT INSTANCE OF zcl_sqlite_ast_table_ref.
-        RAISE EXCEPTION TYPE zcx_sqlite_error
-          EXPORTING iv_message = 'only simple table references are supported'.
-      ENDIF.
-      lo_table_ref ?= lo_from.
-      ls_table = mo_schema->table( lo_table_ref->get_name( ) ).
-      IF ls_table-name IS INITIAL.
-        RAISE EXCEPTION TYPE zcx_sqlite_error
-          EXPORTING iv_message = |no such table: { lo_table_ref->get_name( ) }|.
-      ENDIF.
-      lv_has_table = abap_true.
+    IF lines( lt_from ) > 0.
+      ls_from_plan = build_from_list( lt_from ).
     ENDIF.
 
     lt_result_columns = lo_select->get_columns( ).
@@ -172,7 +205,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ENDIF.
     lt_project_columns = project_columns(
       it_result_columns = lt_result_columns
-      it_table_columns  = ls_table-columns ).
+      it_table_columns  = ls_from_plan-columns ).
     lv_visible_count = lines( lt_project_columns ).
     lt_order_by = lo_select->get_order_by( ).
     ls_order_result = resolve_order_terms(
@@ -199,11 +232,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       ENDLOOP.
     ENDIF.
 
-    IF lv_has_table = abap_true.
-      lo_operator = NEW zcl_sqlite_table_scan(
-        io_pager  = mo_pager
-        is_table  = ls_table
-        iv_alias  = lo_table_ref->get_alias( ) ).
+    IF ls_from_plan-operator IS BOUND.
+      lo_operator = ls_from_plan-operator.
       lo_where = lo_select->get_where( ).
       IF lo_where IS BOUND.
         lo_operator = NEW zcl_sqlite_filter(
@@ -395,13 +425,208 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ENDLOOP.
   ENDMETHOD.
 
+  METHOD build_from_list.
+    DATA lo_item    TYPE REF TO zcl_sqlite_ast_node.
+    DATA ls_right   TYPE ty_from_plan.
+
+    READ TABLE it_from INTO lo_item INDEX 1.
+    IF sy-subrc = 0.
+      rs_plan = build_from( lo_item ).
+    ENDIF.
+
+    LOOP AT it_from INTO lo_item FROM 2.
+      ls_right = build_from( lo_item ).
+      rs_plan = combine_plans(
+        is_left      = rs_plan
+        is_right     = ls_right
+        iv_join_type = 'CROSS JOIN' ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD build_from.
+    DATA lo_table_ref TYPE REF TO zcl_sqlite_ast_table_ref.
+    DATA lo_join      TYPE REF TO zcl_sqlite_ast_join.
+
+    IF io_item IS INSTANCE OF zcl_sqlite_ast_table_ref.
+      lo_table_ref ?= io_item.
+      rs_plan = build_table( lo_table_ref ).
+    ELSEIF io_item IS INSTANCE OF zcl_sqlite_ast_join.
+      lo_join ?= io_item.
+      rs_plan = build_join( lo_join ).
+    ELSE.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING iv_message = 'subqueries in FROM are not supported yet'.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD build_table.
+    DATA ls_table       TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_table_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA ls_from_column TYPE zcl_sqlite_join=>ty_column.
+    DATA lv_table_name  TYPE string.
+
+    ls_table = mo_schema->table( io_table_ref->get_name( ) ).
+    IF ls_table-name IS INITIAL.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING iv_message = |no such table: { io_table_ref->get_name( ) }|.
+    ENDIF.
+
+    lv_table_name = io_table_ref->get_alias( ).
+    IF lv_table_name IS INITIAL.
+      lv_table_name = ls_table-name.
+    ENDIF.
+
+    rs_plan-operator = NEW zcl_sqlite_table_scan(
+      io_pager = mo_pager
+      is_table = ls_table
+      iv_alias = io_table_ref->get_alias( ) ).
+
+    LOOP AT ls_table-columns INTO ls_table_column.
+      ls_from_column-name = ls_table_column-name.
+      ls_from_column-table_name = lv_table_name.
+      ls_from_column-hidden = abap_false.
+      APPEND ls_from_column TO rs_plan-columns.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD build_join.
+    DATA ls_left      TYPE ty_from_plan.
+    DATA ls_right     TYPE ty_from_plan.
+    DATA lt_using     TYPE zcl_sqlite_join=>ty_names.
+    DATA lv_join_type TYPE string.
+
+    ls_left = build_from( io_join->get_left( ) ).
+    ls_right = build_from( io_join->get_right( ) ).
+    lv_join_type = io_join->get_join_type( ).
+
+    IF io_join->is_natural( ) = abap_true.
+      lt_using = natural_columns(
+        is_left  = ls_left
+        is_right = ls_right ).
+    ELSE.
+      lt_using = io_join->get_using( ).
+    ENDIF.
+
+    rs_plan = combine_plans(
+      is_left      = ls_left
+      is_right     = ls_right
+      iv_join_type = lv_join_type
+      io_on        = io_join->get_on( )
+      it_using     = lt_using ).
+  ENDMETHOD.
+
+  METHOD combine_plans.
+    DATA lt_right_columns TYPE ty_from_columns.
+    DATA lt_hidden_columns TYPE ty_from_columns.
+    DATA ls_right_column  TYPE zcl_sqlite_join=>ty_column.
+    DATA lv_name          TYPE string.
+    DATA lv_hidden        TYPE abap_bool.
+
+    lt_right_columns = is_right-columns.
+
+    IF lines( it_using ) > 0.
+      validate_using(
+        is_left  = is_left
+        is_right = is_right
+        it_using = it_using ).
+      LOOP AT lt_right_columns INTO ls_right_column.
+        lv_hidden = ls_right_column-hidden.
+        LOOP AT it_using INTO lv_name.
+          IF to_upper( ls_right_column-name ) = to_upper( lv_name ).
+            lv_hidden = abap_true.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+        IF lv_hidden = abap_true.
+          ls_right_column-hidden = abap_true.
+        ENDIF.
+        APPEND ls_right_column TO lt_hidden_columns.
+      ENDLOOP.
+      lt_right_columns = lt_hidden_columns.
+    ENDIF.
+
+    rs_plan-columns = is_left-columns.
+    APPEND LINES OF lt_right_columns TO rs_plan-columns.
+
+    rs_plan-operator = NEW zcl_sqlite_join(
+      io_left          = is_left-operator
+      io_right         = is_right-operator
+      iv_join_type     = iv_join_type
+      io_on            = io_on
+      it_using         = it_using
+      it_right_columns = lt_right_columns ).
+  ENDMETHOD.
+
+  METHOD natural_columns.
+    DATA ls_left      TYPE zcl_sqlite_join=>ty_column.
+    DATA ls_right     TYPE zcl_sqlite_join=>ty_column.
+    DATA lv_existing  TYPE string.
+
+    LOOP AT is_left-columns INTO ls_left.
+      IF ls_left-hidden = abap_true.
+        CONTINUE.
+      ENDIF.
+      LOOP AT is_right-columns INTO ls_right.
+        IF ls_right-hidden = abap_true.
+          CONTINUE.
+        ENDIF.
+        IF to_upper( ls_left-name ) <> to_upper( ls_right-name ).
+          CONTINUE.
+        ENDIF.
+        LOOP AT rt_names INTO lv_existing.
+          IF to_upper( lv_existing ) = to_upper( ls_left-name ).
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+        IF sy-subrc <> 0.
+          APPEND ls_left-name TO rt_names.
+        ENDIF.
+        EXIT.
+      ENDLOOP.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD validate_using.
+    DATA ls_column TYPE zcl_sqlite_join=>ty_column.
+    DATA lv_name   TYPE string.
+    DATA lv_found  TYPE abap_bool.
+
+    LOOP AT it_using INTO lv_name.
+      CLEAR lv_found.
+      LOOP AT is_left-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = to_upper( lv_name ).
+          lv_found = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lv_found = abap_false.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING iv_message = |cannot join using column { lv_name } - column not present in both tables|.
+      ENDIF.
+
+      CLEAR lv_found.
+      LOOP AT is_right-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = to_upper( lv_name ).
+          lv_found = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lv_found = abap_false.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING iv_message = |cannot join using column { lv_name } - column not present in both tables|.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
   METHOD project_columns.
     DATA lo_result_column TYPE REF TO zcl_sqlite_ast_result_column.
     DATA lo_name          TYPE REF TO zcl_sqlite_ast_name.
     DATA lo_expression    TYPE REF TO zcl_sqlite_ast_node.
-    DATA ls_table_column  TYPE zcl_sqlite_schema=>ty_column.
+    DATA ls_from_column   TYPE zcl_sqlite_join=>ty_column.
     DATA ls_project_column TYPE zcl_sqlite_project=>ty_column.
     DATA lv_alias         TYPE string.
+    DATA lv_qualifier     TYPE string.
+    DATA lv_found         TYPE abap_bool.
 
     LOOP AT it_result_columns INTO lo_result_column.
       lo_expression = lo_result_column->get_expression( ).
@@ -410,13 +635,33 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           RAISE EXCEPTION TYPE zcx_sqlite_error
             EXPORTING iv_message = 'star requires a table'.
         ENDIF.
-        LOOP AT it_table_columns INTO ls_table_column.
-          ls_project_column-expression = NEW zcl_sqlite_ast_name(
-            iv_kind = zcl_sqlite_ast_name=>c_column
-            iv_text = ls_table_column-name ).
-          ls_project_column-name = ls_table_column-name.
+        lv_qualifier = star_qualifier( lo_expression ).
+        CLEAR lv_found.
+        LOOP AT it_table_columns INTO ls_from_column.
+          IF lv_qualifier IS INITIAL.
+            IF ls_from_column-hidden = abap_true.
+              CONTINUE.
+            ENDIF.
+          ELSEIF to_upper( ls_from_column-table_name ) <> to_upper( lv_qualifier ).
+            CONTINUE.
+          ENDIF.
+          lv_found = abap_true.
+          IF ls_from_column-table_name IS INITIAL.
+            ls_project_column-expression = NEW zcl_sqlite_ast_name(
+              iv_kind = zcl_sqlite_ast_name=>c_column
+              iv_text = ls_from_column-name ).
+          ELSE.
+            ls_project_column-expression = NEW zcl_sqlite_ast_name(
+              iv_kind = zcl_sqlite_ast_name=>c_column
+              iv_text = |{ ls_from_column-table_name }.{ ls_from_column-name }| ).
+          ENDIF.
+          ls_project_column-name = ls_from_column-name.
           APPEND ls_project_column TO rt_columns.
         ENDLOOP.
+        IF lv_qualifier IS NOT INITIAL AND lv_found = abap_false.
+          RAISE EXCEPTION TYPE zcx_sqlite_error
+            EXPORTING iv_message = |no such table: { lv_qualifier }|.
+        ENDIF.
         CONTINUE.
       ENDIF.
 
@@ -436,6 +681,26 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       ENDIF.
       APPEND ls_project_column TO rt_columns.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD star_qualifier.
+    DATA lo_name   TYPE REF TO zcl_sqlite_ast_name.
+    DATA lv_text   TYPE string.
+    DATA lv_length TYPE i.
+
+    IF io_expression IS NOT INSTANCE OF zcl_sqlite_ast_name.
+      RETURN.
+    ENDIF.
+    lo_name ?= io_expression.
+    IF lo_name->get_kind( ) <> zcl_sqlite_ast_name=>c_column.
+      RETURN.
+    ENDIF.
+    lv_text = lo_name->get_text( ).
+    lv_length = strlen( lv_text ).
+    IF lv_length >= 2
+        AND substring( val = lv_text off = lv_length - 2 len = 2 ) = '.*'.
+      rv_qualifier = substring( val = lv_text off = 0 len = lv_length - 2 ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD is_star.

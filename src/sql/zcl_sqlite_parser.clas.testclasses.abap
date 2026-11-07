@@ -437,6 +437,12 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_parse(
       iv_sql = |SELECT * FROM a, b JOIN c ON b.id = c.id|
       iv_expected = |SELECT STAR FROM a, b INNER JOIN c ON BINARY(=, COLUMN(b.id), COLUMN(c.id))| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM a NATURAL JOIN b|
+      iv_expected = |SELECT STAR FROM a NATURAL INNER JOIN b| ).
+    assert_statement_parse(
+      iv_sql = |SELECT * FROM a NATURAL LEFT OUTER JOIN b|
+      iv_expected = |SELECT STAR FROM a NATURAL LEFT JOIN b| ).
   ENDMETHOD.
 
   METHOD select_values.

@@ -15,6 +15,9 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS aggregates_group_having FOR TESTING RAISING zcx_sqlite_error.
     METHODS aggregates_group_concat FOR TESTING RAISING zcx_sqlite_error.
     METHODS aggregates_empty FOR TESTING RAISING zcx_sqlite_error.
+    METHODS joins_inner_left FOR TESTING RAISING zcx_sqlite_error.
+    METHODS joins_using_natural FOR TESTING RAISING zcx_sqlite_error.
+    METHODS joins_ambiguous FOR TESTING RAISING zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -359,6 +362,94 @@ CLASS ltcl_database IMPLEMENTATION.
     READ TABLE ls_row INTO lo_value INDEX 8.
     cl_abap_unit_assert=>assert_equals(
       act = lo_value->is_null( ) exp = abap_true msg = 'group_concat' ).
+
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD joins_inner_left.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/joins.db' ).
+    rs_result = lo_database->query(
+      'SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 3 msg = 'inner row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = 'Ada' msg = 'inner author' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = 'Alpha' msg = 'inner title' ).
+
+    rs_result = lo_database->query(
+      'SELECT a.name, b.title FROM authors a LEFT JOIN books b ON a.id = b.author_id ORDER BY a.id, b.id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 5 msg = 'left row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 4.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = 'Linus' msg = 'left author' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( ) exp = abap_true msg = 'left null title' ).
+
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD joins_using_natural.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_name     TYPE string.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/joins.db' ).
+    rs_result = lo_database->query( 'SELECT * FROM orders JOIN shipments USING (order_id) ORDER BY order_id' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-columns ) exp = 4 msg = 'using column count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 2 msg = 'using row count' ).
+    READ TABLE rs_result-columns INTO lv_name INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_name exp = 'order_id' msg = 'using first column' ).
+
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 4.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( ) exp = 'UPS' msg = 'using carrier' ).
+
+    rs_result = lo_database->query( 'SELECT * FROM orders NATURAL LEFT JOIN shipments ORDER BY order_id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 4 msg = 'natural left row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 3.
+    READ TABLE ls_row INTO lo_value INDEX 4.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( ) exp = abap_true msg = 'natural left null carrier' ).
+
+    lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD joins_ambiguous.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/joins.db' ).
+
+    TRY.
+        lo_database->query( 'SELECT id FROM authors a JOIN books b ON a.id = b.author_id' ).
+        cl_abap_unit_assert=>fail( 'expected ambiguous column error' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'ambiguous column name: id'
+          msg = 'ambiguous column' ).
+    ENDTRY.
 
     lo_database->close( ).
   ENDMETHOD.
