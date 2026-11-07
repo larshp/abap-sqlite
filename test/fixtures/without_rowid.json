@@ -1,0 +1,435 @@
+{
+  "pragmas": {
+    "page_size": 512,
+    "page_count": 7,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "wr",
+      "sql": "CREATE TABLE wr (\n      k TEXT PRIMARY KEY,\n      v TEXT,\n      n INTEGER\n    ) WITHOUT ROWID",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "k",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 1
+        },
+        {
+          "cid": 1,
+          "name": "v",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "n",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          "key-001",
+          "value-001",
+          1
+        ],
+        [
+          "key-002",
+          "value-002",
+          2
+        ],
+        [
+          "key-003",
+          "value-003",
+          3
+        ],
+        [
+          "key-004",
+          "value-004",
+          4
+        ],
+        [
+          "key-005",
+          "value-005",
+          5
+        ],
+        [
+          "key-006",
+          "value-006",
+          6
+        ],
+        [
+          "key-007",
+          "value-007",
+          7
+        ],
+        [
+          "key-008",
+          "value-008",
+          8
+        ],
+        [
+          "key-009",
+          "value-009",
+          9
+        ],
+        [
+          "key-010",
+          "value-010",
+          10
+        ],
+        [
+          "key-011",
+          "value-011",
+          11
+        ],
+        [
+          "key-012",
+          "value-012",
+          12
+        ],
+        [
+          "key-013",
+          "value-013",
+          13
+        ],
+        [
+          "key-014",
+          "value-014",
+          14
+        ],
+        [
+          "key-015",
+          "value-015",
+          15
+        ],
+        [
+          "key-016",
+          "value-016",
+          16
+        ],
+        [
+          "key-017",
+          "value-017",
+          17
+        ],
+        [
+          "key-018",
+          "value-018",
+          18
+        ],
+        [
+          "key-019",
+          "value-019",
+          19
+        ],
+        [
+          "key-020",
+          "value-020",
+          20
+        ],
+        [
+          "key-021",
+          "value-021",
+          21
+        ],
+        [
+          "key-022",
+          "value-022",
+          22
+        ],
+        [
+          "key-023",
+          "value-023",
+          23
+        ],
+        [
+          "key-024",
+          "value-024",
+          24
+        ],
+        [
+          "key-025",
+          "value-025",
+          25
+        ],
+        [
+          "key-026",
+          "value-026",
+          26
+        ],
+        [
+          "key-027",
+          "value-027",
+          27
+        ],
+        [
+          "key-028",
+          "value-028",
+          28
+        ],
+        [
+          "key-029",
+          "value-029",
+          29
+        ],
+        [
+          "key-030",
+          "value-030",
+          30
+        ],
+        [
+          "key-031",
+          "value-031",
+          31
+        ],
+        [
+          "key-032",
+          "value-032",
+          32
+        ],
+        [
+          "key-033",
+          "value-033",
+          33
+        ],
+        [
+          "key-034",
+          "value-034",
+          34
+        ],
+        [
+          "key-035",
+          "value-035",
+          35
+        ],
+        [
+          "key-036",
+          "value-036",
+          36
+        ],
+        [
+          "key-037",
+          "value-037",
+          37
+        ],
+        [
+          "key-038",
+          "value-038",
+          38
+        ],
+        [
+          "key-039",
+          "value-039",
+          39
+        ],
+        [
+          "key-040",
+          "value-040",
+          40
+        ]
+      ]
+    }
+  ],
+  "indexes": [
+    {
+      "name": "wr_v",
+      "table": "wr",
+      "sql": "CREATE INDEX wr_v ON wr(v)",
+      "columns": [
+        "v"
+      ],
+      "entries": [
+        [
+          "value-001",
+          "key-001"
+        ],
+        [
+          "value-002",
+          "key-002"
+        ],
+        [
+          "value-003",
+          "key-003"
+        ],
+        [
+          "value-004",
+          "key-004"
+        ],
+        [
+          "value-005",
+          "key-005"
+        ],
+        [
+          "value-006",
+          "key-006"
+        ],
+        [
+          "value-007",
+          "key-007"
+        ],
+        [
+          "value-008",
+          "key-008"
+        ],
+        [
+          "value-009",
+          "key-009"
+        ],
+        [
+          "value-010",
+          "key-010"
+        ],
+        [
+          "value-011",
+          "key-011"
+        ],
+        [
+          "value-012",
+          "key-012"
+        ],
+        [
+          "value-013",
+          "key-013"
+        ],
+        [
+          "value-014",
+          "key-014"
+        ],
+        [
+          "value-015",
+          "key-015"
+        ],
+        [
+          "value-016",
+          "key-016"
+        ],
+        [
+          "value-017",
+          "key-017"
+        ],
+        [
+          "value-018",
+          "key-018"
+        ],
+        [
+          "value-019",
+          "key-019"
+        ],
+        [
+          "value-020",
+          "key-020"
+        ],
+        [
+          "value-021",
+          "key-021"
+        ],
+        [
+          "value-022",
+          "key-022"
+        ],
+        [
+          "value-023",
+          "key-023"
+        ],
+        [
+          "value-024",
+          "key-024"
+        ],
+        [
+          "value-025",
+          "key-025"
+        ],
+        [
+          "value-026",
+          "key-026"
+        ],
+        [
+          "value-027",
+          "key-027"
+        ],
+        [
+          "value-028",
+          "key-028"
+        ],
+        [
+          "value-029",
+          "key-029"
+        ],
+        [
+          "value-030",
+          "key-030"
+        ],
+        [
+          "value-031",
+          "key-031"
+        ],
+        [
+          "value-032",
+          "key-032"
+        ],
+        [
+          "value-033",
+          "key-033"
+        ],
+        [
+          "value-034",
+          "key-034"
+        ],
+        [
+          "value-035",
+          "key-035"
+        ],
+        [
+          "value-036",
+          "key-036"
+        ],
+        [
+          "value-037",
+          "key-037"
+        ],
+        [
+          "value-038",
+          "key-038"
+        ],
+        [
+          "value-039",
+          "key-039"
+        ],
+        [
+          "value-040",
+          "key-040"
+        ]
+      ]
+    }
+  ],
+  "schema": [
+    {
+      "type": "table",
+      "name": "wr",
+      "tbl_name": "wr",
+      "rootpage": 2,
+      "sql": "CREATE TABLE wr (\n      k TEXT PRIMARY KEY,\n      v TEXT,\n      n INTEGER\n    ) WITHOUT ROWID"
+    },
+    {
+      "type": "index",
+      "name": "wr_v",
+      "tbl_name": "wr",
+      "rootpage": 3,
+      "sql": "CREATE INDEX wr_v ON wr(v)"
+    }
+  ]
+}

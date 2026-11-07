@@ -1,0 +1,24 @@
+{
+  "name": "abap-sqlite",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A pure ABAP implementation of the SQLite database engine",
+  "license": "MIT",
+  "scripts": {
+    "lint": "abaplint",
+    "unit": "rimraf output && abap_transpile && node output/index.mjs",
+    "benchmark": "rimraf output && abap_transpile && node test/benchmark.mjs",
+    "fixtures": "node test/tools/make-fixtures.mjs",
+    "test": "npm run lint && npm run unit"
+  },
+  "dependencies": {
+    "@abaplint/cli": "^2.120.90",
+    "@abaplint/database-sqlite": "^2.14.12",
+    "@abaplint/runtime": "^2.14.13",
+    "@abaplint/transpiler-cli": "^2.14.13",
+    "rimraf": "^6.1.3"
+  },
+  "devDependencies": {
+    "sql.js": "^1.15.2"
+  }
+}

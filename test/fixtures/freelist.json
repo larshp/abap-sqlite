@@ -1,0 +1,227 @@
+{
+  "pragmas": {
+    "page_size": 512,
+    "page_count": 40,
+    "encoding": "UTF-8",
+    "freelist_count": 37,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "keep",
+      "sql": "CREATE TABLE keep (id INTEGER NOT NULL, value TEXT NOT NULL)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "value",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "keep-001"
+        ],
+        [
+          2,
+          "keep-002"
+        ],
+        [
+          3,
+          "keep-003"
+        ],
+        [
+          4,
+          "keep-004"
+        ],
+        [
+          5,
+          "keep-005"
+        ],
+        [
+          6,
+          "keep-006"
+        ],
+        [
+          7,
+          "keep-007"
+        ],
+        [
+          8,
+          "keep-008"
+        ],
+        [
+          9,
+          "keep-009"
+        ],
+        [
+          10,
+          "keep-010"
+        ],
+        [
+          11,
+          "keep-011"
+        ],
+        [
+          12,
+          "keep-012"
+        ],
+        [
+          13,
+          "keep-013"
+        ],
+        [
+          14,
+          "keep-014"
+        ],
+        [
+          15,
+          "keep-015"
+        ],
+        [
+          16,
+          "keep-016"
+        ],
+        [
+          17,
+          "keep-017"
+        ],
+        [
+          18,
+          "keep-018"
+        ],
+        [
+          19,
+          "keep-019"
+        ],
+        [
+          20,
+          "keep-020"
+        ]
+      ]
+    }
+  ],
+  "indexes": [
+    {
+      "name": "keep_value",
+      "table": "keep",
+      "sql": "CREATE INDEX keep_value ON keep(value)",
+      "columns": [
+        "value"
+      ],
+      "entries": [
+        [
+          "keep-001",
+          1
+        ],
+        [
+          "keep-002",
+          2
+        ],
+        [
+          "keep-003",
+          3
+        ],
+        [
+          "keep-004",
+          4
+        ],
+        [
+          "keep-005",
+          5
+        ],
+        [
+          "keep-006",
+          6
+        ],
+        [
+          "keep-007",
+          7
+        ],
+        [
+          "keep-008",
+          8
+        ],
+        [
+          "keep-009",
+          9
+        ],
+        [
+          "keep-010",
+          10
+        ],
+        [
+          "keep-011",
+          11
+        ],
+        [
+          "keep-012",
+          12
+        ],
+        [
+          "keep-013",
+          13
+        ],
+        [
+          "keep-014",
+          14
+        ],
+        [
+          "keep-015",
+          15
+        ],
+        [
+          "keep-016",
+          16
+        ],
+        [
+          "keep-017",
+          17
+        ],
+        [
+          "keep-018",
+          18
+        ],
+        [
+          "keep-019",
+          19
+        ],
+        [
+          "keep-020",
+          20
+        ]
+      ]
+    }
+  ],
+  "schema": [
+    {
+      "type": "table",
+      "name": "keep",
+      "tbl_name": "keep",
+      "rootpage": 2,
+      "sql": "CREATE TABLE keep (id INTEGER NOT NULL, value TEXT NOT NULL)"
+    },
+    {
+      "type": "index",
+      "name": "keep_value",
+      "tbl_name": "keep",
+      "rootpage": 3,
+      "sql": "CREATE INDEX keep_value ON keep(value)"
+    }
+  ]
+}
