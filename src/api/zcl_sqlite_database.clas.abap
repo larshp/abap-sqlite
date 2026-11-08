@@ -21,6 +21,12 @@ CLASS zcl_sqlite_database DEFINITION
       RETURNING VALUE(ro_database) TYPE REF TO zcl_sqlite_database
       RAISING   zcx_sqlite_error.
 
+* create an empty database with an empty sqlite_schema b-tree on page 1
+    CLASS-METHODS create
+      IMPORTING iv_name            TYPE string
+      RETURNING VALUE(ro_database) TYPE REF TO zcl_sqlite_database
+      RAISING   zcx_sqlite_error.
+
     METHODS close.
 
     METHODS query
@@ -54,6 +60,10 @@ CLASS zcl_sqlite_database DEFINITION
       IMPORTING io_file   TYPE REF TO zif_sqlite_file
                 io_pager  TYPE REF TO zcl_sqlite_pager
                 io_schema TYPE REF TO zcl_sqlite_schema.
+
+    CLASS-METHODS empty_page
+      RETURNING VALUE(rv_page) TYPE xstring
+      RAISING   zcx_sqlite_error.
 
     METHODS build_from_list
       IMPORTING it_from        TYPE zcl_sqlite_ast_select=>ty_from
@@ -153,10 +163,70 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       io_schema = lo_schema ).
   ENDMETHOD.
 
+  METHOD create.
+    DATA lo_vfs  TYPE REF TO zif_sqlite_vfs.
+    DATA lo_file TYPE REF TO zif_sqlite_file.
+    DATA lv_page TYPE xstring.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    IF lo_vfs->exists( iv_name ) = abap_true.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |database { iv_name } already exists|.
+    ENDIF.
+
+    lv_page = empty_page( ).
+    lo_file = lo_vfs->open( iv_name ).
+    TRY.
+        lo_file->write( iv_offset = 0 iv_data = lv_page ).
+        lo_file->sync( ).
+        lo_file->close( ).
+      CATCH cx_sy_range_out_of_bounds.
+        lo_file->close( ).
+        lo_vfs->delete( iv_name ).
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_ioerr
+            iv_message = |could not write new database { iv_name }|.
+    ENDTRY.
+
+    ro_database = open( iv_name ).
+  ENDMETHOD.
+
   METHOD constructor.
     mo_file = io_file.
     mo_pager = io_pager.
     mo_schema = io_schema.
+  ENDMETHOD.
+
+  METHOD empty_page.
+    DATA lv_tree  TYPE xstring.
+    DATA lv_zeros TYPE xstring.
+
+    lv_tree = '0000000000000000'.
+    TRY.
+        lv_tree = zcl_sqlite_bytes=>write_u8(
+          iv_data   = lv_tree
+          iv_offset = 0
+          iv_value  = zcl_sqlite_page=>c_table_leaf ).
+        lv_tree = zcl_sqlite_bytes=>write_u16(
+          iv_data   = lv_tree
+          iv_offset = 5
+          iv_value  = CONV int8( zcl_sqlite_header=>c_default_page_size ) ).
+      CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_internal
+            iv_message = 'could not build an empty sqlite_schema page'.
+    ENDTRY.
+
+    lv_zeros = repeat(
+      val = '00'
+      occ = zcl_sqlite_header=>c_default_page_size
+          - zcl_sqlite_header=>c_header_size
+          - xstrlen( lv_tree ) ).
+    rv_page = zcl_sqlite_header=>build( ) && lv_tree && lv_zeros.
   ENDMETHOD.
 
   METHOD close.

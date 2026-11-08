@@ -9,7 +9,8 @@
     "unit": "rimraf output && abap_transpile && node output/index.mjs",
     "benchmark": "rimraf output && abap_transpile && node test/benchmark.mjs",
     "fixtures": "node test/tools/make-fixtures.mjs",
-    "test": "npm run lint && npm run unit"
+    "verify": "node test/tools/export-and-verify.mjs",
+    "test": "npm run lint && npm run unit && npm run verify"
   },
   "dependencies": {
     "@abaplint/cli": "^2.120.90",

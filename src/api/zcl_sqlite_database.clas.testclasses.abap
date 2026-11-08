@@ -20,6 +20,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS joins_ambiguous FOR TESTING RAISING zcx_sqlite_error.
     METHODS planner_access_paths FOR TESTING RAISING zcx_sqlite_error.
     METHODS planner_execution FOR TESTING RAISING zcx_sqlite_error.
+    METHODS create_empty_database FOR TESTING RAISING zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -587,6 +588,89 @@ CLASS ltcl_database IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals(
       act = lo_value->as_integer( ) exp = 2 msg = 'rowid range row' ).
     lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD create_empty_database.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_file     TYPE REF TO zif_sqlite_file.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_pager    TYPE REF TO zcl_sqlite_pager.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA ls_header   TYPE zcl_sqlite_header=>ty_header.
+    DATA ls_page     TYPE zcl_sqlite_page=>ty_page.
+    DATA lt_entries  TYPE zcl_sqlite_catalog=>ty_entries.
+    DATA lv_data     TYPE xstring.
+    DATA lv_name     TYPE string.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+
+    lv_name = 'test/m5_2_empty.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    rs_result = lo_database->query( 'SELECT 1 + 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows ) exp = 1 msg = 'empty database is queryable' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( ) exp = 2 msg = 'empty database constant' ).
+    lo_database->close( ).
+
+    lv_data = lo_vfs->export( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = xstrlen( lv_data ) exp = 4096 msg = 'new database size' ).
+
+    ls_header = zcl_sqlite_header=>parse( lv_data ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-page_size exp = 4096 msg = 'new database page size' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-database_size exp = 1 msg = 'new database page count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-change_counter exp = 1 msg = 'new database change counter' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-schema_cookie exp = 1 msg = 'new database schema cookie' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-text_encoding
+      exp = zcl_sqlite_header=>c_encoding_utf8
+      msg = 'new database text encoding' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-version_valid_for exp = 1 msg = 'new database version valid for' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-sqlite_version
+      exp = zcl_sqlite_header=>c_sqlite_version
+      msg = 'new database SQLite version' ).
+
+    ls_page = zcl_sqlite_page=>parse( iv_data = lv_data iv_offset = 100 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_page-page_type
+      exp = zcl_sqlite_page=>c_table_leaf
+      msg = 'sqlite_schema page type' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_page-cell_count exp = 0 msg = 'sqlite_schema cell count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_page-cell_content_offset exp = 4096 msg = 'sqlite_schema content offset' ).
+
+    lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lt_entries = zcl_sqlite_catalog=>read( lo_pager ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lt_entries ) exp = 0 msg = 'sqlite_schema is empty' ).
+    lo_file->close( ).
+
+    TRY.
+        lo_database = zcl_sqlite_database=>create( lv_name ).
+        cl_abap_unit_assert=>fail( msg = 'creating an existing database must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error
+          msg = 'existing database error code' ).
+    ENDTRY.
+
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
 
 ENDCLASS.

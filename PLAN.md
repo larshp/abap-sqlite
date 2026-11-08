@@ -479,8 +479,8 @@ queries) still matches sql.js.
 
 #### M5.2 New database and compatibility verifier
 
-- [ ] Create a new empty database (header + empty `sqlite_schema` page)
-- [ ] **Compatibility verifier** `test/tools/export-and-verify.mjs`: run the transpiled ABAP
+- [x] Create a new empty database (header + empty `sqlite_schema` page)
+- [x] **Compatibility verifier** `test/tools/export-and-verify.mjs`: run the transpiled ABAP
       scenario programs, read the `ZSQLITE_FILES` rows back from the transpiler's SQLite
       connection, concatenate the blocks into a `.db`, open it in sql.js, run
       `PRAGMA integrity_check` and compare the contents. This runs as part of `npm test`.

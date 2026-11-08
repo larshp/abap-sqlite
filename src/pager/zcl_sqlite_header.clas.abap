@@ -8,6 +8,7 @@ CLASS zcl_sqlite_header DEFINITION
   PUBLIC SECTION.
     CONSTANTS c_header_size TYPE i VALUE 100.
     CONSTANTS c_magic TYPE xstring VALUE '53514C69746520666F726D6174203300'.
+    CONSTANTS c_default_page_size TYPE i VALUE 4096.
 
 * the SQLite version number written to offset 96 on commit
     CONSTANTS c_sqlite_version TYPE int8 VALUE 3054000.
@@ -40,6 +41,10 @@ CLASS zcl_sqlite_header DEFINITION
              sqlite_version        TYPE int8,
            END OF ty_header.
 
+    CLASS-METHODS build
+      RETURNING VALUE(rv_data) TYPE xstring
+      RAISING   zcx_sqlite_error.
+
     CLASS-METHODS parse
       IMPORTING iv_data          TYPE xstring
       RETURNING VALUE(rs_header) TYPE ty_header
@@ -62,6 +67,48 @@ ENDCLASS.
 
 
 CLASS zcl_sqlite_header IMPLEMENTATION.
+
+  METHOD build.
+    DATA lv_zeros TYPE xstring.
+
+    lv_zeros = repeat( val = '00' occ = c_header_size - xstrlen( c_magic ) ).
+    rv_data = c_magic && lv_zeros.
+
+    TRY.
+        rv_data = zcl_sqlite_bytes=>write_u16(
+          iv_data   = rv_data
+          iv_offset = 16
+          iv_value  = CONV int8( c_default_page_size ) ).
+        rv_data = zcl_sqlite_bytes=>write_u8(
+          iv_data   = rv_data iv_offset = 18 iv_value = 1 ).
+        rv_data = zcl_sqlite_bytes=>write_u8(
+          iv_data   = rv_data iv_offset = 19 iv_value = 1 ).
+        rv_data = zcl_sqlite_bytes=>write_u8(
+          iv_data   = rv_data iv_offset = 21 iv_value = 64 ).
+        rv_data = zcl_sqlite_bytes=>write_u8(
+          iv_data   = rv_data iv_offset = 22 iv_value = 32 ).
+        rv_data = zcl_sqlite_bytes=>write_u8(
+          iv_data   = rv_data iv_offset = 23 iv_value = 32 ).
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data iv_offset = 24 iv_value = 1 ).
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data iv_offset = 28 iv_value = 1 ).
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data iv_offset = 40 iv_value = 1 ).
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data iv_offset = 56
+          iv_value  = c_encoding_utf8 ).
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data iv_offset = 92 iv_value = 1 ).
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data
+          iv_offset = 96
+          iv_value  = c_sqlite_version ).
+      CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
+        fail( iv_code = zcx_sqlite_error=>sqlite_internal
+              iv_message = 'SQLite header could not be built' ).
+    ENDTRY.
+  ENDMETHOD.
 
   METHOD parse.
     DATA lv_length TYPE i.
