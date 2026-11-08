@@ -471,8 +471,8 @@ queries) still matches sql.js.
 
 #### M5.1 Pager write mode
 
-- [ ] Dirty page tracking, copy-on-write, flush to the VFS on commit, discard on rollback (D3)
-- [ ] Header maintenance: database size in pages (offset 28), file change counter (24),
+- [x] Dirty page tracking, copy-on-write, flush to the VFS on commit, discard on rollback (D3)
+- [x] Header maintenance: database size in pages (offset 28), file change counter (24),
       version-valid-for (92), SQLite version number (96)
 
 **Done when:** pages changed through the pager are persisted on commit and dropped on rollback.

@@ -9,6 +9,9 @@ CLASS zcl_sqlite_header DEFINITION
     CONSTANTS c_header_size TYPE i VALUE 100.
     CONSTANTS c_magic TYPE xstring VALUE '53514C69746520666F726D6174203300'.
 
+* the SQLite version number written to offset 96 on commit
+    CONSTANTS c_sqlite_version TYPE int8 VALUE 3054000.
+
     CONSTANTS c_encoding_utf8 TYPE int8 VALUE 1.
     CONSTANTS c_encoding_utf16le TYPE int8 VALUE 2.
     CONSTANTS c_encoding_utf16be TYPE int8 VALUE 3.
@@ -40,6 +43,13 @@ CLASS zcl_sqlite_header DEFINITION
     CLASS-METHODS parse
       IMPORTING iv_data          TYPE xstring
       RETURNING VALUE(rs_header) TYPE ty_header
+      RAISING   zcx_sqlite_error.
+
+* write the fields that change on commit into a copy of the first page
+    CLASS-METHODS patch
+      IMPORTING iv_data        TYPE xstring
+                is_header      TYPE ty_header
+      RETURNING VALUE(rv_data) TYPE xstring
       RAISING   zcx_sqlite_error.
 
   PROTECTED SECTION.
@@ -161,6 +171,36 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
       fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'SQLite freelist header is inconsistent' ).
     ENDIF.
+  ENDMETHOD.
+
+  METHOD patch.
+    rv_data = iv_data.
+    IF xstrlen( rv_data ) < c_header_size.
+      fail( iv_code = zcx_sqlite_error=>sqlite_internal
+            iv_message = 'SQLite header page is shorter than 100 bytes' ).
+    ENDIF.
+
+    TRY.
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data
+          iv_offset = 24
+          iv_value  = is_header-change_counter ).
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data
+          iv_offset = 28
+          iv_value  = is_header-database_size ).
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data
+          iv_offset = 92
+          iv_value  = is_header-version_valid_for ).
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data
+          iv_offset = 96
+          iv_value  = is_header-sqlite_version ).
+      CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
+        fail( iv_code = zcx_sqlite_error=>sqlite_internal
+              iv_message = 'SQLite header could not be written' ).
+    ENDTRY.
   ENDMETHOD.
 
   METHOD fail.

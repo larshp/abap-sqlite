@@ -1,8 +1,13 @@
-* Read-only page access for an SQLite database file.
+* Page access for an SQLite database file.
 *
 * Pages are numbered from 1. Page 1 contains the 100-byte database header, so
 * its b-tree page starts at btree_offset = 100. All pages are returned in full,
 * including the header bytes on page 1.
+*
+* Writes are copy-on-write: put_page keeps the new page in memory, so the file
+* is untouched until commit. Commit writes the dirty pages and updates the
+* header fields, rollback drops them. This is journal_mode=MEMORY, with the
+* ABAP LUW providing durability, see D3 in PLAN.md.
 CLASS zcl_sqlite_pager DEFINITION
   PUBLIC
   FINAL
@@ -10,6 +15,7 @@ CLASS zcl_sqlite_pager DEFINITION
 
   PUBLIC SECTION.
     CONSTANTS c_default_cache_size TYPE i VALUE 10.
+    CONSTANTS c_max_change_counter TYPE int8 VALUE 4294967295.
 
     TYPES: BEGIN OF ty_page,
              number       TYPE i,
@@ -34,6 +40,20 @@ CLASS zcl_sqlite_pager DEFINITION
       RETURNING VALUE(rs_page) TYPE ty_page
       RAISING   zcx_sqlite_error.
 
+* stage a full page in memory, the file is not changed before commit
+    METHODS put_page
+      IMPORTING iv_page TYPE i
+                iv_data TYPE xstring
+      RAISING   zcx_sqlite_error.
+
+    METHODS commit
+      RAISING zcx_sqlite_error.
+
+    METHODS rollback.
+
+    METHODS dirty_page_count
+      RETURNING VALUE(rv_count) TYPE i.
+
     METHODS page_size
       RETURNING VALUE(rv_page_size) TYPE i.
 
@@ -56,6 +76,13 @@ CLASS zcl_sqlite_pager DEFINITION
            END OF ty_cache_entry.
     TYPES ty_cache TYPE HASHED TABLE OF ty_cache_entry WITH UNIQUE KEY number.
 
+    TYPES: BEGIN OF ty_dirty_page,
+             number       TYPE i,
+             data         TYPE xstring,
+             btree_offset TYPE i,
+           END OF ty_dirty_page.
+    TYPES ty_dirty TYPE HASHED TABLE OF ty_dirty_page WITH UNIQUE KEY number.
+
     DATA mo_file TYPE REF TO zif_sqlite_file.
     DATA mv_header TYPE zcl_sqlite_header=>ty_header.
     DATA mv_page_size TYPE i.
@@ -66,6 +93,8 @@ CLASS zcl_sqlite_pager DEFINITION
     DATA mv_misses TYPE i.
     DATA mv_evictions TYPE i.
     DATA mt_cache TYPE ty_cache.
+* dirty pages live outside the cache, an eviction must never lose a write
+    DATA mt_dirty TYPE ty_dirty.
 
     METHODS fail
       IMPORTING iv_code    TYPE i
@@ -76,6 +105,13 @@ CLASS zcl_sqlite_pager DEFINITION
       IMPORTING is_entry TYPE ty_cache_entry.
 
     METHODS evict_lru.
+
+    METHODS page_offset
+      IMPORTING iv_page          TYPE i
+      RETURNING VALUE(rv_offset) TYPE i.
+
+    METHODS next_change_counter
+      RETURNING VALUE(rv_counter) TYPE int8.
 ENDCLASS.
 
 
@@ -130,6 +166,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_page.
+    DATA ls_dirty TYPE ty_dirty_page.
     DATA ls_entry TYPE ty_cache_entry.
     DATA ls_read TYPE zif_sqlite_file=>ty_read_result.
     DATA lv_offset TYPE i.
@@ -137,6 +174,15 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     IF iv_page < 1 OR iv_page > mv_page_count.
       fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'page number is outside the database' ).
+    ENDIF.
+
+    READ TABLE mt_dirty INTO ls_dirty WITH KEY number = iv_page.
+    IF sy-subrc = 0.
+      mv_hits = mv_hits + 1.
+      rs_page-number = ls_dirty-number.
+      rs_page-data = ls_dirty-data.
+      rs_page-btree_offset = ls_dirty-btree_offset.
+      RETURN.
     ENDIF.
 
     READ TABLE mt_cache INTO ls_entry WITH KEY number = iv_page.
@@ -152,7 +198,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     ENDIF.
 
     mv_misses = mv_misses + 1.
-    lv_offset = ( iv_page - 1 ) * mv_page_size.
+    lv_offset = page_offset( iv_page ).
     TRY.
         ls_read = mo_file->read(
           iv_offset = lv_offset
@@ -186,6 +232,88 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     rs_page-btree_offset = ls_entry-btree_offset.
   ENDMETHOD.
 
+  METHOD put_page.
+    DATA ls_dirty TYPE ty_dirty_page.
+
+    IF iv_page < 1 OR iv_page > mv_page_count.
+      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+            iv_message = 'page number is outside the database' ).
+    ENDIF.
+    IF xstrlen( iv_data ) <> mv_page_size.
+      fail( iv_code = zcx_sqlite_error=>sqlite_misuse
+            iv_message = 'page data does not match the page size' ).
+    ENDIF.
+
+* copy-on-write: drop the clean cached copy and keep the new page in mt_dirty
+    DELETE mt_cache WHERE number = iv_page.
+    ls_dirty-number = iv_page.
+    ls_dirty-data = iv_data.
+    IF iv_page = 1.
+      ls_dirty-btree_offset = zcl_sqlite_header=>c_header_size.
+    ELSE.
+      ls_dirty-btree_offset = 0.
+    ENDIF.
+    DELETE mt_dirty WHERE number = iv_page.
+    INSERT ls_dirty INTO TABLE mt_dirty.
+  ENDMETHOD.
+
+  METHOD commit.
+    DATA ls_dirty TYPE ty_dirty_page.
+    DATA ls_header TYPE zcl_sqlite_header=>ty_header.
+    DATA lv_page_one TYPE xstring.
+    DATA lv_offset TYPE i.
+
+    IF lines( mt_dirty ) = 0.
+      RETURN.
+    ENDIF.
+
+    ls_header = mv_header.
+    ls_header-change_counter = next_change_counter( ).
+    ls_header-database_size = mv_page_count.
+    ls_header-version_valid_for = ls_header-change_counter.
+    ls_header-sqlite_version = zcl_sqlite_header=>c_sqlite_version.
+
+* page 1 carries the header, write it last so a partial flush never publishes it
+    lv_page_one = get_page( 1 )-data.
+    lv_page_one = zcl_sqlite_header=>patch(
+      iv_data   = lv_page_one
+      is_header = ls_header ).
+
+    LOOP AT mt_dirty INTO ls_dirty.
+      IF ls_dirty-number = 1.
+        CONTINUE.
+      ENDIF.
+      lv_offset = page_offset( ls_dirty-number ).
+      TRY.
+          mo_file->write( iv_offset = lv_offset iv_data = ls_dirty-data ).
+        CATCH cx_sy_range_out_of_bounds.
+          fail( iv_code = zcx_sqlite_error=>sqlite_ioerr
+                iv_message = 'dirty page could not be written' ).
+      ENDTRY.
+    ENDLOOP.
+
+    TRY.
+        mo_file->write( iv_offset = 0 iv_data = lv_page_one ).
+      CATCH cx_sy_range_out_of_bounds.
+        fail( iv_code = zcx_sqlite_error=>sqlite_ioerr
+              iv_message = 'database header could not be written' ).
+    ENDTRY.
+    mo_file->sync( ).
+
+    mv_header = ls_header.
+    CLEAR mt_dirty.
+* the cached page 1 has the old header bytes
+    DELETE mt_cache WHERE number = 1.
+  ENDMETHOD.
+
+  METHOD rollback.
+    CLEAR mt_dirty.
+  ENDMETHOD.
+
+  METHOD dirty_page_count.
+    rv_count = lines( mt_dirty ).
+  ENDMETHOD.
+
   METHOD page_size.
     rv_page_size = mv_page_size.
   ENDMETHOD.
@@ -203,6 +331,17 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     rs_stats-misses = mv_misses.
     rs_stats-evictions = mv_evictions.
     rs_stats-entries = lines( mt_cache ).
+  ENDMETHOD.
+
+  METHOD page_offset.
+    rv_offset = ( iv_page - 1 ) * mv_page_size.
+  ENDMETHOD.
+
+  METHOD next_change_counter.
+    rv_counter = mv_header-change_counter + 1.
+    IF rv_counter > c_max_change_counter.
+      rv_counter = 1.
+    ENDIF.
   ENDMETHOD.
 
   METHOD put_cache.
