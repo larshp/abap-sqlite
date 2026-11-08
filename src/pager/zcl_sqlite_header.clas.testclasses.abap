@@ -32,13 +32,13 @@ ENDCLASS.
 CLASS ltcl_header IMPLEMENTATION.
 
   METHOD empty_fixture.
-    assert_fixture( iv_name = c_empty
+    assert_fixture( iv_name          = c_empty
                     iv_database_size = 1
                     iv_schema_format = 0 ).
   ENDMETHOD.
 
   METHOD small_fixture.
-    assert_fixture( iv_name = c_small
+    assert_fixture( iv_name          = c_small
                     iv_database_size = 2
                     iv_schema_format = 4 ).
   ENDMETHOD.

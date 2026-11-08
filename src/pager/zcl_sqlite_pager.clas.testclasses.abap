@@ -512,7 +512,7 @@ CLASS ltcl_pager IMPLEMENTATION.
 
     TRY.
         ro_pager = NEW zcl_sqlite_pager(
-          io_file = lo_file
+          io_file       = lo_file
           iv_cache_size = iv_cache_size ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( msg = |pager construction failed: { lo_error->message }| ).
@@ -533,7 +533,7 @@ CLASS ltcl_pager IMPLEMENTATION.
 
     TRY.
         ro_pager = NEW zcl_sqlite_pager(
-          io_file = lo_file
+          io_file       = lo_file
           iv_cache_size = iv_cache_size ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( msg = |pager construction failed: { lo_error->message }| ).

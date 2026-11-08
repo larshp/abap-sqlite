@@ -174,14 +174,14 @@ CLASS ltcl_schema IMPLEMENTATION.
       msg = 'indexed.db index count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'items_value'
+      is_index    = ls_index
+      iv_name     = 'items_value'
       iv_tbl_name = 'items'
-      iv_unique  = abap_false
-      iv_origin  = 'c'
-      iv_partial = abap_false
-      iv_columns = '1:value'
-      iv_context = 'indexed.db items_value' ).
+      iv_unique   = abap_false
+      iv_origin   = 'c'
+      iv_partial  = abap_false
+      iv_columns  = '1:value'
+      iv_context  = 'indexed.db items_value' ).
     cl_abap_unit_assert=>assert_equals(
       act = ls_index-seq exp = 0 msg = 'indexed.db index seq' ).
     cl_abap_unit_assert=>assert_equals(
@@ -237,28 +237,28 @@ CLASS ltcl_schema IMPLEMENTATION.
 
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'wr_v'
+      is_index    = ls_index
+      iv_name     = 'wr_v'
       iv_tbl_name = 'wr'
-      iv_unique  = abap_false
-      iv_origin  = 'c'
-      iv_partial = abap_false
-      iv_columns = '1:v'
-      iv_context = 'without_rowid.db wr_v' ).
+      iv_unique   = abap_false
+      iv_origin   = 'c'
+      iv_partial  = abap_false
+      iv_columns  = '1:v'
+      iv_context  = 'without_rowid.db wr_v' ).
     cl_abap_unit_assert=>assert_equals(
       act = ls_index-rootpage exp = 3
       msg = 'without_rowid.db wr_v rootpage' ).
 
     READ TABLE ls_table-indexes INTO ls_index INDEX 2.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'sqlite_autoindex_wr_1'
+      is_index    = ls_index
+      iv_name     = 'sqlite_autoindex_wr_1'
       iv_tbl_name = 'wr'
-      iv_unique  = abap_true
-      iv_origin  = 'pk'
-      iv_partial = abap_false
-      iv_columns = '0:k'
-      iv_context = 'without_rowid.db primary key' ).
+      iv_unique   = abap_true
+      iv_origin   = 'pk'
+      iv_partial  = abap_false
+      iv_columns  = '0:k'
+      iv_context  = 'without_rowid.db primary key' ).
     cl_abap_unit_assert=>assert_equals(
       act = ls_index-rootpage exp = 0
       msg = 'without_rowid.db primary key rootpage' ).
@@ -284,54 +284,54 @@ CLASS ltcl_schema IMPLEMENTATION.
 
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'm_c'
+      is_index    = ls_index
+      iv_name     = 'm_c'
       iv_tbl_name = 'm'
-      iv_unique  = abap_false
-      iv_origin  = 'c'
-      iv_partial = abap_false
-      iv_columns = '3:c'
-      iv_context = 'many_indexes.db m_c' ).
+      iv_unique   = abap_false
+      iv_origin   = 'c'
+      iv_partial  = abap_false
+      iv_columns  = '3:c'
+      iv_context  = 'many_indexes.db m_c' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 2.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'm_b'
+      is_index    = ls_index
+      iv_name     = 'm_b'
       iv_tbl_name = 'm'
-      iv_unique  = abap_false
-      iv_origin  = 'c'
-      iv_partial = abap_false
-      iv_columns = '2:b'
-      iv_context = 'many_indexes.db m_b' ).
+      iv_unique   = abap_false
+      iv_origin   = 'c'
+      iv_partial  = abap_false
+      iv_columns  = '2:b'
+      iv_context  = 'many_indexes.db m_b' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 3.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'm_ba'
+      is_index    = ls_index
+      iv_name     = 'm_ba'
       iv_tbl_name = 'm'
-      iv_unique  = abap_false
-      iv_origin  = 'c'
-      iv_partial = abap_false
-      iv_columns = '2:b,1:a'
-      iv_context = 'many_indexes.db m_ba' ).
+      iv_unique   = abap_false
+      iv_origin   = 'c'
+      iv_partial  = abap_false
+      iv_columns  = '2:b,1:a'
+      iv_context  = 'many_indexes.db m_ba' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 4.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'm_ab'
+      is_index    = ls_index
+      iv_name     = 'm_ab'
       iv_tbl_name = 'm'
-      iv_unique  = abap_false
-      iv_origin  = 'c'
-      iv_partial = abap_false
-      iv_columns = '1:a,2:b'
-      iv_context = 'many_indexes.db m_ab' ).
+      iv_unique   = abap_false
+      iv_origin   = 'c'
+      iv_partial  = abap_false
+      iv_columns  = '1:a,2:b'
+      iv_context  = 'many_indexes.db m_ab' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 5.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'm_a'
+      is_index    = ls_index
+      iv_name     = 'm_a'
       iv_tbl_name = 'm'
-      iv_unique  = abap_false
-      iv_origin  = 'c'
-      iv_partial = abap_false
-      iv_columns = '1:a'
-      iv_context = 'many_indexes.db m_a' ).
+      iv_unique   = abap_false
+      iv_origin   = 'c'
+      iv_partial  = abap_false
+      iv_columns  = '1:a'
+      iv_context  = 'many_indexes.db m_a' ).
   ENDMETHOD.
 
   METHOD affinity_rules.
@@ -407,14 +407,14 @@ CLASS ltcl_schema IMPLEMENTATION.
       msg = 'INT PRIMARY KEY autoindex count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'sqlite_autoindex_t_1'
+      is_index    = ls_index
+      iv_name     = 'sqlite_autoindex_t_1'
       iv_tbl_name = 't'
-      iv_unique  = abap_true
-      iv_origin  = 'pk'
-      iv_partial = abap_false
-      iv_columns = '0:id'
-      iv_context = 'INT PRIMARY KEY autoindex' ).
+      iv_unique   = abap_true
+      iv_origin   = 'pk'
+      iv_partial  = abap_false
+      iv_columns  = '0:id'
+      iv_context  = 'INT PRIMARY KEY autoindex' ).
 
     lo_schema = build_from_sql( 'CREATE TABLE t (id INTEGER PRIMARY KEY DESC)' ).
     ls_table = lo_schema->table( 't' ).
@@ -468,24 +468,24 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_context = 'unique before primary key' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'sqlite_autoindex_t_2'
+      is_index    = ls_index
+      iv_name     = 'sqlite_autoindex_t_2'
       iv_tbl_name = 't'
-      iv_unique  = abap_true
-      iv_origin  = 'pk'
-      iv_partial = abap_false
-      iv_columns = '1:b'
-      iv_context = 'unique before primary key pk' ).
+      iv_unique   = abap_true
+      iv_origin   = 'pk'
+      iv_partial  = abap_false
+      iv_columns  = '1:b'
+      iv_context  = 'unique before primary key pk' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 2.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'sqlite_autoindex_t_1'
+      is_index    = ls_index
+      iv_name     = 'sqlite_autoindex_t_1'
       iv_tbl_name = 't'
-      iv_unique  = abap_true
-      iv_origin  = 'u'
-      iv_partial = abap_false
-      iv_columns = '0:a'
-      iv_context = 'unique before primary key u' ).
+      iv_unique   = abap_true
+      iv_origin   = 'u'
+      iv_partial  = abap_false
+      iv_columns  = '0:a'
+      iv_context  = 'unique before primary key u' ).
 
     lo_schema = build_from_sql( 'CREATE TABLE t (a TEXT, b TEXT, UNIQUE(a,b))' ).
     ls_table = lo_schema->table( 't' ).
@@ -494,14 +494,14 @@ CLASS ltcl_schema IMPLEMENTATION.
       msg = 'composite unique index count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'sqlite_autoindex_t_1'
+      is_index    = ls_index
+      iv_name     = 'sqlite_autoindex_t_1'
       iv_tbl_name = 't'
-      iv_unique  = abap_true
-      iv_origin  = 'u'
-      iv_partial = abap_false
-      iv_columns = '0:a,1:b'
-      iv_context = 'composite unique index' ).
+      iv_unique   = abap_true
+      iv_origin   = 'u'
+      iv_partial  = abap_false
+      iv_columns  = '0:a,1:b'
+      iv_context  = 'composite unique index' ).
 
     lo_schema = build_from_sql( 'CREATE TABLE t (a INTEGER PRIMARY KEY, UNIQUE(a))' ).
     ls_table = lo_schema->table( 't' ).
@@ -510,14 +510,14 @@ CLASS ltcl_schema IMPLEMENTATION.
       msg = 'unique on rowid alias index count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'sqlite_autoindex_t_1'
+      is_index    = ls_index
+      iv_name     = 'sqlite_autoindex_t_1'
       iv_tbl_name = 't'
-      iv_unique  = abap_true
-      iv_origin  = 'u'
-      iv_partial = abap_false
-      iv_columns = '0:a'
-      iv_context = 'unique on rowid alias' ).
+      iv_unique   = abap_true
+      iv_origin   = 'u'
+      iv_partial  = abap_false
+      iv_columns  = '0:a'
+      iv_context  = 'unique on rowid alias' ).
 
     lo_schema = build_from_sql( 'CREATE TABLE t (a TEXT PRIMARY KEY, UNIQUE(a))' ).
     ls_table = lo_schema->table( 't' ).
@@ -526,14 +526,14 @@ CLASS ltcl_schema IMPLEMENTATION.
       msg = 'duplicate primary key index count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'sqlite_autoindex_t_1'
+      is_index    = ls_index
+      iv_name     = 'sqlite_autoindex_t_1'
       iv_tbl_name = 't'
-      iv_unique  = abap_true
-      iv_origin  = 'pk'
-      iv_partial = abap_false
-      iv_columns = '0:a'
-      iv_context = 'duplicate primary key index' ).
+      iv_unique   = abap_true
+      iv_origin   = 'pk'
+      iv_partial  = abap_false
+      iv_columns  = '0:a'
+      iv_context  = 'duplicate primary key index' ).
 
     lo_schema = build_from_sql( 'CREATE TABLE t (a TEXT, UNIQUE(a), PRIMARY KEY(a))' ).
     ls_table = lo_schema->table( 't' ).
@@ -542,14 +542,14 @@ CLASS ltcl_schema IMPLEMENTATION.
       msg = 'unique promoted to primary key index count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'sqlite_autoindex_t_1'
+      is_index    = ls_index
+      iv_name     = 'sqlite_autoindex_t_1'
       iv_tbl_name = 't'
-      iv_unique  = abap_true
-      iv_origin  = 'pk'
-      iv_partial = abap_false
-      iv_columns = '0:a'
-      iv_context = 'unique promoted to primary key index' ).
+      iv_unique   = abap_true
+      iv_origin   = 'pk'
+      iv_partial  = abap_false
+      iv_columns  = '0:a'
+      iv_context  = 'unique promoted to primary key index' ).
   ENDMETHOD.
 
   METHOD default_values.
@@ -672,14 +672,14 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_context      = 'without rowid primary key not null' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
-      is_index   = ls_index
-      iv_name    = 'sqlite_autoindex_t_1'
+      is_index    = ls_index
+      iv_name     = 'sqlite_autoindex_t_1'
       iv_tbl_name = 't'
-      iv_unique  = abap_true
-      iv_origin  = 'pk'
-      iv_partial = abap_false
-      iv_columns = '0:a'
-      iv_context = 'without rowid primary key index' ).
+      iv_unique   = abap_true
+      iv_origin   = 'pk'
+      iv_partial  = abap_false
+      iv_columns  = '0:a'
+      iv_context  = 'without rowid primary key index' ).
   ENDMETHOD.
 
   METHOD open_pager.

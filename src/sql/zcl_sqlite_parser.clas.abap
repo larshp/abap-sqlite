@@ -2003,7 +2003,7 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
 
     WHILE current( )-kind <> zcl_sqlite_tokenizer=>c_eof.
       lo_replacement = parse_postfix(
-        io_expression    = lo_left
+        io_expression     = lo_left
         iv_min_precedence = iv_min_precedence ).
       IF lo_replacement IS BOUND.
         lo_left = lo_replacement.
@@ -2011,7 +2011,7 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       ENDIF.
 
       lo_replacement = parse_comparison(
-        io_expression    = lo_left
+        io_expression     = lo_left
         iv_min_precedence = iv_min_precedence ).
       IF lo_replacement IS BOUND.
         lo_left = lo_replacement.
@@ -2019,7 +2019,7 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       ENDIF.
 
       lo_replacement = parse_binary(
-        io_expression    = lo_left
+        io_expression     = lo_left
         iv_min_precedence = iv_min_precedence ).
       IF lo_replacement IS BOUND.
         lo_left = lo_replacement.

@@ -139,7 +139,7 @@ CLASS zcl_sqlite_page IMPLEMENTATION.
     DO rs_page-cell_count TIMES.
       TRY.
           lv_cell_offset = zcl_sqlite_bytes=>read_u16(
-            iv_data = iv_data
+            iv_data   = iv_data
             iv_offset = rs_page-cell_pointer_offset + ( sy-index - 1 ) * 2 ).
         CATCH cx_sy_range_out_of_bounds.
           fail( 'b-tree cell pointer array is truncated' ).

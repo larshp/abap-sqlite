@@ -40,8 +40,8 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
       lv_rowid = lv_count.
       assert_entry(
         io_cursor = lo_cursor
-        iv_rowid = lv_rowid
-        iv_key = expected_key( lv_count ) ).
+        iv_rowid  = lv_rowid
+        iv_key    = expected_key( lv_count ) ).
 
       IF lv_count > 100.
         cl_abap_unit_assert=>fail( msg = 'index cursor did not stop' ).
@@ -59,8 +59,8 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
       act = lo_cursor->first( ) exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
-      iv_rowid = 1
-      iv_key = expected_key( 1 ) ).
+      iv_rowid  = 1
+      iv_key    = expected_key( 1 ) ).
   ENDMETHOD.
 
   METHOD seek_prefix.
@@ -73,44 +73,44 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
-      iv_rowid = 50
-      iv_key = expected_key( 50 ) ).
+      iv_rowid  = 50
+      iv_key    = expected_key( 50 ) ).
 
     lv_found = lo_cursor->seek( prefix( 'value-037' ) ).
     cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
-      iv_rowid = 37
-      iv_key = expected_key( 37 ) ).
+      iv_rowid  = 37
+      iv_key    = expected_key( 37 ) ).
 
     lv_found = lo_cursor->seek( prefix( 'value-037z' ) ).
     cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
-      iv_rowid = 38
-      iv_key = expected_key( 38 ) ).
+      iv_rowid  = 38
+      iv_key    = expected_key( 38 ) ).
 
     lv_found = lo_cursor->seek( prefix( 'value-000' ) ).
     cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
-      iv_rowid = 1
-      iv_key = expected_key( 1 ) ).
+      iv_rowid  = 1
+      iv_key    = expected_key( 1 ) ).
 
     lv_found = lo_cursor->seek( prefix( 'aaaa' ) ).
     cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
-      iv_rowid = 1
-      iv_key = expected_key( 1 ) ).
+      iv_rowid  = 1
+      iv_key    = expected_key( 1 ) ).
 
     lv_found = lo_cursor->seek( prefix(
       |value-050-{ repeat( val = 'x' occ = 41 ) }| ) ).
     cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
-      iv_rowid = 51
-      iv_key = expected_key( 51 ) ).
+      iv_rowid  = 51
+      iv_key    = expected_key( 51 ) ).
 
     lv_found = lo_cursor->seek( prefix( 'value-101' ) ).
     cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_false ).
@@ -124,21 +124,21 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
-      iv_rowid = 1
-      iv_key = expected_key( 1 ) ).
+      iv_rowid  = 1
+      iv_key    = expected_key( 1 ) ).
 
     lv_found = lo_cursor->seek( prefix( expected_key( 1 ) ) ).
     cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
-      iv_rowid = 1
-      iv_key = expected_key( 1 ) ).
+      iv_rowid  = 1
+      iv_key    = expected_key( 1 ) ).
     cl_abap_unit_assert=>assert_equals(
       act = lo_cursor->next( ) exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
-      iv_rowid = 2
-      iv_key = expected_key( 2 ) ).
+      iv_rowid  = 2
+      iv_key    = expected_key( 2 ) ).
   ENDMETHOD.
 
   METHOD open_cursor.
@@ -152,7 +152,7 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
     TRY.
         lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
         ro_cursor = NEW zcl_sqlite_index_cursor(
-          io_pager = lo_pager
+          io_pager     = lo_pager
           iv_root_page = c_root_page ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( msg = |index cursor construction failed: { lo_error->message }| ).

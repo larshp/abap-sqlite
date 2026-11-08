@@ -336,11 +336,11 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
     ENDWHILE.
 
     add_token(
-      iv_kind = c_eof
-      iv_text = ''
-      iv_value = ''
+      iv_kind   = c_eof
+      iv_text   = ''
+      iv_value  = ''
       iv_offset = mv_pos
-      iv_line = mv_line
+      iv_line   = mv_line
       iv_column = mv_column ).
   ENDMETHOD.
 
@@ -362,11 +362,11 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
 
     lv_text = token_text( lv_start ).
     add_token(
-      iv_kind = c_comment
-      iv_text = lv_text
-      iv_value = lv_text
+      iv_kind   = c_comment
+      iv_text   = lv_text
+      iv_value  = lv_text
       iv_offset = lv_start
-      iv_line = lv_line
+      iv_line   = lv_line
       iv_column = lv_column ).
   ENDMETHOD.
 
@@ -393,11 +393,11 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
 
     lv_text = token_text( lv_start ).
     add_token(
-      iv_kind = c_comment
-      iv_text = lv_text
-      iv_value = lv_text
+      iv_kind   = c_comment
+      iv_text   = lv_text
+      iv_value  = lv_text
       iv_offset = lv_start
-      iv_line = lv_line
+      iv_line   = lv_line
       iv_column = lv_column ).
   ENDMETHOD.
 
@@ -436,19 +436,19 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
     lv_text = token_text( lv_start ).
     IF lv_closed = abap_true.
       add_token(
-        iv_kind = c_string
-        iv_text = lv_text
-        iv_value = lv_value
+        iv_kind   = c_string
+        iv_text   = lv_text
+        iv_value  = lv_value
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ELSE.
       add_token(
-        iv_kind = c_illegal
-        iv_text = lv_text
-        iv_value = lv_text
+        iv_kind   = c_illegal
+        iv_text   = lv_text
+        iv_value  = lv_text
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ENDIF.
   ENDMETHOD.
@@ -496,19 +496,19 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
     lv_text = token_text( lv_start ).
     IF lv_closed = abap_true.
       add_token(
-        iv_kind = c_identifier
-        iv_text = lv_text
-        iv_value = lv_value
+        iv_kind   = c_identifier
+        iv_text   = lv_text
+        iv_value  = lv_value
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ELSE.
       add_token(
-        iv_kind = c_illegal
-        iv_text = lv_text
-        iv_value = lv_text
+        iv_kind   = c_illegal
+        iv_text   = lv_text
+        iv_value  = lv_text
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ENDIF.
   ENDMETHOD.
@@ -549,19 +549,19 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
         AND lv_valid = abap_true
         AND strlen( lv_hex ) MOD 2 = 0.
       add_token(
-        iv_kind = c_blob
-        iv_text = lv_text
-        iv_value = lv_hex
+        iv_kind   = c_blob
+        iv_text   = lv_text
+        iv_value  = lv_hex
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ELSE.
       add_token(
-        iv_kind = c_illegal
-        iv_text = lv_text
-        iv_value = lv_text
+        iv_kind   = c_illegal
+        iv_text   = lv_text
+        iv_value  = lv_text
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ENDIF.
   ENDMETHOD.
@@ -648,19 +648,19 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
     lv_text = token_text( lv_start ).
     IF lv_valid = abap_false.
       add_token(
-        iv_kind = c_illegal
-        iv_text = lv_text
-        iv_value = lv_text
+        iv_kind   = c_illegal
+        iv_text   = lv_text
+        iv_value  = lv_text
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ELSE.
       add_token(
-        iv_kind = lv_kind
-        iv_text = lv_text
-        iv_value = lv_text
+        iv_kind   = lv_kind
+        iv_text   = lv_text
+        iv_value  = lv_text
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ENDIF.
   ENDMETHOD.
@@ -683,11 +683,11 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
 
     lv_text = token_text( lv_start ).
     add_token(
-      iv_kind = c_parameter
-      iv_text = lv_text
-      iv_value = lv_value
+      iv_kind   = c_parameter
+      iv_text   = lv_text
+      iv_value  = lv_value
       iv_offset = lv_start
-      iv_line = lv_line
+      iv_line   = lv_line
       iv_column = lv_column ).
   ENDMETHOD.
 
@@ -739,19 +739,19 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
     lv_text = token_text( lv_start ).
     IF strlen( lv_value ) = 0.
       add_token(
-        iv_kind = c_illegal
-        iv_text = lv_text
-        iv_value = lv_text
+        iv_kind   = c_illegal
+        iv_text   = lv_text
+        iv_value  = lv_text
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ELSE.
       add_token(
-        iv_kind = c_parameter
-        iv_text = lv_text
-        iv_value = lv_value
+        iv_kind   = c_parameter
+        iv_text   = lv_text
+        iv_value  = lv_value
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ENDIF.
   ENDMETHOD.
@@ -775,19 +775,19 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
     IF is_keyword( lv_text ) = abap_true.
       lv_value = to_upper( lv_text ).
       add_token(
-        iv_kind = c_keyword
-        iv_text = lv_text
-        iv_value = lv_value
+        iv_kind   = c_keyword
+        iv_text   = lv_text
+        iv_value  = lv_value
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ELSE.
       add_token(
-        iv_kind = c_identifier
-        iv_text = lv_text
-        iv_value = lv_text
+        iv_kind   = c_identifier
+        iv_text   = lv_text
+        iv_value  = lv_text
         iv_offset = lv_start
-        iv_line = lv_line
+        iv_line   = lv_line
         iv_column = lv_column ).
     ENDIF.
   ENDMETHOD.
@@ -859,11 +859,11 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
       advance( ).
     ENDDO.
     add_token(
-      iv_kind = iv_kind
-      iv_text = iv_text
-      iv_value = iv_value
+      iv_kind   = iv_kind
+      iv_text   = iv_text
+      iv_value  = iv_value
       iv_offset = lv_start
-      iv_line = lv_line
+      iv_line   = lv_line
       iv_column = lv_column ).
   ENDMETHOD.
 

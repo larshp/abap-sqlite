@@ -30,14 +30,14 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
 
   METHOD empty_input.
     assert_tokens(
-      iv_sql = ''
+      iv_sql      = ''
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
   ENDMETHOD.
 
   METHOD keywords_identifiers.
     assert_tokens(
-      iv_sql = |SELECT foo, CURRENT_TIMESTAMP, true FROM _tbl$1|
+      iv_sql      = |SELECT foo, CURRENT_TIMESTAMP, true FROM _tbl$1|
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_keyword
           text = 'SELECT' value = 'SELECT' )
@@ -56,7 +56,7 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = 'select SeLeCt "select"'
+      iv_sql      = 'select SeLeCt "select"'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_keyword
           text = 'select' value = 'SELECT' )
@@ -69,7 +69,7 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
 
   METHOD quoted_identifiers.
     assert_tokens(
-      iv_sql = |"a""b" [c d] `e``f` "select"|
+      iv_sql      = |"a""b" [c d] `e``f` "select"|
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_identifier
           text = '"a""b"' value = 'a"b' )
@@ -84,7 +84,7 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
 
   METHOD strings_and_blobs.
     assert_tokens(
-      iv_sql = |'it''s' '' X'1f' x''|
+      iv_sql      = |'it''s' '' X'1f' x''|
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_string
           text = |'it''s'| value = |it's| )
@@ -99,7 +99,7 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
 
   METHOD numbers.
     assert_tokens(
-      iv_sql = '0 123 0x1F 1.5 .5 1. 1e5 1E+5 1.2e-3 5.e2'
+      iv_sql      = '0 123 0x1F 1.5 .5 1. 1e5 1E+5 1.2e-3 5.e2'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_integer
           text = '0' value = '0' )
@@ -126,7 +126,7 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
 
   METHOD parameters.
     assert_tokens(
-      iv_sql = '? ?123 :name @name $name $a::b $a(x) :1'
+      iv_sql      = '? ?123 :name @name $name $a::b $a(x) :1'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_parameter
           text = '?' value = '' )
@@ -147,7 +147,7 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = '?abc'
+      iv_sql      = '?abc'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_parameter
           text = '?' value = '' )
@@ -158,7 +158,7 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
 
   METHOD operators.
     assert_tokens(
-      iv_sql = '; ( ) , . = == != <> <= >= < > + - * / % || & | << >> ~ -> ->>'
+      iv_sql      = '; ( ) , . = == != <> <= >= < > + - * / % || & | << >> ~ -> ->>'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_semicolon text = ';' value = ';' )
         ( kind = zcl_sqlite_tokenizer=>c_lparen text = '(' value = '(' )
@@ -195,7 +195,7 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
     lv_sql = |SELECT 1 -- one| && cl_abap_char_utilities=>newline
       && |/* two */ 2 /* unterminated|.
     assert_tokens(
-      iv_sql = lv_sql
+      iv_sql      = lv_sql
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_keyword
           text = 'SELECT' value = 'SELECT' )
@@ -210,7 +210,7 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = '-- tail'
+      iv_sql      = '-- tail'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_comment
           text = '-- tail' value = '-- tail' )
@@ -258,77 +258,77 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
 
   METHOD illegal_tokens.
     assert_tokens(
-      iv_sql = '123abc'
+      iv_sql      = '123abc'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_illegal
           text = '123abc' value = '123abc' )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = '1e'
+      iv_sql      = '1e'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_illegal text = '1e' value = '1e' )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = '0x'
+      iv_sql      = '0x'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_illegal text = '0x' value = '0x' )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = |X'1'|
+      iv_sql      = |X'1'|
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_illegal
           text = |X'1'| value = |X'1'| )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = |'abc|
+      iv_sql      = |'abc|
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_illegal
           text = |'abc| value = |'abc| )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = |"abc|
+      iv_sql      = |"abc|
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_illegal
           text = |"abc| value = |"abc| )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = 'x'
+      iv_sql      = 'x'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_identifier text = 'x' value = 'x' )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = '!'
+      iv_sql      = '!'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_illegal text = '!' value = '!' )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = ':'
+      iv_sql      = ':'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_illegal text = ':' value = ':' )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = '@'
+      iv_sql      = '@'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_illegal text = '@' value = '@' )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = '$'
+      iv_sql      = '$'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_illegal text = '$' value = '$' )
         ( kind = zcl_sqlite_tokenizer=>c_eof text = '' value = '' ) ) ).
 
     assert_tokens(
-      iv_sql = '[a]]'
+      iv_sql      = '[a]]'
       it_expected = VALUE ty_tokens(
         ( kind = zcl_sqlite_tokenizer=>c_identifier text = '[a]' value = 'a' )
         ( kind = zcl_sqlite_tokenizer=>c_illegal text = ']' value = ']' )

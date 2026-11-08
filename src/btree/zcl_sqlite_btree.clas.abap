@@ -100,8 +100,8 @@ CLASS zcl_sqlite_btree IMPLEMENTATION.
 
     lv_local_size = local_payload_size(
       iv_payload_size = iv_payload_size
-      iv_usable_size = iv_usable_size
-      iv_table_leaf = iv_table_leaf ).
+      iv_usable_size  = iv_usable_size
+      iv_table_leaf   = iv_table_leaf ).
     lv_local_length = lv_local_size.
 
     IF iv_payload_offset + lv_local_length > xstrlen( iv_page_data ).

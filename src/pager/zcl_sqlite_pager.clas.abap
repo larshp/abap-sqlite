@@ -174,11 +174,11 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     DATA ls_read TYPE zif_sqlite_file=>ty_read_result.
 
     IF io_file IS NOT BOUND.
-      fail( iv_code = zcx_sqlite_error=>sqlite_misuse
+      fail( iv_code    = zcx_sqlite_error=>sqlite_misuse
             iv_message = 'pager needs a file' ).
     ENDIF.
     IF iv_cache_size < 1.
-      fail( iv_code = zcx_sqlite_error=>sqlite_misuse
+      fail( iv_code    = zcx_sqlite_error=>sqlite_misuse
             iv_message = 'pager cache size must be positive' ).
     ENDIF.
 
@@ -187,7 +187,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
 
     lv_size = io_file->size( ).
     IF lv_size < zcl_sqlite_header=>c_header_size.
-      fail( iv_code = zcx_sqlite_error=>sqlite_notadb
+      fail( iv_code    = zcx_sqlite_error=>sqlite_notadb
             iv_message = 'SQLite file is shorter than its header' ).
     ENDIF.
 
@@ -196,23 +196,23 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
           iv_offset = 0
           iv_amount = zcl_sqlite_header=>c_header_size ).
       CATCH cx_sy_range_out_of_bounds.
-        fail( iv_code = zcx_sqlite_error=>sqlite_notadb
+        fail( iv_code    = zcx_sqlite_error=>sqlite_notadb
               iv_message = 'SQLite file is shorter than its header' ).
     ENDTRY.
     IF ls_read-short = abap_true.
-      fail( iv_code = zcx_sqlite_error=>sqlite_notadb
+      fail( iv_code    = zcx_sqlite_error=>sqlite_notadb
             iv_message = 'SQLite file is shorter than its header' ).
     ENDIF.
 
     mv_header = zcl_sqlite_header=>parse( ls_read-data ).
     mv_page_size = mv_header-page_size.
     IF lv_size MOD mv_page_size <> 0.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'SQLite file size is not a multiple of the page size' ).
     ENDIF.
     mv_page_count = lv_size DIV mv_page_size.
     IF mv_page_count < 1.
-      fail( iv_code = zcx_sqlite_error=>sqlite_notadb
+      fail( iv_code    = zcx_sqlite_error=>sqlite_notadb
             iv_message = 'SQLite file has no pages' ).
     ENDIF.
   ENDMETHOD.
@@ -224,7 +224,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     DATA lv_offset TYPE i.
 
     IF iv_page < 1 OR iv_page > mv_page_count.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'page number is outside the database' ).
     ENDIF.
 
@@ -256,11 +256,11 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
           iv_offset = lv_offset
           iv_amount = mv_page_size ).
       CATCH cx_sy_range_out_of_bounds.
-        fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
               iv_message = 'page could not be read' ).
     ENDTRY.
     IF ls_read-short = abap_true.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'page is shorter than the page size' ).
     ENDIF.
 
@@ -288,11 +288,11 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     DATA ls_dirty TYPE ty_dirty_page.
 
     IF iv_page < 1 OR iv_page > mv_page_count.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'page number is outside the database' ).
     ENDIF.
     IF xstrlen( iv_data ) <> mv_page_size.
-      fail( iv_code = zcx_sqlite_error=>sqlite_misuse
+      fail( iv_code    = zcx_sqlite_error=>sqlite_misuse
             iv_message = 'page data does not match the page size' ).
     ENDIF.
 
@@ -330,7 +330,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     ENDIF.
 
     IF mv_header-freelist_pages < 1.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'freelist trunk has no free page count' ).
     ENDIF.
 
@@ -339,21 +339,21 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     lv_leaves = page_u32( iv_data = ls_trunk-data iv_offset = 4 ).
     IF lv_leaves < 0
         OR lv_leaves > CONV int8( max_freelist_leaves( ) ).
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'freelist trunk leaf count is invalid' ).
     ENDIF.
 
     IF lv_leaves > 0.
       lv_index = CONV i( lv_leaves ) - 1.
       lv_leaf = page_u32(
-        iv_data = ls_trunk-data
+        iv_data   = ls_trunk-data
         iv_offset = 8 + lv_index * 4 ).
       check_free_page_number( CONV i( lv_leaf ) ).
 
       ls_trunk-data = set_page_u32(
-        iv_data = ls_trunk-data
+        iv_data   = ls_trunk-data
         iv_offset = 4
-        iv_value = lv_leaves - 1 ).
+        iv_value  = lv_leaves - 1 ).
       put_page( iv_page = CONV i( lv_trunk ) iv_data = ls_trunk-data ).
 
       rv_page = CONV i( lv_leaf ).
@@ -378,11 +378,11 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     DATA lv_data   TYPE xstring.
 
     IF iv_page < 2 OR iv_page > mv_page_count.
-      fail( iv_code = zcx_sqlite_error=>sqlite_misuse
+      fail( iv_code    = zcx_sqlite_error=>sqlite_misuse
             iv_message = 'page to free is outside the database' ).
     ENDIF.
     IF is_free_page( iv_page ) = abap_true.
-      fail( iv_code = zcx_sqlite_error=>sqlite_misuse
+      fail( iv_code    = zcx_sqlite_error=>sqlite_misuse
             iv_message = 'page is already on the freelist' ).
     ENDIF.
 
@@ -404,19 +404,19 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     lv_leaves = page_u32( iv_data = ls_trunk-data iv_offset = 4 ).
     IF lv_leaves < 0
         OR lv_leaves > CONV int8( max_freelist_leaves( ) ).
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'freelist trunk leaf count is invalid' ).
     ENDIF.
 
     IF lv_leaves < CONV int8( max_freelist_leaves( ) ).
       ls_trunk-data = set_page_u32(
-        iv_data = ls_trunk-data
+        iv_data   = ls_trunk-data
         iv_offset = 8 + CONV i( lv_leaves ) * 4
-        iv_value = CONV int8( iv_page ) ).
+        iv_value  = CONV int8( iv_page ) ).
       ls_trunk-data = set_page_u32(
-        iv_data = ls_trunk-data
+        iv_data   = ls_trunk-data
         iv_offset = 4
-        iv_value = lv_leaves + 1 ).
+        iv_value  = lv_leaves + 1 ).
       put_page( iv_page = CONV i( lv_trunk ) iv_data = ls_trunk-data ).
       zero_and_put( iv_page ).
     ELSE.
@@ -466,7 +466,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
       TRY.
           mo_file->write( iv_offset = lv_offset iv_data = ls_dirty-data ).
         CATCH cx_sy_range_out_of_bounds.
-          fail( iv_code = zcx_sqlite_error=>sqlite_ioerr
+          fail( iv_code    = zcx_sqlite_error=>sqlite_ioerr
                 iv_message = 'dirty page could not be written' ).
       ENDTRY.
     ENDLOOP.
@@ -474,7 +474,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     TRY.
         mo_file->write( iv_offset = 0 iv_data = lv_page_one ).
       CATCH cx_sy_range_out_of_bounds.
-        fail( iv_code = zcx_sqlite_error=>sqlite_ioerr
+        fail( iv_code    = zcx_sqlite_error=>sqlite_ioerr
               iv_message = 'database header could not be written' ).
     ENDTRY.
     mo_file->sync( ).
@@ -582,7 +582,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
           iv_data   = iv_data
           iv_offset = iv_offset ).
       CATCH cx_sy_range_out_of_bounds.
-        fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
               iv_message = 'freelist page is truncated' ).
     ENDTRY.
   ENDMETHOD.
@@ -594,14 +594,14 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
           iv_offset = iv_offset
           iv_value  = iv_value ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
               iv_message = 'freelist page could not be written' ).
     ENDTRY.
   ENDMETHOD.
 
   METHOD check_free_page_number.
     IF iv_page < 2 OR iv_page > mv_page_count.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'freelist page number is outside the database' ).
     ENDIF.
   ENDMETHOD.
@@ -625,7 +625,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
 
       lv_loops = lv_loops + 1.
       IF lv_loops > mv_page_count.
-        fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
               iv_message = 'freelist trunk chain contains a cycle' ).
       ENDIF.
 
@@ -633,14 +633,14 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
       lv_leaves = page_u32( iv_data = ls_trunk-data iv_offset = 4 ).
       IF lv_leaves < 0
           OR lv_leaves > CONV int8( max_freelist_leaves( ) ).
-        fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
               iv_message = 'freelist trunk leaf count is invalid' ).
       ENDIF.
 
       lv_index = 0.
       WHILE lv_index < lv_leaves.
         lv_leaf = page_u32(
-          iv_data = ls_trunk-data
+          iv_data   = ls_trunk-data
           iv_offset = 8 + lv_index * 4 ).
         check_free_page_number( CONV i( lv_leaf ) ).
         IF lv_leaf = iv_page.

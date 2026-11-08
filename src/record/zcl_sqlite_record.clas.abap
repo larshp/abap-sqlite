@@ -33,9 +33,9 @@ CLASS zcl_sqlite_record DEFINITION
     CONSTANTS c_two_pow_48 TYPE int8 VALUE 281474976710656.
 
     CLASS-METHODS parse_header
-      IMPORTING iv_data                TYPE xstring
-      EXPORTING ev_header_end          TYPE i
-      RETURNING VALUE(rt_serial_types) TYPE ty_serial_types
+      IMPORTING iv_data         TYPE xstring
+      EXPORTING ev_header_end   TYPE i
+                et_serial_types TYPE ty_serial_types
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS decode_body
@@ -88,12 +88,13 @@ CLASS zcl_sqlite_record IMPLEMENTATION.
     DATA lt_serial_types TYPE ty_serial_types.
     DATA lv_header_end TYPE i.
 
-    lt_serial_types = parse_header(
-      EXPORTING iv_data = iv_data
-      IMPORTING ev_header_end = lv_header_end ).
+    parse_header(
+      EXPORTING iv_data         = iv_data
+      IMPORTING ev_header_end   = lv_header_end
+                et_serial_types = lt_serial_types ).
     rt_values = decode_body(
-      iv_data = iv_data
-      iv_header_end = lv_header_end
+      iv_data         = iv_data
+      iv_header_end   = lv_header_end
       it_serial_types = lt_serial_types ).
   ENDMETHOD.
 
@@ -104,6 +105,8 @@ CLASS zcl_sqlite_record IMPLEMENTATION.
     DATA lv_header_pos TYPE i.
     DATA lv_serial_type TYPE int8.
     DATA lv_serial_varint TYPE i.
+
+    CLEAR: ev_header_end, et_serial_types.
 
     lv_data_length = xstrlen( iv_data ).
     IF lv_data_length = 0.
@@ -141,7 +144,7 @@ CLASS zcl_sqlite_record IMPLEMENTATION.
       IF lv_header_pos + lv_serial_varint > ev_header_end.
         fail( 'record serial type crosses the header boundary' ).
       ENDIF.
-      APPEND lv_serial_type TO rt_serial_types.
+      APPEND lv_serial_type TO et_serial_types.
       lv_header_pos = lv_header_pos + lv_serial_varint.
     ENDWHILE.
   ENDMETHOD.
@@ -163,9 +166,9 @@ CLASS zcl_sqlite_record IMPLEMENTATION.
       ENDIF.
       lv_length = lv_length_i8.
       lo_value = decode_value(
-        iv_data = iv_data
-        iv_offset = lv_body_pos
-        iv_length = lv_length
+        iv_data        = iv_data
+        iv_offset      = lv_body_pos
+        iv_length      = lv_length
         iv_serial_type = lv_serial_type ).
       APPEND lo_value TO rt_values.
       lv_body_pos = lv_body_pos + lv_length.
@@ -181,12 +184,12 @@ CLASS zcl_sqlite_record IMPLEMENTATION.
       ro_value = zcl_sqlite_value=>null( ).
     ELSEIF iv_serial_type <= 6.
       ro_value = zcl_sqlite_value=>integer( decode_integer(
-        iv_data = iv_data
+        iv_data   = iv_data
         iv_offset = iv_offset
         iv_length = iv_length ) ).
     ELSEIF iv_serial_type = 7.
       ro_value = zcl_sqlite_value=>real( decode_real(
-        iv_data = iv_data
+        iv_data   = iv_data
         iv_offset = iv_offset ) ).
     ELSEIF iv_serial_type = 8.
       ro_value = zcl_sqlite_value=>integer( 0 ).

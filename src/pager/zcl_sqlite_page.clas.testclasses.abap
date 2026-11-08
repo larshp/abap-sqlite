@@ -44,7 +44,7 @@ CLASS ltcl_page IMPLEMENTATION.
 
   METHOD empty_fixture.
     assert_fixture(
-      iv_name = c_empty
+      iv_name  = c_empty
       it_pages = VALUE #(
         ( number = 1 page_type = zcl_sqlite_page=>c_table_leaf
           cell_count = 0 cell_content_offset = 4096 rightmost_pointer = 0 ) ) ).
@@ -52,7 +52,7 @@ CLASS ltcl_page IMPLEMENTATION.
 
   METHOD small_fixture.
     assert_fixture(
-      iv_name = c_small
+      iv_name  = c_small
       it_pages = VALUE #(
         ( number = 1 page_type = zcl_sqlite_page=>c_table_leaf
           cell_count = 1 cell_content_offset = 3972 rightmost_pointer = 0 )
@@ -62,7 +62,7 @@ CLASS ltcl_page IMPLEMENTATION.
 
   METHOD three_pages_fixture.
     assert_fixture(
-      iv_name = c_three_pages
+      iv_name  = c_three_pages
       it_pages = VALUE #(
         ( number = 1 page_type = zcl_sqlite_page=>c_table_leaf
           cell_count = 1 cell_content_offset = 4007 rightmost_pointer = 0 )
@@ -78,7 +78,7 @@ CLASS ltcl_page IMPLEMENTATION.
 
   METHOD indexed_fixture.
     assert_fixture(
-      iv_name = c_indexed
+      iv_name  = c_indexed
       it_pages = VALUE #(
         ( number = 1 page_type = zcl_sqlite_page=>c_table_leaf
           cell_count = 2 cell_content_offset = 3937 rightmost_pointer = 0 )

@@ -546,7 +546,7 @@ CLASS zcl_sqlite_index_cursor IMPLEMENTATION.
         fail( 'index comparison value is missing' ).
       ENDIF.
       rv_compare = compare_value(
-        io_left = lo_record
+        io_left  = lo_record
         io_right = lo_prefix ).
       IF rv_compare <> 0.
         RETURN.
@@ -618,11 +618,11 @@ CLASS zcl_sqlite_index_cursor IMPLEMENTATION.
             fail( 'index text is not valid UTF-8' ).
         ENDTRY.
         rv_compare = compare_bytes(
-          iv_left = lv_left_bytes
+          iv_left  = lv_left_bytes
           iv_right = lv_right_bytes ).
       WHEN 3.
         rv_compare = compare_bytes(
-          iv_left = io_left->as_blob( )
+          iv_left  = io_left->as_blob( )
           iv_right = io_right->as_blob( ) ).
       WHEN OTHERS.
         fail( 'index value type is unknown' ).

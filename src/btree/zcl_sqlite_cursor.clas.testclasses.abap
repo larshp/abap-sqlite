@@ -47,7 +47,7 @@ CLASS ltcl_cursor IMPLEMENTATION.
     DATA lo_value TYPE REF TO zcl_sqlite_value.
 
     lo_cursor = open_cursor(
-      iv_name = c_ten_thousand
+      iv_name      = c_ten_thousand
       iv_root_page = c_ten_thousand_root ).
 
     lv_found = lo_cursor->first( ).
@@ -102,7 +102,7 @@ CLASS ltcl_cursor IMPLEMENTATION.
     DATA lo_value TYPE REF TO zcl_sqlite_value.
 
     lo_cursor = open_cursor(
-      iv_name = c_ten_thousand
+      iv_name      = c_ten_thousand
       iv_root_page = c_ten_thousand_root ).
 
     lv_found = lo_cursor->seek( 5000 ).
@@ -165,39 +165,39 @@ CLASS ltcl_cursor IMPLEMENTATION.
       val = '00112233445566778899AABBCCDDEEFF' occ = 750 ).
 
     lo_cursor = open_cursor(
-      iv_name = c_overflow
+      iv_name      = c_overflow
       iv_root_page = c_overflow_root ).
 
     cl_abap_unit_assert=>assert_equals(
       act = lo_cursor->first( ) exp = abap_true ).
     assert_text_row(
-      io_cursor = lo_cursor
-      iv_rowid = 1
-      iv_name = 'text_near'
+      io_cursor   = lo_cursor
+      iv_rowid    = 1
+      iv_name     = 'text_near'
       iv_expected = repeat( val = 'T' occ = 4100 ) ).
 
     cl_abap_unit_assert=>assert_equals(
       act = lo_cursor->next( ) exp = abap_true ).
     assert_blob_row(
-      io_cursor = lo_cursor
-      iv_rowid = 2
-      iv_name = 'blob_near'
+      io_cursor   = lo_cursor
+      iv_rowid    = 2
+      iv_name     = 'blob_near'
       iv_expected = lv_blob_near ).
 
     cl_abap_unit_assert=>assert_equals(
       act = lo_cursor->next( ) exp = abap_true ).
     assert_text_row(
-      io_cursor = lo_cursor
-      iv_rowid = 3
-      iv_name = 'text_multi'
+      io_cursor   = lo_cursor
+      iv_rowid    = 3
+      iv_name     = 'text_multi'
       iv_expected = repeat( val = '0123456789' occ = 1200 ) ).
 
     cl_abap_unit_assert=>assert_equals(
       act = lo_cursor->next( ) exp = abap_true ).
     assert_blob_row(
-      io_cursor = lo_cursor
-      iv_rowid = 4
-      iv_name = 'blob_multi'
+      io_cursor   = lo_cursor
+      iv_rowid    = 4
+      iv_name     = 'blob_multi'
       iv_expected = lv_blob_multi ).
 
     cl_abap_unit_assert=>assert_equals(
@@ -217,7 +217,7 @@ CLASS ltcl_cursor IMPLEMENTATION.
     TRY.
         lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
         ro_cursor = NEW zcl_sqlite_cursor(
-          io_pager = lo_pager
+          io_pager     = lo_pager
           iv_root_page = iv_root_page ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( msg = |cursor construction failed: { lo_error->message }| ).

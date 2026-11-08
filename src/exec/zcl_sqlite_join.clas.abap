@@ -114,8 +114,8 @@ CLASS zcl_sqlite_join IMPLEMENTATION.
             io_right = lo_right ) = abap_true.
           mv_matched = abap_true.
           mo_row = build_row(
-            io_left  = mv_left_row
-            io_right = lo_right
+            io_left   = mv_left_row
+            io_right  = lo_right
             it_hidden = mt_using ).
           RETURN abap_true.
         ENDIF.

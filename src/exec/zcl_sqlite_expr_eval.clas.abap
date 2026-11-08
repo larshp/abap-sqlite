@@ -1198,7 +1198,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_first = c_truth_null.
     ELSE.
       lv_collation = effective_collation(
-        io_left = io_between->get_expression( )
+        io_left  = io_between->get_expression( )
         io_right = io_between->get_low( ) ).
       lv_first = bool_to_int( boolc( compare_non_null(
         io_left = lo_value io_right = lo_low iv_collation = lv_collation ) >= 0 ) ).
@@ -1217,7 +1217,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           lv_second = c_truth_null.
         ELSE.
           lv_collation = effective_collation(
-            io_left = io_between->get_expression( )
+            io_left  = io_between->get_expression( )
             io_right = io_between->get_high( ) ).
           lv_second = bool_to_int( boolc( compare_non_null(
             io_left = lo_value io_right = lo_high iv_collation = lv_collation ) <= 0 ) ).
@@ -2428,8 +2428,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
             val = iv_text off = lv_text_index - 1 len = 1 ).
           ls_class = glob_class_matches(
             iv_pattern = iv_pattern
-            iv_start = lv_pattern_index
-            iv_char = lv_text_char ).
+            iv_start   = lv_pattern_index
+            iv_char    = lv_text_char ).
           IF ls_class-valid = abap_true AND ls_class-matched = abap_true.
             lv_pattern_index = ls_class-next.
             lv_text_index = lv_text_index + 1.
@@ -2710,8 +2710,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
   METHOD compare_values.
     rv_compare = compare_non_null(
-      io_left = io_left
-      io_right = io_right
+      io_left      = io_left
+      io_right     = io_right
       iv_collation = iv_collation ).
   ENDMETHOD.
 
@@ -2975,7 +2975,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         rv_compare = compare_bytes( iv_left = lv_left_bytes iv_right = lv_right_bytes ).
       WHEN 3.
         rv_compare = compare_bytes(
-          iv_left = io_left->as_blob( )
+          iv_left  = io_left->as_blob( )
           iv_right = io_right->as_blob( ) ).
       WHEN OTHERS.
         raise_error( 'unknown value type' ).

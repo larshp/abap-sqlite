@@ -37,13 +37,13 @@ CLASS ltcl_catalog IMPLEMENTATION.
 
   METHOD empty_fixture.
     assert_fixture(
-      iv_name = c_empty
+      iv_name     = c_empty
       it_expected = VALUE zcl_sqlite_catalog=>ty_entries( ) ).
   ENDMETHOD.
 
   METHOD small_fixture.
     assert_fixture(
-      iv_name = c_small
+      iv_name     = c_small
       it_expected = VALUE #(
         ( type = 'table' name = 'items' tbl_name = 'items' rootpage = 2
           sql = join_lines( VALUE #(
@@ -56,7 +56,7 @@ CLASS ltcl_catalog IMPLEMENTATION.
 
   METHOD three_pages_fixture.
     assert_fixture(
-      iv_name = c_three_pages
+      iv_name     = c_three_pages
       it_expected = VALUE #(
         ( type = 'table' name = 'items' tbl_name = 'items' rootpage = 2
           sql = 'CREATE TABLE items (id INTEGER PRIMARY KEY, value TEXT NOT NULL)' ) ) ).
@@ -64,7 +64,7 @@ CLASS ltcl_catalog IMPLEMENTATION.
 
   METHOD indexed_fixture.
     assert_fixture(
-      iv_name = c_indexed
+      iv_name     = c_indexed
       it_expected = VALUE #(
         ( type = 'table' name = 'items' tbl_name = 'items' rootpage = 2
           sql = 'CREATE TABLE items (id INTEGER PRIMARY KEY, value TEXT NOT NULL)' )
@@ -74,7 +74,7 @@ CLASS ltcl_catalog IMPLEMENTATION.
 
   METHOD serial_types_fixture.
     assert_fixture(
-      iv_name = c_serial_types
+      iv_name     = c_serial_types
       it_expected = VALUE #(
         ( type = 'table' name = 'serial_types' tbl_name = 'serial_types'
           rootpage = 2
@@ -100,7 +100,7 @@ CLASS ltcl_catalog IMPLEMENTATION.
 
   METHOD ten_thousand_fixture.
     assert_fixture(
-      iv_name = c_ten_thousand
+      iv_name     = c_ten_thousand
       it_expected = VALUE #(
         ( type = 'table' name = 'items' tbl_name = 'items' rootpage = 2
           sql = 'CREATE TABLE items (value TEXT NOT NULL)' ) ) ).
@@ -108,7 +108,7 @@ CLASS ltcl_catalog IMPLEMENTATION.
 
   METHOD overflow_fixture.
     assert_fixture(
-      iv_name = c_overflow
+      iv_name     = c_overflow
       it_expected = VALUE #(
         ( type = 'table' name = 'payloads' tbl_name = 'payloads' rootpage = 2
           sql = 'CREATE TABLE payloads (name TEXT NOT NULL, value)' ) ) ).
@@ -296,15 +296,15 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
         lv_id = sy-index.
         lv_value = page_value(
           iv_size = ls_fixture-page_size
-          iv_id = lv_id ).
+          iv_id   = lv_id ).
         ls_row = VALUE #(
-          c1 = integer_value( lv_id )
-          c2 = text_value( lv_value )
+          c1    = integer_value( lv_id )
+          c2    = text_value( lv_value )
           count = 2 ).
         APPEND ls_row TO lt_table.
         ls_row = VALUE #(
-          c1 = text_value( lv_value )
-          c2 = integer_value( lv_id )
+          c1    = text_value( lv_value )
+          c2    = integer_value( lv_id )
           count = 2 ).
         APPEND ls_row TO lt_index.
       ENDDO.
@@ -315,15 +315,15 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
         act = ls_header-page_size exp = ls_fixture-page_size
         msg = |{ ls_fixture-name } page size| ).
       assert_table(
-        io_pager = lo_pager
-        iv_name = ls_fixture-name
+        io_pager     = lo_pager
+        iv_name      = ls_fixture-name
         iv_root_page = 2
-        it_expected = lt_table ).
+        it_expected  = lt_table ).
       assert_index(
-        io_pager = lo_pager
-        iv_name = ls_fixture-name
+        io_pager     = lo_pager
+        iv_name      = ls_fixture-name
         iv_root_page = 3
-        it_expected = lt_index ).
+        it_expected  = lt_index ).
     ENDLOOP.
   ENDMETHOD.
 
@@ -341,10 +341,10 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
       ( c1 = integer_value( 3 ) c2 = text_value( 'gamma' )
         c3 = null_value( ) count = 3 ) ).
     assert_table(
-      io_pager = lo_pager
-      iv_name = 'fixtures/small.db'
-      iv_root_page = 2
-      it_expected = lt_expected
+      io_pager       = lo_pager
+      iv_name        = 'fixtures/small.db'
+      iv_root_page   = 2
+      it_expected    = lt_expected
       iv_rowid_alias = abap_true ).
   ENDMETHOD.
 
@@ -358,16 +358,16 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     DO 200 TIMES.
       lv_id = sy-index.
       ls_row = VALUE #(
-        c1 = integer_value( lv_id )
-        c2 = text_value( bulk_value( lv_id ) )
+        c1    = integer_value( lv_id )
+        c2    = text_value( bulk_value( lv_id ) )
         count = 2 ).
       APPEND ls_row TO lt_expected.
     ENDDO.
     assert_table(
-      io_pager = lo_pager
-      iv_name = 'fixtures/three_pages.db'
-      iv_root_page = 2
-      it_expected = lt_expected
+      io_pager       = lo_pager
+      iv_name        = 'fixtures/three_pages.db'
+      iv_root_page   = 2
+      it_expected    = lt_expected
       iv_rowid_alias = abap_true ).
   ENDMETHOD.
 
@@ -381,16 +381,16 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     DO 100 TIMES.
       lv_id = sy-index.
       ls_row = VALUE #(
-        c1 = integer_value( lv_id )
-        c2 = text_value( bulk_value( lv_id ) )
+        c1    = integer_value( lv_id )
+        c2    = text_value( bulk_value( lv_id ) )
         count = 2 ).
       APPEND ls_row TO lt_expected.
     ENDDO.
     assert_table(
-      io_pager = lo_pager
-      iv_name = 'fixtures/indexed.db'
-      iv_root_page = 2
-      it_expected = lt_expected
+      io_pager       = lo_pager
+      iv_name        = 'fixtures/indexed.db'
+      iv_root_page   = 2
+      it_expected    = lt_expected
       iv_rowid_alias = abap_true ).
   ENDMETHOD.
 
@@ -421,27 +421,27 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
       lv_id = sy-index.
       lv_value = |keep-{ padding( iv_value = lv_id iv_width = 3 ) }|.
       ls_row = VALUE #(
-        c1 = integer_value( lv_id )
-        c2 = text_value( lv_value )
+        c1    = integer_value( lv_id )
+        c2    = text_value( lv_value )
         count = 2 ).
       APPEND ls_row TO lt_table.
       ls_row = VALUE #(
-        c1 = text_value( lv_value )
-        c2 = integer_value( lv_id )
+        c1    = text_value( lv_value )
+        c2    = integer_value( lv_id )
         count = 2 ).
       APPEND ls_row TO lt_index.
     ENDDO.
 
     assert_table(
-      io_pager = lo_pager
-      iv_name = 'fixtures/freelist.db'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/freelist.db'
       iv_root_page = 2
-      it_expected = lt_table ).
+      it_expected  = lt_table ).
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/freelist.db'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/freelist.db'
       iv_root_page = 3
-      it_expected = lt_index ).
+      it_expected  = lt_index ).
   ENDMETHOD.
 
   METHOD auto_vacuum_fixture.
@@ -474,27 +474,27 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
       lv_id = sy-index.
       lv_value = |auto-{ padding( iv_value = lv_id iv_width = 3 ) }|.
       ls_row = VALUE #(
-        c1 = integer_value( lv_id )
-        c2 = text_value( lv_value )
+        c1    = integer_value( lv_id )
+        c2    = text_value( lv_value )
         count = 2 ).
       APPEND ls_row TO lt_table.
       ls_row = VALUE #(
-        c1 = text_value( lv_value )
-        c2 = integer_value( lv_id )
+        c1    = text_value( lv_value )
+        c2    = integer_value( lv_id )
         count = 2 ).
       APPEND ls_row TO lt_index.
     ENDDO.
 
     assert_table(
-      io_pager = lo_pager
-      iv_name = 'fixtures/auto_vacuum.db'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/auto_vacuum.db'
       iv_root_page = 3
-      it_expected = lt_table ).
+      it_expected  = lt_table ).
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/auto_vacuum.db'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/auto_vacuum.db'
       iv_root_page = 4
-      it_expected = lt_index ).
+      it_expected  = lt_index ).
   ENDMETHOD.
 
   METHOD without_rowid_fixture.
@@ -512,28 +512,28 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
       lv_key = |key-{ padding( iv_value = lv_id iv_width = 3 ) }|.
       lv_value = |value-{ padding( iv_value = lv_id iv_width = 3 ) }|.
       ls_row = VALUE #(
-        c1 = text_value( lv_key )
-        c2 = text_value( lv_value )
-        c3 = integer_value( lv_id )
+        c1    = text_value( lv_key )
+        c2    = text_value( lv_value )
+        c3    = integer_value( lv_id )
         count = 3 ).
       APPEND ls_row TO lt_table.
       ls_row = VALUE #(
-        c1 = text_value( lv_value )
-        c2 = text_value( lv_key )
+        c1    = text_value( lv_value )
+        c2    = text_value( lv_key )
         count = 2 ).
       APPEND ls_row TO lt_index.
     ENDDO.
 
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/without_rowid.db table'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/without_rowid.db table'
       iv_root_page = 2
-      it_expected = lt_table ).
+      it_expected  = lt_table ).
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/without_rowid.db index'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/without_rowid.db index'
       iv_root_page = 3
-      it_expected = lt_index ).
+      it_expected  = lt_index ).
   ENDMETHOD.
 
   METHOD nulls_fixture.
@@ -580,20 +580,20 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
         c3 = integer_value( 5 ) count = 3 ) ).
 
     assert_table(
-      io_pager = lo_pager
-      iv_name = 'fixtures/nulls.db table'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/nulls.db table'
       iv_root_page = 2
-      it_expected = lt_table ).
+      it_expected  = lt_table ).
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/nulls.db index a'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/nulls.db index a'
       iv_root_page = 3
-      it_expected = lt_a ).
+      it_expected  = lt_a ).
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/nulls.db index a,b'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/nulls.db index a,b'
       iv_root_page = 4
-      it_expected = lt_ab ).
+      it_expected  = lt_ab ).
   ENDMETHOD.
 
   METHOD many_indexes_fixture.
@@ -674,35 +674,35 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
       ( c1 = text_value( 'c6' ) c2 = integer_value( 6 ) count = 2 ) ).
 
     assert_table(
-      io_pager = lo_pager
-      iv_name = 'fixtures/many_indexes.db table'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/many_indexes.db table'
       iv_root_page = 2
-      it_expected = lt_table ).
+      it_expected  = lt_table ).
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/many_indexes.db index a'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/many_indexes.db index a'
       iv_root_page = 3
-      it_expected = lt_a ).
+      it_expected  = lt_a ).
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/many_indexes.db index a,b'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/many_indexes.db index a,b'
       iv_root_page = 4
-      it_expected = lt_ab ).
+      it_expected  = lt_ab ).
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/many_indexes.db index b,a'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/many_indexes.db index b,a'
       iv_root_page = 5
-      it_expected = lt_ba ).
+      it_expected  = lt_ba ).
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/many_indexes.db index b'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/many_indexes.db index b'
       iv_root_page = 6
-      it_expected = lt_b ).
+      it_expected  = lt_b ).
     assert_index(
-      io_pager = lo_pager
-      iv_name = 'fixtures/many_indexes.db index c'
+      io_pager     = lo_pager
+      iv_name      = 'fixtures/many_indexes.db index c'
       iv_root_page = 7
-      it_expected = lt_c ).
+      it_expected  = lt_c ).
   ENDMETHOD.
 
   METHOD open_pager.
@@ -724,7 +724,7 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     DATA lo_value TYPE REF TO zcl_sqlite_value.
 
     lo_cursor = NEW zcl_sqlite_cursor(
-      io_pager = io_pager
+      io_pager     = io_pager
       iv_root_page = iv_root_page ).
     lv_found = lo_cursor->first( ).
     WHILE lv_found = abap_true.
@@ -746,9 +746,9 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
         lt_values = lt_raw.
       ENDIF.
       assert_row(
-        io_values = lt_values
+        io_values   = lt_values
         is_expected = ls_expected
-        iv_context = |{ iv_name } table row { lv_count }| ).
+        iv_context  = |{ iv_name } table row { lv_count }| ).
       lv_found = lo_cursor->next( ).
     ENDWHILE.
 
@@ -764,7 +764,7 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     DATA ls_expected TYPE ty_expected_row.
 
     lo_cursor = NEW zcl_sqlite_index_cursor(
-      io_pager = io_pager
+      io_pager     = io_pager
       iv_root_page = iv_root_page ).
     lv_found = lo_cursor->first( ).
     WHILE lv_found = abap_true.
@@ -774,9 +774,9 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
       ENDIF.
       READ TABLE it_expected INTO ls_expected INDEX lv_count.
       assert_row(
-        io_values = lo_cursor->values( )
+        io_values   = lo_cursor->values( )
         is_expected = ls_expected
-        iv_context = |{ iv_name } index entry { lv_count }| ).
+        iv_context  = |{ iv_name } index entry { lv_count }| ).
       lv_found = lo_cursor->next( ).
     ENDWHILE.
 
@@ -802,24 +802,24 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
       CASE sy-index.
         WHEN 1.
           assert_value(
-            io_value = lo_value
+            io_value    = lo_value
             is_expected = is_expected-c1
-            iv_context = |{ iv_context } value { sy-index }| ).
+            iv_context  = |{ iv_context } value { sy-index }| ).
         WHEN 2.
           assert_value(
-            io_value = lo_value
+            io_value    = lo_value
             is_expected = is_expected-c2
-            iv_context = |{ iv_context } value { sy-index }| ).
+            iv_context  = |{ iv_context } value { sy-index }| ).
         WHEN 3.
           assert_value(
-            io_value = lo_value
+            io_value    = lo_value
             is_expected = is_expected-c3
-            iv_context = |{ iv_context } value { sy-index }| ).
+            iv_context  = |{ iv_context } value { sy-index }| ).
         WHEN 4.
           assert_value(
-            io_value = lo_value
+            io_value    = lo_value
             is_expected = is_expected-c4
-            iv_context = |{ iv_context } value { sy-index }| ).
+            iv_context  = |{ iv_context } value { sy-index }| ).
       ENDCASE.
     ENDDO.
   ENDMETHOD.

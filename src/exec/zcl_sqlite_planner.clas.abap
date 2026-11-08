@@ -440,7 +440,7 @@ CLASS zcl_sqlite_planner IMPLEMENTATION.
             RETURN.
           ENDIF.
           IF is_rowid_column(
-              is_table = ls_info-table
+              is_table  = ls_info-table
               iv_column = lv_column ) = abap_true.
             rs_resolution-found = abap_true.
             rs_resolution-table_index = lv_table_no.
@@ -477,7 +477,7 @@ CLASS zcl_sqlite_planner IMPLEMENTATION.
     LOOP AT mt_tables INTO ls_info.
       lv_table_no = lv_table_no + 1.
       IF is_rowid_column(
-          is_table = ls_info-table
+          is_table  = ls_info-table
           iv_column = lv_column ) = abap_true.
         lv_count = lv_count + 1.
         lv_found_no = lv_table_no.

@@ -62,9 +62,9 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
     assert_blob( iv_sql = 'SELECT x''4142''' iv_expected = '4142' ).
     assert_integer( iv_sql = 'SELECT 0xFFFFFFFFFFFFFFFF' iv_expected = -1 ).
     assert_integer( iv_sql = 'SELECT 0x8000000000000000'
-      iv_expected = -9223372036854775808 ).
+      iv_expected          = -9223372036854775808 ).
     assert_real( iv_sql = 'SELECT 9223372036854775808'
-      iv_expected = '9223372036854775808' ).
+      iv_expected       = '9223372036854775808' ).
   ENDMETHOD.
 
   METHOD arithmetic.
@@ -79,9 +79,9 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
     assert_real( iv_sql = 'SELECT 5.5 % 2' iv_expected = '1.0' ).
     assert_real( iv_sql = 'SELECT 5.0 % 2' iv_expected = '1.0' ).
     assert_real( iv_sql = 'SELECT 9223372036854775807 + 1'
-      iv_expected = '9223372036854775808' ).
+      iv_expected       = '9223372036854775808' ).
     assert_real( iv_sql = 'SELECT 9223372036854775807 * 2'
-      iv_expected = '18446744073709551616' ).
+      iv_expected       = '18446744073709551616' ).
   ENDMETHOD.
 
   METHOD logic.
@@ -103,7 +103,7 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
     assert_integer( iv_sql = 'SELECT 1 < 1.5' iv_expected = 1 ).
     assert_integer( iv_sql = 'SELECT 2 > 1.5' iv_expected = 1 ).
     assert_integer( iv_sql = 'SELECT 9007199254740993 = 9007199254740992.0'
-      iv_expected = 0 ).
+      iv_expected          = 0 ).
     assert_integer( iv_sql = 'SELECT ''a'' < ''b''' iv_expected = 1 ).
     assert_integer( iv_sql = 'SELECT x''41'' < x''42''' iv_expected = 1 ).
     assert_null( 'SELECT NULL = NULL' ).
@@ -127,13 +127,13 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
 
   METHOD case_expressions.
     assert_text( iv_sql = 'SELECT CASE WHEN 1 THEN ''yes'' ELSE ''no'' END'
-      iv_expected = 'yes' ).
+      iv_expected       = 'yes' ).
     assert_text( iv_sql = 'SELECT CASE 1 WHEN 1.0 THEN ''match'' ELSE ''no'' END'
-      iv_expected = 'match' ).
+      iv_expected       = 'match' ).
     assert_text( iv_sql = 'SELECT CASE NULL WHEN NULL THEN ''x'' ELSE ''y'' END'
-      iv_expected = 'y' ).
+      iv_expected       = 'y' ).
     assert_text( iv_sql = 'SELECT CASE ''1'' WHEN 1 THEN ''x'' ELSE ''y'' END'
-      iv_expected = 'y' ).
+      iv_expected       = 'y' ).
     assert_null( 'SELECT CASE WHEN 0 THEN ''x'' END' ).
   ENDMETHOD.
 
@@ -153,9 +153,9 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
     assert_text( iv_sql = 'SELECT CAST(1.0 AS TEXT)' iv_expected = '1.0' ).
     assert_text( iv_sql = 'SELECT CAST(0.1 AS TEXT)' iv_expected = '0.1' ).
     assert_text( iv_sql = 'SELECT CAST(1.2345678901234567 AS TEXT)'
-      iv_expected = '1.23456789012346' ).
+      iv_expected       = '1.23456789012346' ).
     assert_text( iv_sql = 'SELECT CAST(1.0 / 3 AS TEXT)'
-      iv_expected = '0.333333333333333' ).
+      iv_expected       = '0.333333333333333' ).
     assert_text( iv_sql = 'SELECT CAST(1e15 AS TEXT)' iv_expected = '1.0e+15' ).
     assert_text( iv_sql = 'SELECT CAST(1e-5 AS TEXT)' iv_expected = '1.0e-05' ).
     assert_text( iv_sql = 'SELECT CAST(0.0001 AS TEXT)' iv_expected = '0.0001' ).
@@ -166,7 +166,7 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
     assert_integer( iv_sql = 'SELECT ~0' iv_expected = -1 ).
     assert_integer( iv_sql = 'SELECT 1 << 3' iv_expected = 8 ).
     assert_integer( iv_sql = 'SELECT 1 << 63'
-      iv_expected = -9223372036854775808 ).
+      iv_expected          = -9223372036854775808 ).
     assert_integer( iv_sql = 'SELECT 1 << 64' iv_expected = 0 ).
     assert_integer( iv_sql = 'SELECT -1 >> 1' iv_expected = -1 ).
     assert_integer( iv_sql = 'SELECT -1 >> 64' iv_expected = -1 ).
@@ -179,26 +179,26 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
 
   METHOD integer_boundaries.
     assert_integer( iv_sql = 'SELECT CAST(''-9223372036854775808'' AS INTEGER)'
-      iv_expected = -9223372036854775808 ).
+      iv_expected          = -9223372036854775808 ).
     assert_integer( iv_sql = 'SELECT -9223372036854775808'
-      iv_expected = -9223372036854775808 ).
+      iv_expected          = -9223372036854775808 ).
     assert_integer( iv_sql = 'SELECT - 0009223372036854775808'
-      iv_expected = -9223372036854775808 ).
+      iv_expected          = -9223372036854775808 ).
     assert_real( iv_sql = 'SELECT -9223372036854775809'
-      iv_expected = '-9223372036854775809' ).
+      iv_expected       = '-9223372036854775809' ).
     assert_integer( iv_sql = 'SELECT (-9223372036854775808) % -1'
-      iv_expected = 0 ).
+      iv_expected          = 0 ).
   ENDMETHOD.
 
   METHOD cast_types.
     assert_integer( iv_sql = 'SELECT CAST(''12.9'' AS INTEGER)'
-      iv_expected = 12 ).
+      iv_expected          = 12 ).
     assert_real( iv_sql = 'SELECT CAST(''12.9'' AS REAL)'
-      iv_expected = '12.9' ).
+      iv_expected       = '12.9' ).
     assert_integer( iv_sql = 'SELECT CAST(''12.0'' AS NUMERIC)'
-      iv_expected = 12 ).
+      iv_expected          = 12 ).
     assert_real( iv_sql = 'SELECT CAST(''12.5'' AS NUMERIC)'
-      iv_expected = '12.5' ).
+      iv_expected       = '12.5' ).
     assert_text( iv_sql = 'SELECT CAST(1.5 AS TEXT)' iv_expected = '1.5' ).
     assert_text( iv_sql = 'SELECT CAST(1 AS TEXT)' iv_expected = '1' ).
     assert_blob( iv_sql = 'SELECT CAST(''abc'' AS BLOB)' iv_expected = '616263' ).
@@ -209,38 +209,38 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
     assert_integer( iv_sql = 'SELECT ''a'' = ''A''' iv_expected = 0 ).
     assert_integer( iv_sql = 'SELECT ''a'' = ''A'' COLLATE NOCASE' iv_expected = 1 ).
     assert_integer( iv_sql = 'SELECT ''a'' COLLATE NOCASE = ''A''' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                             =
       'SELECT ''a'' COLLATE BINARY = ''A'' COLLATE NOCASE' iv_expected = 0 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                             =
       'SELECT ''a'' COLLATE NOCASE = ''A'' COLLATE BINARY' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                  =
       'SELECT ''abc '' = ''abc'' COLLATE RTRIM' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                    =
       'SELECT ''abc  '' = ''abc '' COLLATE RTRIM' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                 =
       'SELECT ''a'' COLLATE NOCASE IN (''A'')' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                 =
       'SELECT ''a'' IN (''A'' COLLATE NOCASE)' iv_expected = 0 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                              =
       'SELECT ''a'' BETWEEN ''A'' AND ''B'' COLLATE NOCASE' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                              =
       'SELECT ''a'' BETWEEN ''A'' COLLATE NOCASE AND ''B''' iv_expected = 0 ).
     assert_integer( iv_sql =
       'SELECT CASE ''a'' COLLATE NOCASE WHEN ''A'' THEN 1 ELSE 0 END'
-      iv_expected = 1 ).
+      iv_expected          = 1 ).
     assert_integer( iv_sql =
       'SELECT CASE WHEN 1 THEN ''a'' COLLATE NOCASE ELSE ''b'' END = ''A'''
-      iv_expected = 1 ).
-    assert_integer( iv_sql =
+      iv_expected          = 1 ).
+    assert_integer( iv_sql                                            =
       'SELECT CAST(''a'' COLLATE NOCASE AS TEXT) = ''A''' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                        =
       'SELECT ''a'' COLLATE NOCASE || ''x'' = ''AX''' iv_expected = 1 ).
     assert_integer( iv_sql =
       'SELECT ''a'' COLLATE BINARY || (''X'' COLLATE NOCASE) = ''Ax'''
-      iv_expected = 0 ).
-    assert_integer( iv_sql =
+      iv_expected          = 0 ).
+    assert_integer( iv_sql                                          =
       'SELECT ''x'' || (''a'' COLLATE NOCASE) = ''XA''' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                               =
       'SELECT ''a'' COLLATE NOCASE IS ''A''' iv_expected = 1 ).
   ENDMETHOD.
 
@@ -254,27 +254,27 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
     assert_integer( iv_sql = 'SELECT ''ac'' LIKE ''a%b%c''' iv_expected = 0 ).
     assert_integer( iv_sql = 'SELECT '''' LIKE ''%''' iv_expected = 1 ).
     assert_integer( iv_sql = 'SELECT '''' LIKE ''_''' iv_expected = 0 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                    =
       'SELECT ''a%c'' LIKE ''a!%c'' ESCAPE ''!''' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                    =
       'SELECT ''abc'' LIKE ''a!%c'' ESCAPE ''!''' iv_expected = 0 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                    =
       'SELECT ''a_c'' LIKE ''a!_c'' ESCAPE ''!''' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                    =
       'SELECT ''abc'' LIKE ''a!bc'' ESCAPE ''!''' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                 =
       'SELECT ''a!'' LIKE ''a!'' ESCAPE ''!''' iv_expected = 0 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                    =
       'SELECT ''abc'' LIKE ''abc!'' ESCAPE ''!''' iv_expected = 0 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                   =
       'SELECT ''abc'' LIKE ''a_c'' ESCAPE ''A''' iv_expected = 1 ).
-    assert_integer( iv_sql =
+    assert_integer( iv_sql                                   =
       'SELECT ''aBc'' LIKE ''a_c'' ESCAPE ''a''' iv_expected = 0 ).
     assert_integer( iv_sql = 'SELECT ''a'' LIKE ''a'' ESCAPE 1' iv_expected = 1 ).
     assert_integer( iv_sql = 'SELECT ''a1'' LIKE ''a1'' ESCAPE 1'
-      iv_expected = 0 ).
+      iv_expected          = 0 ).
     assert_integer( iv_sql = 'SELECT ''a'' LIKE ''a'' ESCAPE ''1'''
-      iv_expected = 1 ).
+      iv_expected          = 1 ).
     assert_integer( iv_sql = 'SELECT ''abc'' NOT LIKE ''a%''' iv_expected = 0 ).
     assert_integer( iv_sql = 'SELECT 1 LIKE ''1''' iv_expected = 1 ).
     assert_integer( iv_sql = 'SELECT 1.5 LIKE ''1.5''' iv_expected = 1 ).

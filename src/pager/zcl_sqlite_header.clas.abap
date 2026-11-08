@@ -105,7 +105,7 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
           iv_offset = 96
           iv_value  = c_sqlite_version ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        fail( iv_code = zcx_sqlite_error=>sqlite_internal
+        fail( iv_code    = zcx_sqlite_error=>sqlite_internal
               iv_message = 'SQLite header could not be built' ).
     ENDTRY.
   ENDMETHOD.
@@ -117,11 +117,11 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
 
     lv_length = xstrlen( iv_data ).
     IF lv_length < c_header_size.
-      fail( iv_code = zcx_sqlite_error=>sqlite_notadb
+      fail( iv_code    = zcx_sqlite_error=>sqlite_notadb
             iv_message = 'SQLite header is shorter than 100 bytes' ).
     ENDIF.
     IF iv_data+0(16) <> c_magic.
-      fail( iv_code = zcx_sqlite_error=>sqlite_notadb
+      fail( iv_code    = zcx_sqlite_error=>sqlite_notadb
             iv_message = 'SQLite header magic is invalid' ).
     ENDIF.
 
@@ -174,12 +174,12 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
         rs_header-sqlite_version =
           zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 96 ).
       CATCH cx_sy_range_out_of_bounds.
-        fail( iv_code = zcx_sqlite_error=>sqlite_notadb
+        fail( iv_code    = zcx_sqlite_error=>sqlite_notadb
               iv_message = 'SQLite header is shorter than 100 bytes' ).
     ENDTRY.
 
     IF rs_header-page_size < 512 OR rs_header-page_size > 65536.
-      fail( iv_code = zcx_sqlite_error=>sqlite_notadb
+      fail( iv_code    = zcx_sqlite_error=>sqlite_notadb
             iv_message = 'SQLite page size is outside 512..65536' ).
     ENDIF.
     lv_power = 512.
@@ -187,35 +187,35 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
       lv_power = lv_power * 2.
     ENDWHILE.
     IF lv_power <> rs_header-page_size.
-      fail( iv_code = zcx_sqlite_error=>sqlite_notadb
+      fail( iv_code    = zcx_sqlite_error=>sqlite_notadb
             iv_message = 'SQLite page size is not a power of two' ).
     ENDIF.
 
     IF rs_header-write_version <> 1 AND rs_header-write_version <> 2.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'SQLite write version is invalid' ).
     ENDIF.
     IF rs_header-read_version <> 1 AND rs_header-read_version <> 2.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'SQLite read version is invalid' ).
     ENDIF.
     IF rs_header-max_payload_fraction <> 64
         OR rs_header-min_payload_fraction <> 32
         OR rs_header-leaf_payload_fraction <> 32.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'SQLite payload fractions are invalid' ).
     ENDIF.
     IF rs_header-schema_format > 4.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'SQLite schema format is invalid' ).
     ENDIF.
     IF rs_header-text_encoding > 3.
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'SQLite text encoding is invalid' ).
     ENDIF.
     IF ( rs_header-freelist_trunk = 0 AND rs_header-freelist_pages <> 0 )
         OR ( rs_header-freelist_trunk <> 0 AND rs_header-freelist_pages = 0 ).
-      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
             iv_message = 'SQLite freelist header is inconsistent' ).
     ENDIF.
   ENDMETHOD.
@@ -223,7 +223,7 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
   METHOD patch.
     rv_data = iv_data.
     IF xstrlen( rv_data ) < c_header_size.
-      fail( iv_code = zcx_sqlite_error=>sqlite_internal
+      fail( iv_code    = zcx_sqlite_error=>sqlite_internal
             iv_message = 'SQLite header page is shorter than 100 bytes' ).
     ENDIF.
 
@@ -253,7 +253,7 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
           iv_offset = 96
           iv_value  = is_header-sqlite_version ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        fail( iv_code = zcx_sqlite_error=>sqlite_internal
+        fail( iv_code    = zcx_sqlite_error=>sqlite_internal
               iv_message = 'SQLite header could not be written' ).
     ENDTRY.
   ENDMETHOD.

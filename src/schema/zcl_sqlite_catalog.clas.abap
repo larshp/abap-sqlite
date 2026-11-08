@@ -55,7 +55,7 @@ CLASS zcl_sqlite_catalog IMPLEMENTATION.
     DATA ls_entry TYPE ty_entry.
 
     lo_cursor = NEW zcl_sqlite_cursor(
-      io_pager = io_pager
+      io_pager     = io_pager
       iv_root_page = 1 ).
 
     lv_found = lo_cursor->first( ).
