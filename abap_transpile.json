@@ -16,6 +16,13 @@
     "setup": {
       "filename": "../test/setup.mjs",
       "preFunction": "setup"
-    }
+    },
+    "skip": [
+      {
+        "object": "ZCL_SQLITE_FILES",
+        "class": "LTCL_FILES",
+        "method": "SELECT_FOR_UPDATE"
+      }
+    ]
   }
 }

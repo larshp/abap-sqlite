@@ -182,9 +182,9 @@ CLASS ltcl_files IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD select_for_update.
-* ANORMALY: SELECT FOR UPDATE is silently dropped by the transpiler, the
-* statement succeeds but locks nothing, see ANORMALIES.md. Locking itself is
-* only verified on a real database, see D5.
+* ANORMALY: SELECT FOR UPDATE is not supported by the transpiler, the
+* generated code throws, see ANORMALIES.md. This method is skipped in
+* abap_transpile.json and only runs on a real database, see D5.
     DATA ls_file TYPE zsqlite_files.
 
     ls_file-mandt = sy-mandt.
