@@ -46,6 +46,19 @@ CLASS zcl_sqlite_pager DEFINITION
                 iv_data TYPE xstring
       RAISING   zcx_sqlite_error.
 
+* take a page from the freelist or append a zero page, the page is dirty
+    METHODS allocate_page
+      RETURNING VALUE(rv_page) TYPE i
+      RAISING   zcx_sqlite_error.
+
+* put a page on the first freelist trunk or create a new trunk
+    METHODS free_page
+      IMPORTING iv_page TYPE i
+      RAISING   zcx_sqlite_error.
+
+    METHODS freelist_count
+      RETURNING VALUE(rv_count) TYPE i.
+
     METHODS commit
       RAISING zcx_sqlite_error.
 
@@ -95,6 +108,45 @@ CLASS zcl_sqlite_pager DEFINITION
     DATA mt_cache TYPE ty_cache.
 * dirty pages live outside the cache, an eviction must never lose a write
     DATA mt_dirty TYPE ty_dirty.
+
+* allocation changes the header and page count, keep their committed values
+    DATA mv_snapshot_valid TYPE abap_bool.
+    DATA mv_snapshot_header TYPE zcl_sqlite_header=>ty_header.
+    DATA mv_snapshot_page_count TYPE i.
+
+    METHODS ensure_snapshot.
+
+    METHODS zero_page
+      RETURNING VALUE(rv_data) TYPE xstring.
+
+    METHODS zero_and_put
+      IMPORTING iv_page TYPE i
+      RAISING   zcx_sqlite_error.
+
+    METHODS max_freelist_leaves
+      RETURNING VALUE(rv_count) TYPE i.
+
+    METHODS page_u32
+      IMPORTING iv_data         TYPE xstring
+                iv_offset       TYPE i
+      RETURNING VALUE(rv_value) TYPE int8
+      RAISING   zcx_sqlite_error.
+
+    METHODS set_page_u32
+      IMPORTING iv_data        TYPE xstring
+                iv_offset      TYPE i
+                iv_value       TYPE int8
+      RETURNING VALUE(rv_data) TYPE xstring
+      RAISING   zcx_sqlite_error.
+
+    METHODS check_free_page_number
+      IMPORTING iv_page TYPE i
+      RAISING   zcx_sqlite_error.
+
+    METHODS is_free_page
+      IMPORTING iv_page        TYPE i
+      RETURNING VALUE(rv_free) TYPE abap_bool
+      RAISING   zcx_sqlite_error.
 
     METHODS fail
       IMPORTING iv_code    TYPE i
@@ -244,6 +296,8 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
             iv_message = 'page data does not match the page size' ).
     ENDIF.
 
+    ensure_snapshot( ).
+
 * copy-on-write: drop the clean cached copy and keep the new page in mt_dirty
     DELETE mt_cache WHERE number = iv_page.
     ls_dirty-number = iv_page.
@@ -257,6 +311,130 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     INSERT ls_dirty INTO TABLE mt_dirty.
   ENDMETHOD.
 
+  METHOD allocate_page.
+    DATA ls_trunk  TYPE ty_page.
+    DATA lv_trunk  TYPE int8.
+    DATA lv_next   TYPE int8.
+    DATA lv_leaves TYPE int8.
+    DATA lv_leaf   TYPE int8.
+    DATA lv_index  TYPE i.
+
+    ensure_snapshot( ).
+
+    lv_trunk = mv_header-freelist_trunk.
+    IF lv_trunk = 0.
+      mv_page_count = mv_page_count + 1.
+      rv_page = mv_page_count.
+      zero_and_put( rv_page ).
+      RETURN.
+    ENDIF.
+
+    IF mv_header-freelist_pages < 1.
+      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+            iv_message = 'freelist trunk has no free page count' ).
+    ENDIF.
+
+    check_free_page_number( CONV i( lv_trunk ) ).
+    ls_trunk = get_page( CONV i( lv_trunk ) ).
+    lv_leaves = page_u32( iv_data = ls_trunk-data iv_offset = 4 ).
+    IF lv_leaves < 0
+        OR lv_leaves > CONV int8( max_freelist_leaves( ) ).
+      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+            iv_message = 'freelist trunk leaf count is invalid' ).
+    ENDIF.
+
+    IF lv_leaves > 0.
+      lv_index = CONV i( lv_leaves ) - 1.
+      lv_leaf = page_u32(
+        iv_data = ls_trunk-data
+        iv_offset = 8 + lv_index * 4 ).
+      check_free_page_number( CONV i( lv_leaf ) ).
+
+      ls_trunk-data = set_page_u32(
+        iv_data = ls_trunk-data
+        iv_offset = 4
+        iv_value = lv_leaves - 1 ).
+      put_page( iv_page = CONV i( lv_trunk ) iv_data = ls_trunk-data ).
+
+      rv_page = CONV i( lv_leaf ).
+    ELSE.
+      lv_next = page_u32( iv_data = ls_trunk-data iv_offset = 0 ).
+      IF lv_next <> 0.
+        check_free_page_number( CONV i( lv_next ) ).
+      ENDIF.
+
+      mv_header-freelist_trunk = lv_next.
+      rv_page = CONV i( lv_trunk ).
+    ENDIF.
+
+    mv_header-freelist_pages = mv_header-freelist_pages - 1.
+    zero_and_put( rv_page ).
+  ENDMETHOD.
+
+  METHOD free_page.
+    DATA ls_trunk  TYPE ty_page.
+    DATA lv_trunk  TYPE int8.
+    DATA lv_leaves TYPE int8.
+    DATA lv_data   TYPE xstring.
+
+    IF iv_page < 2 OR iv_page > mv_page_count.
+      fail( iv_code = zcx_sqlite_error=>sqlite_misuse
+            iv_message = 'page to free is outside the database' ).
+    ENDIF.
+    IF is_free_page( iv_page ) = abap_true.
+      fail( iv_code = zcx_sqlite_error=>sqlite_misuse
+            iv_message = 'page is already on the freelist' ).
+    ENDIF.
+
+    ensure_snapshot( ).
+    lv_trunk = mv_header-freelist_trunk.
+    IF lv_trunk = 0.
+      lv_data = zero_page( ).
+      lv_data = set_page_u32( iv_data = lv_data iv_offset = 0 iv_value = 0 ).
+      lv_data = set_page_u32( iv_data = lv_data iv_offset = 4 iv_value = 0 ).
+      put_page( iv_page = iv_page iv_data = lv_data ).
+
+      mv_header-freelist_trunk = CONV int8( iv_page ).
+      mv_header-freelist_pages = mv_header-freelist_pages + 1.
+      RETURN.
+    ENDIF.
+
+    check_free_page_number( CONV i( lv_trunk ) ).
+    ls_trunk = get_page( CONV i( lv_trunk ) ).
+    lv_leaves = page_u32( iv_data = ls_trunk-data iv_offset = 4 ).
+    IF lv_leaves < 0
+        OR lv_leaves > CONV int8( max_freelist_leaves( ) ).
+      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+            iv_message = 'freelist trunk leaf count is invalid' ).
+    ENDIF.
+
+    IF lv_leaves < CONV int8( max_freelist_leaves( ) ).
+      ls_trunk-data = set_page_u32(
+        iv_data = ls_trunk-data
+        iv_offset = 8 + CONV i( lv_leaves ) * 4
+        iv_value = CONV int8( iv_page ) ).
+      ls_trunk-data = set_page_u32(
+        iv_data = ls_trunk-data
+        iv_offset = 4
+        iv_value = lv_leaves + 1 ).
+      put_page( iv_page = CONV i( lv_trunk ) iv_data = ls_trunk-data ).
+      zero_and_put( iv_page ).
+    ELSE.
+      lv_data = zero_page( ).
+      lv_data = set_page_u32( iv_data = lv_data iv_offset = 0 iv_value = lv_trunk ).
+      lv_data = set_page_u32( iv_data = lv_data iv_offset = 4 iv_value = 0 ).
+      put_page( iv_page = iv_page iv_data = lv_data ).
+
+      mv_header-freelist_trunk = CONV int8( iv_page ).
+    ENDIF.
+
+    mv_header-freelist_pages = mv_header-freelist_pages + 1.
+  ENDMETHOD.
+
+  METHOD freelist_count.
+    rv_count = mv_header-freelist_pages.
+  ENDMETHOD.
+
   METHOD commit.
     DATA ls_dirty TYPE ty_dirty_page.
     DATA ls_header TYPE zcl_sqlite_header=>ty_header.
@@ -264,6 +442,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     DATA lv_offset TYPE i.
 
     IF lines( mt_dirty ) = 0.
+      CLEAR mv_snapshot_valid.
       RETURN.
     ENDIF.
 
@@ -302,11 +481,17 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
 
     mv_header = ls_header.
     CLEAR mt_dirty.
+    CLEAR mv_snapshot_valid.
 * the cached page 1 has the old header bytes
     DELETE mt_cache WHERE number = 1.
   ENDMETHOD.
 
   METHOD rollback.
+    IF mv_snapshot_valid = abap_true.
+      mv_header = mv_snapshot_header.
+      mv_page_count = mv_snapshot_page_count.
+      CLEAR mv_snapshot_valid.
+    ENDIF.
     CLEAR mt_dirty.
   ENDMETHOD.
 
@@ -365,6 +550,108 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
       DELETE mt_cache WHERE number = ls_oldest-number.
       mv_evictions = mv_evictions + 1.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD ensure_snapshot.
+    IF mv_snapshot_valid = abap_false.
+      mv_snapshot_header = mv_header.
+      mv_snapshot_page_count = mv_page_count.
+      mv_snapshot_valid = abap_true.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD zero_page.
+    rv_data = repeat( val = '00' occ = mv_page_size ).
+  ENDMETHOD.
+
+  METHOD zero_and_put.
+    DATA lv_data TYPE xstring.
+
+    lv_data = zero_page( ).
+    put_page( iv_page = iv_page iv_data = lv_data ).
+  ENDMETHOD.
+
+  METHOD max_freelist_leaves.
+    rv_count = ( mv_page_size - CONV i( mv_header-reserved_bytes ) ) DIV 4 - 2.
+  ENDMETHOD.
+
+  METHOD page_u32.
+    TRY.
+        rv_value = zcl_sqlite_bytes=>read_u32(
+          iv_data   = iv_data
+          iv_offset = iv_offset ).
+      CATCH cx_sy_range_out_of_bounds.
+        fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'freelist page is truncated' ).
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD set_page_u32.
+    TRY.
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = iv_data
+          iv_offset = iv_offset
+          iv_value  = iv_value ).
+      CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
+        fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'freelist page could not be written' ).
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD check_free_page_number.
+    IF iv_page < 2 OR iv_page > mv_page_count.
+      fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+            iv_message = 'freelist page number is outside the database' ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD is_free_page.
+    DATA ls_trunk  TYPE ty_page.
+    DATA lv_trunk  TYPE int8.
+    DATA lv_next   TYPE int8.
+    DATA lv_leaves TYPE int8.
+    DATA lv_leaf   TYPE int8.
+    DATA lv_index  TYPE i.
+    DATA lv_loops  TYPE i.
+
+    lv_trunk = mv_header-freelist_trunk.
+    WHILE lv_trunk <> 0.
+      check_free_page_number( CONV i( lv_trunk ) ).
+      IF lv_trunk = iv_page.
+        rv_free = abap_true.
+        RETURN.
+      ENDIF.
+
+      lv_loops = lv_loops + 1.
+      IF lv_loops > mv_page_count.
+        fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'freelist trunk chain contains a cycle' ).
+      ENDIF.
+
+      ls_trunk = get_page( CONV i( lv_trunk ) ).
+      lv_leaves = page_u32( iv_data = ls_trunk-data iv_offset = 4 ).
+      IF lv_leaves < 0
+          OR lv_leaves > CONV int8( max_freelist_leaves( ) ).
+        fail( iv_code = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'freelist trunk leaf count is invalid' ).
+      ENDIF.
+
+      lv_index = 0.
+      WHILE lv_index < lv_leaves.
+        lv_leaf = page_u32(
+          iv_data = ls_trunk-data
+          iv_offset = 8 + lv_index * 4 ).
+        check_free_page_number( CONV i( lv_leaf ) ).
+        IF lv_leaf = iv_page.
+          rv_free = abap_true.
+          RETURN.
+        ENDIF.
+        lv_index = lv_index + 1.
+      ENDWHILE.
+
+      lv_next = page_u32( iv_data = ls_trunk-data iv_offset = 0 ).
+      lv_trunk = lv_next.
+    ENDWHILE.
   ENDMETHOD.
 
   METHOD fail.

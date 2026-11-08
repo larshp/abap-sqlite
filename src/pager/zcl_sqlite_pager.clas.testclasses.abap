@@ -18,6 +18,8 @@ CLASS ltcl_pager DEFINITION FINAL FOR TESTING
     METHODS header_maintenance FOR TESTING.
     METHODS commit_without_changes FOR TESTING.
     METHODS invalid_write FOR TESTING.
+    METHODS freelist_roundtrip FOR TESTING RAISING zcx_sqlite_error.
+    METHODS freelist_rollback FOR TESTING RAISING zcx_sqlite_error.
 
     METHODS open_pager
       IMPORTING iv_cache_size   TYPE i
@@ -38,6 +40,11 @@ CLASS ltcl_pager DEFINITION FINAL FOR TESTING
                 iv_offset      TYPE i
                 iv_value       TYPE int8
       RETURNING VALUE(rv_data) TYPE xstring.
+
+    METHODS page_u32
+      IMPORTING iv_data         TYPE xstring
+                iv_offset       TYPE i
+      RETURNING VALUE(rv_value) TYPE int8.
 ENDCLASS.
 
 
@@ -340,6 +347,162 @@ CLASS ltcl_pager IMPLEMENTATION.
     ENDTRY.
   ENDMETHOD.
 
+  METHOD freelist_roundtrip.
+    DATA lo_pager TYPE REF TO zcl_sqlite_pager.
+    DATA ls_header TYPE zcl_sqlite_header=>ty_header.
+    DATA ls_page TYPE zcl_sqlite_pager=>ty_page.
+    DATA lv_initial TYPE i.
+    DATA lv_page1 TYPE i.
+    DATA lv_page2 TYPE i.
+    DATA lv_page3 TYPE i.
+    DATA lv_new TYPE i.
+    DATA lv_allocated TYPE i.
+    DATA lv_file TYPE xstring.
+    DATA lv_trunk TYPE xstring.
+
+    lo_pager = open_writable_pager( 2 ).
+    lv_initial = lo_pager->page_count( ).
+
+    TRY.
+        lv_page1 = lo_pager->allocate_page( ).
+        lv_page2 = lo_pager->allocate_page( ).
+        lv_page3 = lo_pager->allocate_page( ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lv_page1 exp = lv_initial + 1 msg = 'first appended page' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lv_page3 exp = lv_initial + 3 msg = 'third appended page' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->page_count( ) exp = lv_initial + 3 msg = 'grown page count' ).
+
+        lo_pager->free_page( lv_page1 ).
+        lo_pager->free_page( lv_page2 ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->freelist_count( ) exp = 2 msg = 'freelist count' ).
+        ls_header = lo_pager->header( ).
+        cl_abap_unit_assert=>assert_equals(
+          act = ls_header-freelist_trunk exp = lv_page1 msg = 'freelist trunk' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = ls_header-freelist_pages exp = 2 msg = 'freelist header count' ).
+
+        ls_page = lo_pager->get_page( lv_page1 ).
+        cl_abap_unit_assert=>assert_equals(
+          act = page_u32( iv_data = ls_page-data iv_offset = 0 )
+          exp = 0 msg = 'trunk next page' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = page_u32( iv_data = ls_page-data iv_offset = 4 )
+          exp = 1 msg = 'trunk leaf count' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = page_u32( iv_data = ls_page-data iv_offset = 8 )
+          exp = lv_page2 msg = 'trunk leaf page' ).
+
+        TRY.
+            lo_pager->free_page( lv_page1 ).
+            cl_abap_unit_assert=>fail( msg = 'double free must fail' ).
+          CATCH zcx_sqlite_error INTO DATA(lo_error).
+            cl_abap_unit_assert=>assert_equals(
+              act = lo_error->code
+              exp = zcx_sqlite_error=>sqlite_misuse
+              msg = 'double free error code' ).
+        ENDTRY.
+
+        lo_pager->commit( ).
+      CATCH zcx_sqlite_error INTO DATA(lo_commit_error).
+        cl_abap_unit_assert=>fail( msg = |freelist write failed: { lo_commit_error->message }| ).
+    ENDTRY.
+
+    lv_file = file_data( ).
+    ls_header = zcl_sqlite_header=>parse( lv_file ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-database_size exp = lv_initial + 3 msg = 'committed page count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-freelist_trunk exp = lv_page1 msg = 'committed freelist trunk' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-freelist_pages exp = 2 msg = 'committed freelist count' ).
+
+    lv_trunk = page_data( iv_data = lv_file iv_page = lv_page1 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = page_u32( iv_data = lv_trunk iv_offset = 4 )
+      exp = 1 msg = 'committed trunk leaf count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = page_u32( iv_data = lv_trunk iv_offset = 8 )
+      exp = lv_page2 msg = 'committed trunk leaf page' ).
+
+    TRY.
+        lv_allocated = lo_pager->allocate_page( ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lv_allocated exp = lv_page2 msg = 'allocate from leaf' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->freelist_count( ) exp = 1 msg = 'freelist after leaf' ).
+
+        lv_allocated = lo_pager->allocate_page( ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lv_allocated exp = lv_page1 msg = 'allocate empty trunk' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->freelist_count( ) exp = 0 msg = 'empty freelist' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->header( )-freelist_trunk exp = 0 msg = 'cleared trunk' ).
+
+        lv_new = lo_pager->allocate_page( ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lv_new exp = lv_initial + 4 msg = 'append after freelist' ).
+
+        lo_pager->free_page( lv_new ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->freelist_count( ) exp = 1 msg = 'new trunk count' ).
+        lo_pager->commit( ).
+      CATCH zcx_sqlite_error INTO DATA(lo_reuse_error).
+        cl_abap_unit_assert=>fail( msg = |freelist reuse failed: { lo_reuse_error->message }| ).
+    ENDTRY.
+
+    lv_file = file_data( ).
+    ls_header = zcl_sqlite_header=>parse( lv_file ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-database_size exp = lv_initial + 4 msg = 'reused page count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-freelist_trunk exp = lv_new msg = 'new trunk after free' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-freelist_pages exp = 1 msg = 'new trunk free count' ).
+  ENDMETHOD.
+
+  METHOD freelist_rollback.
+    DATA lo_pager TYPE REF TO zcl_sqlite_pager.
+    DATA lv_initial TYPE i.
+    DATA lv_page TYPE i.
+    DATA lv_file_before TYPE xstring.
+    DATA lv_file_after TYPE xstring.
+
+    lo_pager = open_writable_pager( 2 ).
+    lv_initial = lo_pager->page_count( ).
+    lv_file_before = file_data( ).
+
+    TRY.
+        lv_page = lo_pager->allocate_page( ).
+        lo_pager->free_page( lv_page ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->page_count( ) exp = lv_initial + 1 msg = 'allocated page count' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->freelist_count( ) exp = 1 msg = 'allocated freelist count' ).
+
+        lo_pager->rollback( ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->page_count( ) exp = lv_initial msg = 'rollback page count' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->freelist_count( ) exp = 0 msg = 'rollback freelist count' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->header( )-freelist_trunk exp = 0 msg = 'rollback trunk' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->dirty_page_count( ) exp = 0 msg = 'rollback dirty pages' ).
+
+        lo_pager->commit( ).
+      CATCH zcx_sqlite_error INTO DATA(lo_error).
+        cl_abap_unit_assert=>fail( msg = |freelist rollback failed: { lo_error->message }| ).
+    ENDTRY.
+
+    lv_file_after = file_data( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_file_after exp = lv_file_before msg = 'rollback leaves file unchanged' ).
+  ENDMETHOD.
+
   METHOD open_pager.
     DATA lo_vfs TYPE REF TO zif_sqlite_vfs.
     DATA lo_file TYPE REF TO zif_sqlite_file.
@@ -397,6 +560,16 @@ CLASS ltcl_pager IMPLEMENTATION.
 
     lv_offset = ( iv_page - 1 ) * c_page_size.
     rv_data = iv_data+lv_offset(c_page_size).
+  ENDMETHOD.
+
+  METHOD page_u32.
+    TRY.
+        rv_value = zcl_sqlite_bytes=>read_u32(
+          iv_data   = iv_data
+          iv_offset = iv_offset ).
+      CATCH cx_sy_range_out_of_bounds.
+        cl_abap_unit_assert=>fail( msg = 'could not read freelist page' ).
+    ENDTRY.
   ENDMETHOD.
 
   METHOD change_byte.

@@ -489,7 +489,7 @@ queries) still matches sql.js.
 
 #### M5.3 Page allocation and freelist
 
-- [ ] Allocate pages from the freelist or by appending. Free pages onto trunk/leaf freelist pages.
+- [x] Allocate pages from the freelist or by appending. Free pages onto trunk/leaf freelist pages.
 
 **Done when:** allocate/free sequences give valid freelists (checked with sql.js
 `PRAGMA freelist_count` and `integrity_check`).
