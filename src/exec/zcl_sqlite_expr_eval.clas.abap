@@ -636,34 +636,44 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       ro_value = evaluate_literal( lo_literal ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_unary.
       lo_unary ?= io_expression.
-      ro_value = evaluate_unary( io_unary = lo_unary io_context = io_context ).
+      ro_value = evaluate_unary( io_unary   = lo_unary
+                                 io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_binary.
       lo_binary ?= io_expression.
-      ro_value = evaluate_binary( io_binary = lo_binary io_context = io_context ).
+      ro_value = evaluate_binary( io_binary  = lo_binary
+                                  io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_case.
       lo_case ?= io_expression.
-      ro_value = evaluate_case( io_case = lo_case io_context = io_context ).
+      ro_value = evaluate_case( io_case    = lo_case
+                                io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_cast.
       lo_cast ?= io_expression.
-      ro_value = evaluate_cast( io_cast = lo_cast io_context = io_context ).
+      ro_value = evaluate_cast( io_cast    = lo_cast
+                                io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_between.
       lo_between ?= io_expression.
-      ro_value = evaluate_between( io_between = lo_between io_context = io_context ).
+      ro_value = evaluate_between( io_between = lo_between
+                                   io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_in.
       lo_in ?= io_expression.
-      ro_value = evaluate_in( io_in = lo_in io_context = io_context ).
+      ro_value = evaluate_in( io_in      = lo_in
+                              io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_collate.
       lo_collate ?= io_expression.
-      ro_value = evaluate_collate( io_collate = lo_collate io_context = io_context ).
+      ro_value = evaluate_collate( io_collate = lo_collate
+                                   io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_name.
       lo_name ?= io_expression.
-      ro_value = evaluate_name( io_name = lo_name io_context = io_context ).
+      ro_value = evaluate_name( io_name    = lo_name
+                                io_context = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_function.
       lo_function ?= io_expression.
-      ro_value = evaluate_function( io_function = lo_function io_context = io_context ).
+      ro_value = evaluate_function( io_function = lo_function
+                                    io_context  = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_like.
       lo_like ?= io_expression.
-      ro_value = evaluate_like( io_like = lo_like io_context = io_context ).
+      ro_value = evaluate_like( io_like    = lo_like
+                                io_context = io_context ).
     ELSE.
       raise_error( 'unsupported expression' ).
     ENDIF.
@@ -714,9 +724,12 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         ro_value = zcl_sqlite_value=>null( ).
       WHEN 'INTEGER'.
         IF strlen( lv_text ) >= 2
-            AND ( substring( val = lv_text len = 2 ) = '0x'
-               OR substring( val = lv_text len = 2 ) = '0X' ).
-          lv_hex = substring( val = lv_text off = 2 ).
+            AND ( substring( val = lv_text
+                             len = 2 ) = '0x'
+               OR substring( val = lv_text
+                             len = 2 ) = '0X' ).
+          lv_hex = substring( val = lv_text
+                              off = 2 ).
           IF strlen( lv_hex ) > 16.
             raise_error( |hex literal too big: { lv_text }| ).
           ENDIF.
@@ -745,28 +758,48 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         lv_text = sy-datum.
         CONDENSE lv_text.
         ro_value = zcl_sqlite_value=>text(
-          |{ substring( val = lv_text len = 4 ) }-| &&
-          |{ substring( val = lv_text off = 4 len = 2 ) }-| &&
-          |{ substring( val = lv_text off = 6 len = 2 ) }| ).
+          |{ substring( val = lv_text
+                        len = 4 ) }-| &&
+          |{ substring( val = lv_text
+                        off = 4
+                        len = 2 ) }-| &&
+          |{ substring( val = lv_text
+                        off = 6
+                        len = 2 ) }| ).
       WHEN 'CURRENT_TIME'.
         lv_text = sy-uzeit.
         CONDENSE lv_text.
         ro_value = zcl_sqlite_value=>text(
-          |{ substring( val = lv_text len = 2 ) }:| &&
-          |{ substring( val = lv_text off = 2 len = 2 ) }:| &&
-          |{ substring( val = lv_text off = 4 len = 2 ) }| ).
+          |{ substring( val = lv_text
+                        len = 2 ) }:| &&
+          |{ substring( val = lv_text
+                        off = 2
+                        len = 2 ) }:| &&
+          |{ substring( val = lv_text
+                        off = 4
+                        len = 2 ) }| ).
       WHEN 'CURRENT_TIMESTAMP'.
         lv_text = sy-datum.
         CONDENSE lv_text.
         lv_hour = sy-uzeit.
         CONDENSE lv_hour.
         ro_value = zcl_sqlite_value=>text(
-          |{ substring( val = lv_text len = 4 ) }-| &&
-          |{ substring( val = lv_text off = 4 len = 2 ) }-| &&
-          |{ substring( val = lv_text off = 6 len = 2 ) } | &&
-          |{ substring( val = lv_hour len = 2 ) }:| &&
-          |{ substring( val = lv_hour off = 2 len = 2 ) }:| &&
-          |{ substring( val = lv_hour off = 4 len = 2 ) }| ).
+          |{ substring( val = lv_text
+                        len = 4 ) }-| &&
+          |{ substring( val = lv_text
+                        off = 4
+                        len = 2 ) }-| &&
+          |{ substring( val = lv_text
+                        off = 6
+                        len = 2 ) } | &&
+          |{ substring( val = lv_hour
+                        len = 2 ) }:| &&
+          |{ substring( val = lv_hour
+                        off = 2
+                        len = 2 ) }:| &&
+          |{ substring( val = lv_hour
+                        off = 4
+                        len = 2 ) }| ).
       WHEN OTHERS.
         raise_error( |unsupported literal { lv_kind }| ).
     ENDCASE.
@@ -794,8 +827,10 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           IF lo_literal->get_kind( ) = 'INTEGER'.
             lv_text = lo_literal->get_value( ).
             WHILE strlen( lv_text ) > 1
-                AND substring( val = lv_text len = 1 ) = '0'.
-              lv_text = substring( val = lv_text off = 1 ).
+                AND substring( val = lv_text
+                               len = 1 ) = '0'.
+              lv_text = substring( val = lv_text
+                                   off = 1 ).
             ENDWHILE.
             IF lv_text = '9223372036854775808'.
               ro_value = zcl_sqlite_value=>integer( c_min_integer ).
@@ -903,7 +938,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_left  TYPE int8.
     DATA lv_right TYPE int8.
 
-    lo_left = evaluate( io_expression = io_left io_context = io_context ).
+    lo_left = evaluate( io_expression = io_left
+                        io_context    = io_context ).
     lv_left = truth_value( lo_left ).
 
     IF iv_operator = 'AND'.
@@ -911,7 +947,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         ro_value = zcl_sqlite_value=>integer( 0 ).
         RETURN.
       ENDIF.
-      lo_right = evaluate( io_expression = io_right io_context = io_context ).
+      lo_right = evaluate( io_expression = io_right
+                           io_context    = io_context ).
       lv_right = truth_value( lo_right ).
       IF lv_left = c_truth_true.
         IF lv_right = c_truth_null.
@@ -932,7 +969,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       ro_value = zcl_sqlite_value=>integer( 1 ).
       RETURN.
     ENDIF.
-    lo_right = evaluate( io_expression = io_right io_context = io_context ).
+    lo_right = evaluate( io_expression = io_right
+                         io_context    = io_context ).
     lv_right = truth_value( lo_right ).
     IF lv_left = c_truth_false.
       IF lv_right = c_truth_null.
@@ -955,8 +993,10 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_collation TYPE string.
     DATA lv_result TYPE int8.
 
-    lo_left = evaluate( io_expression = io_left io_context = io_context ).
-    lo_right = evaluate( io_expression = io_right io_context = io_context ).
+    lo_left = evaluate( io_expression = io_left
+                        io_context    = io_context ).
+    lo_right = evaluate( io_expression = io_right
+                         io_context    = io_context ).
 
     IF iv_operator = '=' OR iv_operator = '==' OR iv_operator = '!='
         OR iv_operator = '<>' OR iv_operator = '<' OR iv_operator = '<='
@@ -965,9 +1005,12 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         ro_value = zcl_sqlite_value=>null( ).
         RETURN.
       ENDIF.
-      lv_collation = effective_collation( io_left = io_left io_right = io_right ).
+      lv_collation = effective_collation( io_left  = io_left
+                                          io_right = io_right ).
       lv_compare = compare_non_null(
-        io_left = lo_left io_right = lo_right iv_collation = lv_collation ).
+        io_left      = lo_left
+        io_right     = lo_right
+        iv_collation = lv_collation ).
       CASE iv_operator.
         WHEN '=' OR '=='.
           lv_result = bool_to_int( boolc( lv_compare = 0 ) ).
@@ -1005,17 +1048,22 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_collation TYPE string.
     DATA lv_result TYPE int8.
 
-    lo_left = evaluate( io_expression = io_left io_context = io_context ).
-    lo_right = evaluate( io_expression = io_right io_context = io_context ).
+    lo_left = evaluate( io_expression = io_left
+                        io_context    = io_context ).
+    lo_right = evaluate( io_expression = io_right
+                         io_context    = io_context ).
 
     IF lo_left->is_null( ) = abap_true AND lo_right->is_null( ) = abap_true.
       lv_result = 1.
     ELSEIF lo_left->is_null( ) = abap_true OR lo_right->is_null( ) = abap_true.
       lv_result = 0.
     ELSE.
-      lv_collation = effective_collation( io_left = io_left io_right = io_right ).
+      lv_collation = effective_collation( io_left  = io_left
+                                          io_right = io_right ).
       lv_result = bool_to_int( boolc( compare_non_null(
-        io_left = lo_left io_right = lo_right iv_collation = lv_collation ) = 0 ) ).
+        io_left      = lo_left
+        io_right     = lo_right
+        iv_collation = lv_collation ) = 0 ) ).
     ENDIF.
 
     IF iv_operator = 'IS NOT'.
@@ -1037,8 +1085,10 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_int_result TYPE int8.
     DATA lv_real_result TYPE abap_bool.
 
-    lo_left = evaluate( io_expression = io_left io_context = io_context ).
-    lo_right = evaluate( io_expression = io_right io_context = io_context ).
+    lo_left = evaluate( io_expression = io_left
+                        io_context    = io_context ).
+    lo_right = evaluate( io_expression = io_right
+                         io_context    = io_context ).
     IF lo_left->is_null( ) = abap_true OR lo_right->is_null( ) = abap_true.
       ro_value = zcl_sqlite_value=>null( ).
       RETURN.
@@ -1075,7 +1125,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           IF lv_left_int = c_min_integer AND lv_right_int = -1.
             lv_int_result = 0.
           ELSE.
-            lv_int_result = integer_modulo( iv_left = lv_left_int iv_right = lv_right_int ).
+            lv_int_result = integer_modulo( iv_left  = lv_left_int
+                                            iv_right = lv_right_int ).
           ENDIF.
           ro_value = zcl_sqlite_value=>real( CONV f( lv_int_result ) ).
           RETURN.
@@ -1095,19 +1146,22 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     CASE iv_operator.
       WHEN '+'.
-        IF add_overflow( iv_left = lv_left_int iv_right = lv_right_int ) = abap_true.
+        IF add_overflow( iv_left  = lv_left_int
+                         iv_right = lv_right_int ) = abap_true.
           ro_value = zcl_sqlite_value=>real( real_of( lo_left_num ) + real_of( lo_right_num ) ).
         ELSE.
           ro_value = zcl_sqlite_value=>integer( lv_left_int + lv_right_int ).
         ENDIF.
       WHEN '-'.
-        IF sub_overflow( iv_left = lv_left_int iv_right = lv_right_int ) = abap_true.
+        IF sub_overflow( iv_left  = lv_left_int
+                         iv_right = lv_right_int ) = abap_true.
           ro_value = zcl_sqlite_value=>real( real_of( lo_left_num ) - real_of( lo_right_num ) ).
         ELSE.
           ro_value = zcl_sqlite_value=>integer( lv_left_int - lv_right_int ).
         ENDIF.
       WHEN '*'.
-        IF mul_overflow( iv_left = lv_left_int iv_right = lv_right_int ) = abap_true.
+        IF mul_overflow( iv_left  = lv_left_int
+                         iv_right = lv_right_int ) = abap_true.
           ro_value = zcl_sqlite_value=>real( real_of( lo_left_num ) * real_of( lo_right_num ) ).
         ELSE.
           ro_value = zcl_sqlite_value=>integer( lv_left_int * lv_right_int ).
@@ -1119,7 +1173,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           ro_value = zcl_sqlite_value=>real( real_of( lo_left_num ) / real_of( lo_right_num ) ).
         ELSE.
           ro_value = zcl_sqlite_value=>integer(
-            integer_divide( iv_left = lv_left_int iv_right = lv_right_int ) ).
+            integer_divide( iv_left  = lv_left_int
+                            iv_right = lv_right_int ) ).
         ENDIF.
       WHEN '%'.
         IF lv_right_int = 0.
@@ -1128,7 +1183,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           ro_value = zcl_sqlite_value=>integer( 0 ).
         ELSE.
           ro_value = zcl_sqlite_value=>integer(
-            integer_modulo( iv_left = lv_left_int iv_right = lv_right_int ) ).
+            integer_modulo( iv_left  = lv_left_int
+                            iv_right = lv_right_int ) ).
         ENDIF.
       WHEN OTHERS.
         raise_error( |unsupported arithmetic operator { iv_operator }| ).
@@ -1143,8 +1199,10 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_data  TYPE xstring.
     DATA lv_shift TYPE int8.
 
-    lo_left = evaluate( io_expression = io_left io_context = io_context ).
-    lo_right = evaluate( io_expression = io_right io_context = io_context ).
+    lo_left = evaluate( io_expression = io_left
+                        io_context    = io_context ).
+    lo_right = evaluate( io_expression = io_right
+                         io_context    = io_context ).
     IF lo_left->is_null( ) = abap_true OR lo_right->is_null( ) = abap_true.
       ro_value = zcl_sqlite_value=>null( ).
       RETURN.
@@ -1167,9 +1225,11 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           ELSE.
             lv_shift = 0 - lv_right.
           ENDIF.
-          ro_value = zcl_sqlite_value=>integer( bit_shift_right( iv_value = lv_left iv_shift = lv_shift ) ).
+          ro_value = zcl_sqlite_value=>integer( bit_shift_right( iv_value = lv_left
+                                                                 iv_shift = lv_shift ) ).
         ELSE.
-          ro_value = zcl_sqlite_value=>integer( bit_shift_left( iv_value = lv_left iv_shift = lv_right ) ).
+          ro_value = zcl_sqlite_value=>integer( bit_shift_left( iv_value = lv_left
+                                                                iv_shift = lv_right ) ).
         ENDIF.
       WHEN '>>'.
         IF lv_right < 0.
@@ -1178,9 +1238,11 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           ELSE.
             lv_shift = 0 - lv_right.
           ENDIF.
-          ro_value = zcl_sqlite_value=>integer( bit_shift_left( iv_value = lv_left iv_shift = lv_shift ) ).
+          ro_value = zcl_sqlite_value=>integer( bit_shift_left( iv_value = lv_left
+                                                                iv_shift = lv_shift ) ).
         ELSE.
-          ro_value = zcl_sqlite_value=>integer( bit_shift_right( iv_value = lv_left iv_shift = lv_right ) ).
+          ro_value = zcl_sqlite_value=>integer( bit_shift_right( iv_value = lv_left
+                                                                 iv_shift = lv_right ) ).
         ENDIF.
       WHEN OTHERS.
         raise_error( |unsupported bitwise operator { iv_operator }| ).
@@ -1210,7 +1272,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         io_left  = io_between->get_expression( )
         io_right = io_between->get_low( ) ).
       lv_first = bool_to_int( boolc( compare_non_null(
-        io_left = lo_value io_right = lo_low iv_collation = lv_collation ) >= 0 ) ).
+        io_left      = lo_value
+        io_right     = lo_low
+        iv_collation = lv_collation ) >= 0 ) ).
     ENDIF.
 
     CASE lv_first.
@@ -1229,7 +1293,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
             io_left  = io_between->get_expression( )
             io_right = io_between->get_high( ) ).
           lv_second = bool_to_int( boolc( compare_non_null(
-            io_left = lo_value io_right = lo_high iv_collation = lv_collation ) <= 0 ) ).
+            io_left      = lo_value
+            io_right     = lo_high
+            iv_collation = lv_collation ) <= 0 ) ).
         ENDIF.
         lv_result = lv_second.
     ENDCASE.
@@ -1278,7 +1344,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           CONTINUE.
         ENDIF.
         IF compare_non_null(
-            io_left = lo_value io_right = lo_candidate
+            io_left      = lo_value
+            io_right     = lo_candidate
             iv_collation = lv_collation ) = 0.
           lv_found = abap_true.
           EXIT.
@@ -1358,13 +1425,21 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     CASE lv_name.
       WHEN 'ABS'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         ro_value = function_abs( lt_values[ 1 ] ).
       WHEN 'COALESCE'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = -1 ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 2
+                       iv_max   = -1 ).
         LOOP AT lt_arguments INTO lo_argument.
-          lo_value = evaluate( io_expression = lo_argument io_context = io_context ).
+          lo_value = evaluate( io_expression = lo_argument
+                               io_context    = io_context ).
           IF lo_value->is_null( ) = abap_false.
             ro_value = lo_value.
             RETURN.
@@ -1372,50 +1447,85 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         ENDLOOP.
         ro_value = zcl_sqlite_value=>null( ).
       WHEN 'IFNULL'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = 2 ).
-        lo_value = evaluate( io_expression = lt_arguments[ 1 ] io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 2
+                       iv_max   = 2 ).
+        lo_value = evaluate( io_expression = lt_arguments[ 1 ]
+                             io_context    = io_context ).
         IF lo_value->is_null( ) = abap_true.
-          lo_value = evaluate( io_expression = lt_arguments[ 2 ] io_context = io_context ).
+          lo_value = evaluate( io_expression = lt_arguments[ 2 ]
+                               io_context    = io_context ).
         ENDIF.
         ro_value = lo_value.
       WHEN 'NULLIF'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = 2 ).
-        lo_value = evaluate( io_expression = lt_arguments[ 1 ] io_context = io_context ).
-        lo_other = evaluate( io_expression = lt_arguments[ 2 ] io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 2
+                       iv_max   = 2 ).
+        lo_value = evaluate( io_expression = lt_arguments[ 1 ]
+                             io_context    = io_context ).
+        lo_other = evaluate( io_expression = lt_arguments[ 2 ]
+                             io_context    = io_context ).
         IF lo_value->is_null( ) = abap_true.
           ro_value = zcl_sqlite_value=>null( ).
         ELSEIF lo_other->is_null( ) = abap_true.
           ro_value = lo_value.
-        ELSEIF compare_non_null( io_left = lo_value io_right = lo_other ) = 0.
+        ELSEIF compare_non_null( io_left  = lo_value
+                                 io_right = lo_other ) = 0.
           ro_value = zcl_sqlite_value=>null( ).
         ELSE.
           ro_value = lo_value.
         ENDIF.
       WHEN 'IIF'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = -1 ).
-        lo_value = evaluate( io_expression = lt_arguments[ 1 ] io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 2
+                       iv_max   = -1 ).
+        lo_value = evaluate( io_expression = lt_arguments[ 1 ]
+                             io_context    = io_context ).
         IF is_true( lo_value ) = abap_true.
-          ro_value = evaluate( io_expression = lt_arguments[ 2 ] io_context = io_context ).
+          ro_value = evaluate( io_expression = lt_arguments[ 2 ]
+                               io_context    = io_context ).
         ELSEIF lv_count = 2.
           ro_value = zcl_sqlite_value=>null( ).
         ELSE.
-          ro_value = evaluate( io_expression = lt_arguments[ lv_count ] io_context = io_context ).
+          ro_value = evaluate( io_expression = lt_arguments[ lv_count ]
+                               io_context    = io_context ).
         ENDIF.
       WHEN 'LENGTH'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         ro_value = function_length( lt_values[ 1 ] ).
       WHEN 'LOWER'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
-        ro_value = function_case( io_value = lt_values[ 1 ] iv_upper = abap_false ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
+        ro_value = function_case( io_value = lt_values[ 1 ]
+                                  iv_upper = abap_false ).
       WHEN 'UPPER'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
-        ro_value = function_case( io_value = lt_values[ 1 ] iv_upper = abap_true ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
+        ro_value = function_case( io_value = lt_values[ 1 ]
+                                  iv_upper = abap_true ).
       WHEN 'SUBSTR'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = 3 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 2
+                       iv_max   = 3 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         IF lv_count = 3.
           ro_value = function_substr(
             io_value  = lt_values[ 1 ]
@@ -1427,58 +1537,89 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
             io_start = lt_values[ 2 ] ).
         ENDIF.
       WHEN 'TRIM'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 2 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 2 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         IF lv_count = 2.
           ro_value = function_trim(
             io_value      = lt_values[ 1 ]
             io_characters = lt_values[ 2 ]
             iv_mode       = 'BOTH' ).
         ELSE.
-          ro_value = function_trim( io_value = lt_values[ 1 ] iv_mode = 'BOTH' ).
+          ro_value = function_trim( io_value = lt_values[ 1 ]
+                                    iv_mode  = 'BOTH' ).
         ENDIF.
       WHEN 'LTRIM'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 2 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 2 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         IF lv_count = 2.
           ro_value = function_trim(
             io_value      = lt_values[ 1 ]
             io_characters = lt_values[ 2 ]
             iv_mode       = 'LEFT' ).
         ELSE.
-          ro_value = function_trim( io_value = lt_values[ 1 ] iv_mode = 'LEFT' ).
+          ro_value = function_trim( io_value = lt_values[ 1 ]
+                                    iv_mode  = 'LEFT' ).
         ENDIF.
       WHEN 'RTRIM'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 2 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 2 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         IF lv_count = 2.
           ro_value = function_trim(
             io_value      = lt_values[ 1 ]
             io_characters = lt_values[ 2 ]
             iv_mode       = 'RIGHT' ).
         ELSE.
-          ro_value = function_trim( io_value = lt_values[ 1 ] iv_mode = 'RIGHT' ).
+          ro_value = function_trim( io_value = lt_values[ 1 ]
+                                    iv_mode  = 'RIGHT' ).
         ENDIF.
       WHEN 'REPLACE'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 3 iv_max = 3 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 3
+                       iv_max   = 3 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         ro_value = function_replace(
           io_value       = lt_values[ 1 ]
           io_pattern     = lt_values[ 2 ]
           io_replacement = lt_values[ 3 ] ).
       WHEN 'INSTR'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 2 iv_max = 2 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 2
+                       iv_max   = 2 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         ro_value = function_instr(
           io_value  = lt_values[ 1 ]
           io_needle = lt_values[ 2 ] ).
       WHEN 'TYPEOF'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         ro_value = function_typeof( lt_values[ 1 ] ).
       WHEN 'ROUND'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 2 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 2 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         IF lv_count = 2.
           ro_value = function_round(
             io_value  = lt_values[ 1 ]
@@ -1487,23 +1628,44 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           ro_value = function_round( lt_values[ 1 ] ).
         ENDIF.
       WHEN 'HEX'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         ro_value = function_hex( lt_values[ 1 ] ).
       WHEN 'QUOTE'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = 1 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
         ro_value = function_quote( lt_values[ 1 ] ).
       WHEN 'MIN'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = -1 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
-        ro_value = function_minmax( it_values = lt_values iv_min = abap_true ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = -1 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
+        ro_value = function_minmax( it_values = lt_values
+                                    iv_min    = abap_true ).
       WHEN 'MAX'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = -1 ).
-        lt_values = evaluate_arguments( io_function = io_function io_context = io_context ).
-        ro_value = function_minmax( it_values = lt_values iv_min = abap_false ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 1
+                       iv_max   = -1 ).
+        lt_values = evaluate_arguments( io_function = io_function
+                                        io_context  = io_context ).
+        ro_value = function_minmax( it_values = lt_values
+                                    iv_min    = abap_false ).
       WHEN 'RANDOM'.
-        require_arity( iv_name = lv_display iv_count = lv_count iv_min = 0 iv_max = 0 ).
+        require_arity( iv_name  = lv_display
+                       iv_count = lv_count
+                       iv_min   = 0
+                       iv_max   = 0 ).
         ro_value = function_random( ).
       WHEN OTHERS.
         raise_error( |function { lv_display } is not supported yet| ).
@@ -1517,7 +1679,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     lt_arguments = io_function->get_arguments( ).
     LOOP AT lt_arguments INTO lo_argument.
-      lo_value = evaluate( io_expression = lo_argument io_context = io_context ).
+      lo_value = evaluate( io_expression = lo_argument
+                           io_context    = io_context ).
       APPEND lo_value TO rt_values.
     ENDLOOP.
   ENDMETHOD.
@@ -1722,8 +1885,11 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     IF iv_mode = 'BOTH' OR iv_mode = 'LEFT'.
       WHILE lv_start < lv_end.
         lv_char = text_char_substring(
-          iv_text = lv_text iv_offset = lv_start iv_length = 1 ).
-        IF text_contains_char( iv_text = lv_characters iv_char = lv_char ) = abap_false.
+          iv_text   = lv_text
+          iv_offset = lv_start
+          iv_length = 1 ).
+        IF text_contains_char( iv_text = lv_characters
+                               iv_char = lv_char ) = abap_false.
           EXIT.
         ENDIF.
         lv_start = lv_start + 1.
@@ -1733,8 +1899,11 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     IF iv_mode = 'BOTH' OR iv_mode = 'RIGHT'.
       WHILE lv_end > lv_start.
         lv_char = text_char_substring(
-          iv_text = lv_text iv_offset = lv_end - 1 iv_length = 1 ).
-        IF text_contains_char( iv_text = lv_characters iv_char = lv_char ) = abap_false.
+          iv_text   = lv_text
+          iv_offset = lv_end - 1
+          iv_length = 1 ).
+        IF text_contains_char( iv_text = lv_characters
+                               iv_char = lv_char ) = abap_false.
           EXIT.
         ENDIF.
         lv_end = lv_end - 1.
@@ -1742,7 +1911,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDIF.
 
     ro_value = zcl_sqlite_value=>text( text_char_substring(
-      iv_text = lv_text iv_offset = lv_start iv_length = lv_end - lv_start ) ).
+      iv_text   = lv_text
+      iv_offset = lv_start
+      iv_length = lv_end - lv_start ) ).
   ENDMETHOD.
 
   METHOD function_replace.
@@ -1785,7 +1956,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     IF lv_value_is_blob = abap_true AND lv_needle_is_blob = abap_true.
       lv_index = bytes_index_of(
-        iv_text = io_value->as_blob( ) iv_needle = io_needle->as_blob( ) ).
+        iv_text   = io_value->as_blob( )
+        iv_needle = io_needle->as_blob( ) ).
       IF lv_index >= 0.
         lv_index = lv_index + 1.
       ELSE.
@@ -1796,7 +1968,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ELSE.
       lv_text = cast_to_text( io_value )->as_text( ).
       lv_needle = cast_to_text( io_needle )->as_text( ).
-      lv_index = text_index_of( iv_text = lv_text iv_needle = lv_needle ).
+      lv_index = text_index_of( iv_text   = lv_text
+                                iv_needle = lv_needle ).
     ENDIF.
 
     ro_value = zcl_sqlite_value=>integer( lv_index ).
@@ -1851,7 +2024,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDIF.
 
     ro_value = zcl_sqlite_value=>real( round_real(
-      iv_value = lv_value iv_digits = lv_places ) ).
+      iv_value  = lv_value
+      iv_digits = lv_places ) ).
   ENDMETHOD.
 
   METHOD function_hex.
@@ -1903,7 +2077,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     ro_value = it_values[ 1 ].
     LOOP AT it_values INTO lo_value FROM 2.
-      lv_compare = compare_non_null( io_left = lo_value io_right = ro_value ).
+      lv_compare = compare_non_null( io_left  = lo_value
+                                     io_right = ro_value ).
       IF iv_min = abap_true AND lv_compare <= 0.
         ro_value = lo_value.
       ELSEIF iv_min = abap_false AND lv_compare > 0.
@@ -1944,7 +2119,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     lv_length = strlen( iv_text ).
     DO lv_length TIMES.
       lv_index = sy-index - 1.
-      lv_char = substring( val = iv_text off = lv_index len = 1 ).
+      lv_char = substring( val = iv_text
+                           off = lv_index
+                           len = 1 ).
       rv_text = rv_text && ascii_upper_char( lv_char ).
     ENDDO.
   ENDMETHOD.
@@ -1964,7 +2141,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_index = sy-index - 1.
       TRY.
           lv_byte = zcl_sqlite_bytes=>read_u8(
-            iv_data = lv_data iv_offset = lv_index ).
+            iv_data   = lv_data
+            iv_offset = lv_index ).
         CATCH cx_sy_range_out_of_bounds.
           EXIT.
       ENDTRY.
@@ -2000,7 +2178,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_index = sy-index - 1.
       TRY.
           lv_byte = zcl_sqlite_bytes=>read_u8(
-            iv_data = lv_data iv_offset = lv_index ).
+            iv_data   = lv_data
+            iv_offset = lv_index ).
         CATCH cx_sy_range_out_of_bounds.
           EXIT.
       ENDTRY.
@@ -2075,7 +2254,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDTRY.
 
     lv_byte_index = bytes_index_of(
-      iv_text = lv_text_data iv_needle = lv_needle_data ).
+      iv_text   = lv_text_data
+      iv_needle = lv_needle_data ).
     IF lv_byte_index < 0.
       rv_index = 0.
       RETURN.
@@ -2132,15 +2312,20 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_index = sy-index - 1.
       TRY.
           lv_byte = zcl_sqlite_bytes=>read_u8(
-            iv_data = iv_data iv_offset = lv_index ).
+            iv_data   = iv_data
+            iv_offset = lv_index ).
         CATCH cx_sy_range_out_of_bounds.
           EXIT.
       ENDTRY.
       lv_high = lv_byte DIV 16.
       lv_low = lv_byte MOD 16.
       rv_text = rv_text
-        && substring( val = lv_digits off = lv_high len = 1 )
-        && substring( val = lv_digits off = lv_low len = 1 ).
+        && substring( val = lv_digits
+                      off = lv_high
+                      len = 1 )
+        && substring( val = lv_digits
+                      off = lv_low
+                      len = 1 ).
     ENDDO.
   ENDMETHOD.
 
@@ -2210,9 +2395,12 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     CASE io_like->get_operator( ).
       WHEN 'LIKE'.
         lv_match = like_match(
-          iv_text = lv_text iv_pattern = lv_pattern iv_escape = lv_escape ).
+          iv_text    = lv_text
+          iv_pattern = lv_pattern
+          iv_escape  = lv_escape ).
       WHEN 'GLOB'.
-        lv_match = glob_match( iv_text = lv_text iv_pattern = lv_pattern ).
+        lv_match = glob_match( iv_text    = lv_text
+                               iv_pattern = lv_pattern ).
       WHEN OTHERS.
         raise_error( |unsupported pattern operator { io_like->get_operator( ) }| ).
     ENDCASE.
@@ -2325,14 +2513,20 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       ENDIF.
 
       lv_pattern_char = substring(
-        val = iv_pattern off = lv_pattern_index - 1 len = 1 ).
+        val = iv_pattern
+        off = lv_pattern_index - 1
+        len = 1 ).
 
       IF iv_escape IS NOT INITIAL AND lv_pattern_char = iv_escape.
         IF lv_pattern_index < lv_pattern_length.
           lv_literal_char = substring(
-            val = iv_pattern off = lv_pattern_index len = 1 ).
+            val = iv_pattern
+            off = lv_pattern_index
+            len = 1 ).
           lv_text_char = substring(
-            val = iv_text off = lv_text_index - 1 len = 1 ).
+            val = iv_text
+            off = lv_text_index - 1
+            len = 1 ).
           IF ascii_lower_char( lv_literal_char )
               = ascii_lower_char( lv_text_char ).
             lv_pattern_index = lv_pattern_index + 2.
@@ -2360,7 +2554,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         CONTINUE.
       ELSE.
         lv_text_char = substring(
-          val = iv_text off = lv_text_index - 1 len = 1 ).
+          val = iv_text
+          off = lv_text_index - 1
+          len = 1 ).
         IF ascii_lower_char( lv_pattern_char )
             = ascii_lower_char( lv_text_char ).
           lv_pattern_index = lv_pattern_index + 1.
@@ -2381,7 +2577,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     WHILE lv_pattern_index <= lv_pattern_length.
       lv_pattern_char = substring(
-        val = iv_pattern off = lv_pattern_index - 1 len = 1 ).
+        val = iv_pattern
+        off = lv_pattern_index - 1
+        len = 1 ).
       IF lv_pattern_char = '%'
           AND ( iv_escape IS INITIAL OR lv_pattern_char <> iv_escape ).
         lv_pattern_index = lv_pattern_index + 1.
@@ -2422,7 +2620,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       ENDIF.
 
       lv_pattern_char = substring(
-        val = iv_pattern off = lv_pattern_index - 1 len = 1 ).
+        val = iv_pattern
+        off = lv_pattern_index - 1
+        len = 1 ).
 
       CASE lv_pattern_char.
         WHEN '*'.
@@ -2434,7 +2634,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           lv_text_index = lv_text_index + 1.
         WHEN '['.
           lv_text_char = substring(
-            val = iv_text off = lv_text_index - 1 len = 1 ).
+            val = iv_text
+            off = lv_text_index - 1
+            len = 1 ).
           ls_class = glob_class_matches(
             iv_pattern = iv_pattern
             iv_start   = lv_pattern_index
@@ -2452,7 +2654,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           ENDIF.
         WHEN OTHERS.
           lv_text_char = substring(
-            val = iv_text off = lv_text_index - 1 len = 1 ).
+            val = iv_text
+            off = lv_text_index - 1
+            len = 1 ).
           IF lv_pattern_char = lv_text_char.
             lv_pattern_index = lv_pattern_index + 1.
             lv_text_index = lv_text_index + 1.
@@ -2469,7 +2673,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     WHILE lv_pattern_index <= lv_pattern_length.
       lv_pattern_char = substring(
-        val = iv_pattern off = lv_pattern_index - 1 len = 1 ).
+        val = iv_pattern
+        off = lv_pattern_index - 1
+        len = 1 ).
       IF lv_pattern_char = '*'.
         lv_pattern_index = lv_pattern_index + 1.
       ELSE.
@@ -2501,7 +2707,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    lv_char = substring( val = iv_pattern off = lv_index - 1 len = 1 ).
+    lv_char = substring( val = iv_pattern
+                         off = lv_index - 1
+                         len = 1 ).
     IF lv_char = '^'.
       lv_negated = abap_true.
       lv_index = lv_index + 1.
@@ -2509,7 +2717,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     lv_first = abap_true.
     WHILE lv_index <= lv_length.
-      lv_char = substring( val = iv_pattern off = lv_index - 1 len = 1 ).
+      lv_char = substring( val = iv_pattern
+                           off = lv_index - 1
+                           len = 1 ).
 
       IF lv_char = ']' AND lv_first = abap_false.
         rs_result-valid = abap_true.
@@ -2528,10 +2738,16 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       ENDIF.
 
       IF lv_index + 2 <= lv_length
-          AND substring( val = iv_pattern off = lv_index len = 1 ) = '-'
-          AND substring( val = iv_pattern off = lv_index + 1 len = 1 ) <> ']'.
+          AND substring( val = iv_pattern
+                         off = lv_index
+                         len = 1 ) = '-'
+          AND substring( val = iv_pattern
+                         off = lv_index + 1
+                         len = 1 ) <> ']'.
         lv_start_char = lv_char.
-        lv_end_char = substring( val = iv_pattern off = lv_index + 1 len = 1 ).
+        lv_end_char = substring( val = iv_pattern
+                                 off = lv_index + 1
+                                 len = 1 ).
         IF iv_char >= lv_start_char AND iv_char <= lv_end_char.
           lv_matched = abap_true.
         ENDIF.
@@ -2562,7 +2778,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     lv_length = strlen( iv_text ).
     DO lv_length TIMES.
       lv_index = sy-index - 1.
-      lv_char = substring( val = iv_text off = lv_index len = 1 ).
+      lv_char = substring( val = iv_text
+                           off = lv_index
+                           len = 1 ).
       rv_text = rv_text && ascii_lower_char( lv_char ).
     ENDDO.
   ENDMETHOD.
@@ -2574,13 +2792,16 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     lv_length = strlen( rv_text ).
     WHILE lv_length > 0.
       " ANORMALY: a string does not compare equal to the character literal ' '
-      IF substring( val = rv_text off = lv_length - 1 len = 1 ) <> | |.
+      IF substring( val = rv_text
+                    off = lv_length - 1
+                    len = 1 ) <> | |.
         EXIT.
       ENDIF.
       lv_length = lv_length - 1.
     ENDWHILE.
     IF lv_length < strlen( rv_text ).
-      rv_text = substring( val = rv_text len = lv_length ).
+      rv_text = substring( val = rv_text
+                           len = lv_length ).
     ENDIF.
   ENDMETHOD.
 
@@ -2609,9 +2830,11 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
             CONTINUE.
           ENDIF.
           lv_collation = effective_collation(
-            io_left = lo_base io_right = ls_when-condition ).
+            io_left  = lo_base
+            io_right = ls_when-condition ).
           IF compare_non_null(
-              io_left = lo_base_value io_right = lo_result
+              io_left      = lo_base_value
+              io_right     = lo_result
               iv_collation = lv_collation ) = 0.
             ro_value = evaluate(
               io_expression = ls_when-result
@@ -2870,7 +3093,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           ro_value = zcl_sqlite_value=>real( 0 ).
           RETURN.
         ENDIF.
-        lv_prefix = substring( val = lv_text len = lv_end ).
+        lv_prefix = substring( val = lv_text
+                               len = lv_end ).
         IF is_integer_text( lv_prefix ) = abap_true.
           ls_parse = integer_from_text( lv_prefix ).
           IF ls_parse-overflow = abap_false.
@@ -2891,7 +3115,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         IF lv_end = 0.
           ro_value = zcl_sqlite_value=>real( 0 ).
         ELSE.
-          lv_prefix = substring( val = lv_text len = lv_end ).
+          lv_prefix = substring( val = lv_text
+                                 len = lv_end ).
           ro_value = zcl_sqlite_value=>real( real_from_text( lv_prefix ) ).
         ENDIF.
       WHEN OTHERS.
@@ -2972,16 +3197,19 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         ENDIF.
       WHEN 2.
         lv_left_text = collated_text(
-          iv_text = io_left->as_text( ) iv_collation = iv_collation ).
+          iv_text      = io_left->as_text( )
+          iv_collation = iv_collation ).
         lv_right_text = collated_text(
-          iv_text = io_right->as_text( ) iv_collation = iv_collation ).
+          iv_text      = io_right->as_text( )
+          iv_collation = iv_collation ).
         TRY.
             lv_left_bytes = zcl_sqlite_utf8=>encode( lv_left_text ).
             lv_right_bytes = zcl_sqlite_utf8=>encode( lv_right_text ).
           CATCH cx_sy_conversion_codepage.
             raise_error( 'text is not valid UTF-8' ).
         ENDTRY.
-        rv_compare = compare_bytes( iv_left = lv_left_bytes iv_right = lv_right_bytes ).
+        rv_compare = compare_bytes( iv_left  = lv_left_bytes
+                                    iv_right = lv_right_bytes ).
       WHEN 3.
         rv_compare = compare_bytes(
           iv_left  = io_left->as_blob( )
@@ -3040,9 +3268,11 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DO lv_length TIMES.
       lv_offset = sy-index - 1.
       lv_left_byte = zcl_sqlite_bytes=>read_u8(
-        iv_data = iv_left iv_offset = lv_offset ).
+        iv_data   = iv_left
+        iv_offset = lv_offset ).
       lv_right_byte = zcl_sqlite_bytes=>read_u8(
-        iv_data = iv_right iv_offset = lv_offset ).
+        iv_data   = iv_right
+        iv_offset = lv_offset ).
       IF lv_left_byte < lv_right_byte.
         rv_compare = -1.
         RETURN.
@@ -3213,7 +3443,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       ro_value = zcl_sqlite_value=>integer( 0 ).
       RETURN.
     ENDIF.
-    lv_prefix = substring( val = iv_text len = lv_end ).
+    lv_prefix = substring( val = iv_text
+                           len = lv_end ).
 
     IF is_integer_text( lv_prefix ) = abap_true.
       ls_parse = integer_from_text( lv_prefix ).
@@ -3239,7 +3470,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       ro_value = zcl_sqlite_value=>integer( 0 ).
       RETURN.
     ENDIF.
-    lv_prefix = substring( val = iv_text len = lv_end ).
+    lv_prefix = substring( val = iv_text
+                           len = lv_end ).
 
     IF is_integer_text( lv_prefix ) = abap_true.
       ls_parse = integer_from_text( lv_prefix ).
@@ -3274,7 +3506,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       rv_value = 0.
       RETURN.
     ENDIF.
-    lv_prefix = substring( val = iv_text len = lv_end ).
+    lv_prefix = substring( val = iv_text
+                           len = lv_end ).
     ls_parse = integer_from_text( lv_prefix ).
     IF ls_parse-overflow = abap_true.
       IF lv_prefix CA '-'.
@@ -3296,7 +3529,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       rv_value = 0.
       RETURN.
     ENDIF.
-    lv_prefix = substring( val = iv_text len = lv_end ).
+    lv_prefix = substring( val = iv_text
+                           len = lv_end ).
     rv_value = real_from_text( lv_prefix ).
   ENDMETHOD.
 
@@ -3314,7 +3548,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     lv_pos = 1.
 
     WHILE lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF is_space_char( lv_char ) = abap_false.
         EXIT.
       ENDIF.
@@ -3322,7 +3558,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDWHILE.
 
     IF lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       CASE lv_char.
         WHEN '-'.
           lv_negative = abap_true.
@@ -3333,7 +3571,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDIF.
 
     WHILE lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF lv_char < '0' OR lv_char > '9'.
         EXIT.
       ENDIF.
@@ -3345,8 +3585,10 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_digits = '0'.
     ENDIF.
     WHILE strlen( lv_digits ) > 1
-        AND substring( val = lv_digits len = 1 ) = '0'.
-      lv_digits = substring( val = lv_digits off = 1 ).
+        AND substring( val = lv_digits
+                       len = 1 ) = '0'.
+      lv_digits = substring( val = lv_digits
+                             off = 1 ).
     ENDWHILE.
 
     IF lv_negative = abap_true.
@@ -3392,7 +3634,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     lv_pos = 1.
 
     WHILE lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF is_space_char( lv_char ) = abap_false.
         EXIT.
       ENDIF.
@@ -3400,14 +3644,18 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDWHILE.
 
     IF lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF lv_char = '-' OR lv_char = '+'.
         lv_pos = lv_pos + 1.
       ENDIF.
     ENDIF.
 
     WHILE lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF lv_char < '0' OR lv_char > '9'.
         EXIT.
       ENDIF.
@@ -3416,11 +3664,15 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDWHILE.
 
     IF lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF lv_char = '.'.
         lv_pos = lv_pos + 1.
         WHILE lv_pos <= lv_length.
-          lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+          lv_char = substring( val = lv_text
+                               off = lv_pos - 1
+                               len = 1 ).
           IF lv_char < '0' OR lv_char > '9'.
             EXIT.
           ENDIF.
@@ -3437,17 +3689,23 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     lv_exponent_start = lv_pos.
     IF lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF lv_char = 'e' OR lv_char = 'E'.
         lv_pos = lv_pos + 1.
         IF lv_pos <= lv_length.
-          lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+          lv_char = substring( val = lv_text
+                               off = lv_pos - 1
+                               len = 1 ).
           IF lv_char = '-' OR lv_char = '+'.
             lv_pos = lv_pos + 1.
           ENDIF.
         ENDIF.
         WHILE lv_pos <= lv_length.
-          lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+          lv_char = substring( val = lv_text
+                               off = lv_pos - 1
+                               len = 1 ).
           IF lv_char < '0' OR lv_char > '9'.
             EXIT.
           ENDIF.
@@ -3475,7 +3733,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     lv_pos = 1.
 
     WHILE lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF is_space_char( lv_char ) = abap_false.
         EXIT.
       ENDIF.
@@ -3483,14 +3743,18 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDWHILE.
 
     IF lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF lv_char = '-' OR lv_char = '+'.
         lv_pos = lv_pos + 1.
       ENDIF.
     ENDIF.
 
     WHILE lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF lv_char < '0' OR lv_char > '9'.
         EXIT.
       ENDIF.
@@ -3516,7 +3780,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     lv_pos = 1.
 
     WHILE lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF is_space_char( lv_char ) = abap_false.
         EXIT.
       ENDIF.
@@ -3524,7 +3790,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDWHILE.
 
     IF lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF lv_char = '-' OR lv_char = '+'.
         lv_pos = lv_pos + 1.
       ENDIF.
@@ -3534,14 +3802,18 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       rv_result = abap_false.
       RETURN.
     ENDIF.
-    lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+    lv_char = substring( val = lv_text
+                         off = lv_pos - 1
+                         len = 1 ).
     IF lv_char < '0' OR lv_char > '9'.
       rv_result = abap_false.
       RETURN.
     ENDIF.
 
     WHILE lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF lv_char >= '0' AND lv_char <= '9'.
         lv_pos = lv_pos + 1.
         CONTINUE.
@@ -3550,7 +3822,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDWHILE.
 
     WHILE lv_pos <= lv_length.
-      lv_char = substring( val = lv_text off = lv_pos - 1 len = 1 ).
+      lv_char = substring( val = lv_text
+                           off = lv_pos - 1
+                           len = 1 ).
       IF is_space_char( lv_char ) = abap_false.
         rv_result = abap_false.
         RETURN.
@@ -3568,7 +3842,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       OR iv_char = cl_abap_char_utilities=>vertical_tab
       OR iv_char = cl_abap_char_utilities=>newline
       OR iv_char = cl_abap_char_utilities=>form_feed
-      OR iv_char = substring( val = cl_abap_char_utilities=>cr_lf len = 1 ) ).
+      OR iv_char = substring( val = cl_abap_char_utilities=>cr_lf
+                              len = 1 ) ).
   ENDMETHOD.
 
   METHOD bool_to_int.
@@ -3663,10 +3938,14 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     IF lv_exp < -4 OR lv_exp >= 15.
       rv_text = format_real_scientific(
-        iv_digits = lv_digits iv_exp = lv_exp iv_sign = lv_sign ).
+        iv_digits = lv_digits
+        iv_exp    = lv_exp
+        iv_sign   = lv_sign ).
     ELSE.
       rv_text = format_real_fixed(
-        iv_digits = lv_digits iv_exp = lv_exp iv_sign = lv_sign ).
+        iv_digits = lv_digits
+        iv_exp    = lv_exp
+        iv_sign   = lv_sign ).
     ENDIF.
   ENDMETHOD.
 
@@ -3676,13 +3955,16 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     lv_length = strlen( iv_text ).
     WHILE lv_length > 0.
-      lv_last = substring( val = iv_text off = lv_length - 1 len = 1 ).
+      lv_last = substring( val = iv_text
+                           off = lv_length - 1
+                           len = 1 ).
       IF lv_last <> '0'.
         EXIT.
       ENDIF.
       lv_length = lv_length - 1.
     ENDWHILE.
-    rv_text = substring( val = iv_text len = lv_length ).
+    rv_text = substring( val = iv_text
+                         len = lv_length ).
   ENDMETHOD.
 
   METHOD format_real_scientific.
@@ -3691,7 +3973,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_exp_abs TYPE int8.
     DATA lv_exp_sign TYPE string.
 
-    lv_fraction = strip_trailing_zeros( substring( val = iv_digits off = 1 ) ).
+    lv_fraction = strip_trailing_zeros( substring( val = iv_digits
+                                                   off = 1 ) ).
     IF lv_fraction IS INITIAL.
       lv_fraction = '0'.
     ENDIF.
@@ -3708,7 +3991,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_exp_text = '0' && lv_exp_text.
     ENDWHILE.
 
-    rv_text = |{ iv_sign }{ substring( val = iv_digits len = 1 ) }.{ lv_fraction }e{ lv_exp_sign }{ lv_exp_text }|.
+    rv_text = |{ iv_sign }{ substring( val = iv_digits
+                                       len = 1 ) }.{ lv_fraction }e{ lv_exp_sign }{ lv_exp_text }|.
   ENDMETHOD.
 
   METHOD format_real_fixed.
@@ -3719,9 +4003,11 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     IF iv_exp >= 0.
       lv_pos = iv_exp + 1.
-      lv_integer_part = substring( val = iv_digits len = lv_pos ).
+      lv_integer_part = substring( val = iv_digits
+                                   len = lv_pos ).
       IF lv_pos < 15.
-        lv_fraction = strip_trailing_zeros( substring( val = iv_digits off = lv_pos ) ).
+        lv_fraction = strip_trailing_zeros( substring( val = iv_digits
+                                                       off = lv_pos ) ).
         IF lv_fraction IS NOT INITIAL.
           rv_text = iv_sign && lv_integer_part && '.' && lv_fraction.
           RETURN.
@@ -3788,12 +4074,16 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       RETURN.
     ENDIF.
     IF iv_right > 0.
-      IF iv_left > integer_divide( iv_left = c_max_integer iv_right = iv_right )
-          OR iv_left < integer_divide( iv_left = c_min_integer iv_right = iv_right ).
+      IF iv_left > integer_divide( iv_left  = c_max_integer
+                                   iv_right = iv_right )
+          OR iv_left < integer_divide( iv_left  = c_min_integer
+                                       iv_right = iv_right ).
         rv_overflow = abap_true.
       ENDIF.
-    ELSEIF iv_left > integer_divide( iv_left = c_min_integer iv_right = iv_right )
-          OR iv_left < integer_divide( iv_left = c_max_integer iv_right = iv_right ).
+    ELSEIF iv_left > integer_divide( iv_left  = c_min_integer
+                                     iv_right = iv_right )
+          OR iv_left < integer_divide( iv_left  = c_max_integer
+                                       iv_right = iv_right ).
       rv_overflow = abap_true.
 
     ENDIF.
@@ -3891,12 +4181,15 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_carry = 0.
       DO 8 TIMES.
         lv_index = 8 - sy-index.
-        lv_byte = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = lv_index ).
+        lv_byte = zcl_sqlite_bytes=>read_u8( iv_data   = lv_data
+                                             iv_offset = lv_index ).
         lv_next = lv_byte * 2 + lv_carry.
         lv_carry = lv_next DIV 256.
         lv_next = lv_next MOD 256.
         lv_out = zcl_sqlite_bytes=>write_u8(
-          iv_data = lv_out iv_offset = lv_index iv_value = lv_next ).
+          iv_data   = lv_out
+          iv_offset = lv_index
+          iv_value  = lv_next ).
       ENDDO.
       lv_data = lv_out.
     ENDDO.
@@ -3926,7 +4219,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDIF.
 
     lv_data = int8_to_bytes( iv_value ).
-    lv_byte = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 ).
+    lv_byte = zcl_sqlite_bytes=>read_u8( iv_data   = lv_data
+                                         iv_offset = 0 ).
     IF lv_byte >= 128.
       lv_sign = 1.
     ENDIF.
@@ -3936,11 +4230,14 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_carry = lv_sign.
       DO 8 TIMES.
         lv_index = sy-index - 1.
-        lv_byte = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = lv_index ).
+        lv_byte = zcl_sqlite_bytes=>read_u8( iv_data   = lv_data
+                                             iv_offset = lv_index ).
         lv_next = lv_byte DIV 2 + lv_carry * 128.
         lv_carry = lv_byte MOD 2.
         lv_out = zcl_sqlite_bytes=>write_u8(
-          iv_data = lv_out iv_offset = lv_index iv_value = lv_next ).
+          iv_data   = lv_out
+          iv_offset = lv_index
+          iv_value  = lv_next ).
       ENDDO.
       lv_data = lv_out.
     ENDDO.

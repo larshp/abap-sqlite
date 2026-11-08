@@ -182,62 +182,91 @@ ENDCLASS.
 CLASS zcl_sqlite_bytes IMPLEMENTATION.
 
   METHOD read_u8.
-    rv_value = read_bytes( iv_data = iv_data iv_offset = iv_offset iv_length = 1 ).
+    rv_value = read_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_length = 1 ).
   ENDMETHOD.
 
   METHOD read_u16.
-    rv_value = read_bytes( iv_data = iv_data iv_offset = iv_offset iv_length = 2 ).
+    rv_value = read_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_length = 2 ).
   ENDMETHOD.
 
   METHOD read_u24.
-    rv_value = read_bytes( iv_data = iv_data iv_offset = iv_offset iv_length = 3 ).
+    rv_value = read_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_length = 3 ).
   ENDMETHOD.
 
   METHOD read_u32.
-    rv_value = read_bytes( iv_data = iv_data iv_offset = iv_offset iv_length = 4 ).
+    rv_value = read_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_length = 4 ).
   ENDMETHOD.
 
   METHOD read_u48.
-    rv_value = read_bytes( iv_data = iv_data iv_offset = iv_offset iv_length = 6 ).
+    rv_value = read_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_length = 6 ).
   ENDMETHOD.
 
   METHOD read_i64.
-    rv_value = read_bytes( iv_data = iv_data iv_offset = iv_offset iv_length = 8 ).
+    rv_value = read_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_length = 8 ).
   ENDMETHOD.
 
   METHOD write_u8.
-    check_unsigned( iv_value = iv_value iv_max = c_max_u8 ).
-    rv_data = write_bytes( iv_data = iv_data iv_offset = iv_offset
-                           iv_value = iv_value iv_length = 1 ).
+    check_unsigned( iv_value = iv_value
+                    iv_max   = c_max_u8 ).
+    rv_data = write_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_value  = iv_value
+                           iv_length = 1 ).
   ENDMETHOD.
 
   METHOD write_u16.
-    check_unsigned( iv_value = iv_value iv_max = c_max_u16 ).
-    rv_data = write_bytes( iv_data = iv_data iv_offset = iv_offset
-                           iv_value = iv_value iv_length = 2 ).
+    check_unsigned( iv_value = iv_value
+                    iv_max   = c_max_u16 ).
+    rv_data = write_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_value  = iv_value
+                           iv_length = 2 ).
   ENDMETHOD.
 
   METHOD write_u24.
-    check_unsigned( iv_value = iv_value iv_max = c_max_u24 ).
-    rv_data = write_bytes( iv_data = iv_data iv_offset = iv_offset
-                           iv_value = iv_value iv_length = 3 ).
+    check_unsigned( iv_value = iv_value
+                    iv_max   = c_max_u24 ).
+    rv_data = write_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_value  = iv_value
+                           iv_length = 3 ).
   ENDMETHOD.
 
   METHOD write_u32.
-    check_unsigned( iv_value = iv_value iv_max = c_max_u32 ).
-    rv_data = write_bytes( iv_data = iv_data iv_offset = iv_offset
-                           iv_value = iv_value iv_length = 4 ).
+    check_unsigned( iv_value = iv_value
+                    iv_max   = c_max_u32 ).
+    rv_data = write_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_value  = iv_value
+                           iv_length = 4 ).
   ENDMETHOD.
 
   METHOD write_u48.
-    check_unsigned( iv_value = iv_value iv_max = c_max_u48 ).
-    rv_data = write_bytes( iv_data = iv_data iv_offset = iv_offset
-                           iv_value = iv_value iv_length = 6 ).
+    check_unsigned( iv_value = iv_value
+                    iv_max   = c_max_u48 ).
+    rv_data = write_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_value  = iv_value
+                           iv_length = 6 ).
   ENDMETHOD.
 
   METHOD write_i64.
-    rv_data = write_bytes( iv_data = iv_data iv_offset = iv_offset
-                           iv_value = iv_value iv_length = 8 ).
+    rv_data = write_bytes( iv_data   = iv_data
+                           iv_offset = iv_offset
+                           iv_value  = iv_value
+                           iv_length = 8 ).
   ENDMETHOD.
 
   METHOD write_varint.
@@ -275,7 +304,9 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
         IF sy-index > 1.
           lv_byte = lv_byte + 128.
         ENDIF.
-        lv_buffer = write_u8( iv_data = lv_buffer iv_offset = lv_pos iv_value = lv_byte ).
+        lv_buffer = write_u8( iv_data   = lv_buffer
+                              iv_offset = lv_pos
+                              iv_value  = lv_byte ).
       ENDDO.
       rv_data = lv_buffer+lv_pos(lv_length).
       RETURN.
@@ -284,18 +315,23 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
 * nine bytes: eight groups of seven bits, then all eight bits of the last byte
     lv_full = iv_value.
     lv_hex = lv_full.
-    lv_high = read_u48( iv_data = lv_hex iv_offset = 0 ) * 256
-              + read_u8( iv_data = lv_hex iv_offset = 6 ).
+    lv_high = read_u48( iv_data   = lv_hex
+                        iv_offset = 0 ) * 256
+              + read_u8( iv_data   = lv_hex
+                         iv_offset = 6 ).
 
     lv_buffer = '000000000000000000'.
-    lv_buffer = write_u8( iv_data = lv_buffer iv_offset = 8
-                          iv_value = read_u8( iv_data = lv_hex iv_offset = 7 ) ).
+    lv_buffer = write_u8( iv_data   = lv_buffer
+                          iv_offset = 8
+                          iv_value  = read_u8( iv_data = lv_hex iv_offset = 7 ) ).
     lv_pos = 8.
     DO 8 TIMES.
       lv_pos = lv_pos - 1.
       lv_byte = lv_high MOD 128 + 128.
       lv_high = lv_high DIV 128.
-      lv_buffer = write_u8( iv_data = lv_buffer iv_offset = lv_pos iv_value = lv_byte ).
+      lv_buffer = write_u8( iv_data   = lv_buffer
+                            iv_offset = lv_pos
+                            iv_value  = lv_byte ).
     ENDDO.
     rv_data = lv_buffer.
   ENDMETHOD.
@@ -307,7 +343,8 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
     DATA lv_low TYPE int8.
 
     DO 8 TIMES.
-      lv_byte = read_u8( iv_data = iv_data iv_offset = iv_offset + sy-index - 1 ).
+      lv_byte = read_u8( iv_data   = iv_data
+                         iv_offset = iv_offset + sy-index - 1 ).
       IF lv_byte < 128.
         lv_value = lv_value * 128 + lv_byte.
         rv_value = lv_value.
@@ -318,7 +355,8 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
 
 * nine bytes, the last one contributes all eight bits
     lv_high = lv_value.
-    lv_low = read_u8( iv_data = iv_data iv_offset = iv_offset + 8 ).
+    lv_low = read_u8( iv_data   = iv_data
+                      iv_offset = iv_offset + 8 ).
     IF lv_high >= c_two_pow_55.
       rv_value = ( lv_high - c_two_pow_56 ) * 256 + lv_low.
     ELSE.
@@ -330,14 +368,16 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
     DATA lv_byte TYPE int8.
 
     DO 8 TIMES.
-      lv_byte = read_u8( iv_data = iv_data iv_offset = iv_offset + sy-index - 1 ).
+      lv_byte = read_u8( iv_data   = iv_data
+                         iv_offset = iv_offset + sy-index - 1 ).
       IF lv_byte < 128.
         rv_length = sy-index.
         RETURN.
       ENDIF.
     ENDDO.
 
-    lv_byte = read_u8( iv_data = iv_data iv_offset = iv_offset + 8 ).
+    lv_byte = read_u8( iv_data   = iv_data
+                       iv_offset = iv_offset + 8 ).
     rv_length = 9.
   ENDMETHOD.
 
@@ -345,8 +385,10 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
     DATA lv_high TYPE int8.
     DATA lv_low TYPE int8.
 
-    lv_high = read_u32( iv_data = iv_data iv_offset = iv_offset ).
-    lv_low = read_u32( iv_data = iv_data iv_offset = iv_offset + 4 ).
+    lv_high = read_u32( iv_data   = iv_data
+                        iv_offset = iv_offset ).
+    lv_low = read_u32( iv_data   = iv_data
+                       iv_offset = iv_offset + 4 ).
 
     rs_value-sign = lv_high DIV c_two_pow_31.
     rs_value-exponent = ( lv_high DIV c_two_pow_20 ) MOD 2048.
@@ -369,8 +411,12 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
     lv_low = is_value-mantissa MOD c_two_pow_32.
 
     rv_data = '0000000000000000'.
-    rv_data = write_u32( iv_data = rv_data iv_offset = 0 iv_value = lv_high ).
-    rv_data = write_u32( iv_data = rv_data iv_offset = 4 iv_value = lv_low ).
+    rv_data = write_u32( iv_data   = rv_data
+                         iv_offset = 0
+                         iv_value  = lv_high ).
+    rv_data = write_u32( iv_data   = rv_data
+                         iv_offset = 4
+                         iv_value  = lv_low ).
   ENDMETHOD.
 
   METHOD f64_to_f.
@@ -483,7 +529,9 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
   METHOD read_bytes.
     DATA lv_bytes TYPE xstring.
 
-    check_bounds( iv_data = iv_data iv_offset = iv_offset iv_length = iv_length ).
+    check_bounds( iv_data   = iv_data
+                  iv_offset = iv_offset
+                  iv_length = iv_length ).
     lv_bytes = iv_data+iv_offset(iv_length).
     rv_value = lv_bytes.
   ENDMETHOD.
@@ -496,7 +544,9 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
     DATA lv_before TYPE xstring.
     DATA lv_after TYPE xstring.
 
-    check_bounds( iv_data = iv_data iv_offset = iv_offset iv_length = iv_length ).
+    check_bounds( iv_data   = iv_data
+                  iv_offset = iv_offset
+                  iv_length = iv_length ).
 
     lv_full = iv_value.
     lv_hex = lv_full.

@@ -58,7 +58,8 @@ ENDCLASS.
 
 CLASS zcx_sqlite_error IMPLEMENTATION.
   METHOD constructor.
-    super->constructor( textid = textid previous = previous ).
+    super->constructor( textid   = textid
+                        previous = previous ).
     code = iv_code.
     message = iv_message.
     position = iv_position.

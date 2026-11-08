@@ -336,7 +336,8 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
 
     check_free_page_number( CONV i( lv_trunk ) ).
     ls_trunk = get_page( CONV i( lv_trunk ) ).
-    lv_leaves = page_u32( iv_data = ls_trunk-data iv_offset = 4 ).
+    lv_leaves = page_u32( iv_data   = ls_trunk-data
+                          iv_offset = 4 ).
     IF lv_leaves < 0
         OR lv_leaves > CONV int8( max_freelist_leaves( ) ).
       fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
@@ -354,11 +355,13 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
         iv_data   = ls_trunk-data
         iv_offset = 4
         iv_value  = lv_leaves - 1 ).
-      put_page( iv_page = CONV i( lv_trunk ) iv_data = ls_trunk-data ).
+      put_page( iv_page = CONV i( lv_trunk )
+                iv_data = ls_trunk-data ).
 
       rv_page = CONV i( lv_leaf ).
     ELSE.
-      lv_next = page_u32( iv_data = ls_trunk-data iv_offset = 0 ).
+      lv_next = page_u32( iv_data   = ls_trunk-data
+                          iv_offset = 0 ).
       IF lv_next <> 0.
         check_free_page_number( CONV i( lv_next ) ).
       ENDIF.
@@ -390,9 +393,14 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     lv_trunk = mv_header-freelist_trunk.
     IF lv_trunk = 0.
       lv_data = zero_page( ).
-      lv_data = set_page_u32( iv_data = lv_data iv_offset = 0 iv_value = 0 ).
-      lv_data = set_page_u32( iv_data = lv_data iv_offset = 4 iv_value = 0 ).
-      put_page( iv_page = iv_page iv_data = lv_data ).
+      lv_data = set_page_u32( iv_data   = lv_data
+                              iv_offset = 0
+                              iv_value  = 0 ).
+      lv_data = set_page_u32( iv_data   = lv_data
+                              iv_offset = 4
+                              iv_value  = 0 ).
+      put_page( iv_page = iv_page
+                iv_data = lv_data ).
 
       mv_header-freelist_trunk = CONV int8( iv_page ).
       mv_header-freelist_pages = mv_header-freelist_pages + 1.
@@ -401,7 +409,8 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
 
     check_free_page_number( CONV i( lv_trunk ) ).
     ls_trunk = get_page( CONV i( lv_trunk ) ).
-    lv_leaves = page_u32( iv_data = ls_trunk-data iv_offset = 4 ).
+    lv_leaves = page_u32( iv_data   = ls_trunk-data
+                          iv_offset = 4 ).
     IF lv_leaves < 0
         OR lv_leaves > CONV int8( max_freelist_leaves( ) ).
       fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
@@ -417,13 +426,19 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
         iv_data   = ls_trunk-data
         iv_offset = 4
         iv_value  = lv_leaves + 1 ).
-      put_page( iv_page = CONV i( lv_trunk ) iv_data = ls_trunk-data ).
+      put_page( iv_page = CONV i( lv_trunk )
+                iv_data = ls_trunk-data ).
       zero_and_put( iv_page ).
     ELSE.
       lv_data = zero_page( ).
-      lv_data = set_page_u32( iv_data = lv_data iv_offset = 0 iv_value = lv_trunk ).
-      lv_data = set_page_u32( iv_data = lv_data iv_offset = 4 iv_value = 0 ).
-      put_page( iv_page = iv_page iv_data = lv_data ).
+      lv_data = set_page_u32( iv_data   = lv_data
+                              iv_offset = 0
+                              iv_value  = lv_trunk ).
+      lv_data = set_page_u32( iv_data   = lv_data
+                              iv_offset = 4
+                              iv_value  = 0 ).
+      put_page( iv_page = iv_page
+                iv_data = lv_data ).
 
       mv_header-freelist_trunk = CONV int8( iv_page ).
     ENDIF.
@@ -464,7 +479,8 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
       ENDIF.
       lv_offset = page_offset( ls_dirty-number ).
       TRY.
-          mo_file->write( iv_offset = lv_offset iv_data = ls_dirty-data ).
+          mo_file->write( iv_offset = lv_offset
+                          iv_data   = ls_dirty-data ).
         CATCH cx_sy_range_out_of_bounds.
           fail( iv_code    = zcx_sqlite_error=>sqlite_ioerr
                 iv_message = 'dirty page could not be written' ).
@@ -472,7 +488,8 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     ENDLOOP.
 
     TRY.
-        mo_file->write( iv_offset = 0 iv_data = lv_page_one ).
+        mo_file->write( iv_offset = 0
+                        iv_data   = lv_page_one ).
       CATCH cx_sy_range_out_of_bounds.
         fail( iv_code    = zcx_sqlite_error=>sqlite_ioerr
               iv_message = 'database header could not be written' ).
@@ -562,14 +579,16 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zero_page.
-    rv_data = repeat( val = '00' occ = mv_page_size ).
+    rv_data = repeat( val = '00'
+                      occ = mv_page_size ).
   ENDMETHOD.
 
   METHOD zero_and_put.
     DATA lv_data TYPE xstring.
 
     lv_data = zero_page( ).
-    put_page( iv_page = iv_page iv_data = lv_data ).
+    put_page( iv_page = iv_page
+              iv_data = lv_data ).
   ENDMETHOD.
 
   METHOD max_freelist_leaves.
@@ -630,7 +649,8 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
       ENDIF.
 
       ls_trunk = get_page( CONV i( lv_trunk ) ).
-      lv_leaves = page_u32( iv_data = ls_trunk-data iv_offset = 4 ).
+      lv_leaves = page_u32( iv_data   = ls_trunk-data
+                            iv_offset = 4 ).
       IF lv_leaves < 0
           OR lv_leaves > CONV int8( max_freelist_leaves( ) ).
         fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
@@ -650,7 +670,8 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
         lv_index = lv_index + 1.
       ENDWHILE.
 
-      lv_next = page_u32( iv_data = ls_trunk-data iv_offset = 0 ).
+      lv_next = page_u32( iv_data   = ls_trunk-data
+                          iv_offset = 0 ).
       lv_trunk = lv_next.
     ENDWHILE.
   ENDMETHOD.

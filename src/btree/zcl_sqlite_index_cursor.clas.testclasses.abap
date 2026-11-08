@@ -49,14 +49,18 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
       lv_found = lo_cursor->next( ).
     ENDWHILE.
 
-    cl_abap_unit_assert=>assert_equals( act = lv_count exp = 100 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_count
+                                        exp = 100 ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->is_valid( ) exp = abap_false ).
+      act = lo_cursor->is_valid( )
+      exp = abap_false ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_false ).
+      act = lo_cursor->next( )
+      exp = abap_false ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->first( ) exp = abap_true ).
+      act = lo_cursor->first( )
+      exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
       iv_rowid  = 1
@@ -70,71 +74,84 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
     lo_cursor = open_cursor( ).
 
     lv_found = lo_cursor->seek( prefix( 'value-050' ) ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
       iv_rowid  = 50
       iv_key    = expected_key( 50 ) ).
 
     lv_found = lo_cursor->seek( prefix( 'value-037' ) ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
       iv_rowid  = 37
       iv_key    = expected_key( 37 ) ).
 
     lv_found = lo_cursor->seek( prefix( 'value-037z' ) ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
       iv_rowid  = 38
       iv_key    = expected_key( 38 ) ).
 
     lv_found = lo_cursor->seek( prefix( 'value-000' ) ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
       iv_rowid  = 1
       iv_key    = expected_key( 1 ) ).
 
     lv_found = lo_cursor->seek( prefix( 'aaaa' ) ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
       iv_rowid  = 1
       iv_key    = expected_key( 1 ) ).
 
     lv_found = lo_cursor->seek( prefix(
-      |value-050-{ repeat( val = 'x' occ = 41 ) }| ) ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
+      |value-050-{ repeat( val = 'x'
+                           occ = 41 ) }| ) ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
       iv_rowid  = 51
       iv_key    = expected_key( 51 ) ).
 
     lv_found = lo_cursor->seek( prefix( 'value-101' ) ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_false ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_false ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->is_valid( ) exp = abap_false ).
+      act = lo_cursor->is_valid( )
+      exp = abap_false ).
 
     lv_found = lo_cursor->seek( prefix( 'zzzz' ) ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_false ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_false ).
 
     lv_found = lo_cursor->seek( prefix( '' ) ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
       iv_rowid  = 1
       iv_key    = expected_key( 1 ) ).
 
     lv_found = lo_cursor->seek( prefix( expected_key( 1 ) ) ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
       iv_rowid  = 1
       iv_key    = expected_key( 1 ) ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_true ).
+      act = lo_cursor->next( )
+      exp = abap_true ).
     assert_entry(
       io_cursor = lo_cursor
       iv_rowid  = 2
@@ -169,7 +186,8 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
     WHILE strlen( lv_number ) < 3.
       lv_number = |0{ lv_number }|.
     ENDWHILE.
-    rv_key = |value-{ lv_number }-{ repeat( val = 'x' occ = 40 ) }|.
+    rv_key = |value-{ lv_number }-{ repeat( val = 'x'
+                                            occ = 40 ) }|.
   ENDMETHOD.
 
   METHOD prefix.
@@ -185,22 +203,28 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
     DATA lo_rowid TYPE REF TO zcl_sqlite_value.
 
     cl_abap_unit_assert=>assert_equals(
-      act = io_cursor->is_valid( ) exp = abap_true ).
+      act = io_cursor->is_valid( )
+      exp = abap_true ).
 
     lt_values = io_cursor->values( ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( lt_values ) exp = 2 ).
+      act = lines( lt_values )
+      exp = 2 ).
 
     READ TABLE lt_values INTO lo_key INDEX 1.
     READ TABLE lt_values INTO lo_rowid INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_key->value_type( ) exp = zcl_sqlite_value=>c_text ).
+      act = lo_key->value_type( )
+      exp = zcl_sqlite_value=>c_text ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_key->as_text( ) exp = iv_key ).
+      act = lo_key->as_text( )
+      exp = iv_key ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_rowid->value_type( ) exp = zcl_sqlite_value=>c_integer ).
+      act = lo_rowid->value_type( )
+      exp = zcl_sqlite_value=>c_integer ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_rowid->as_integer( ) exp = iv_rowid ).
+      act = lo_rowid->as_integer( )
+      exp = iv_rowid ).
   ENDMETHOD.
 
 ENDCLASS.

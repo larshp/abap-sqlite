@@ -51,12 +51,14 @@ CLASS ltcl_files IMPLEMENTATION.
     SELECT SINGLE data FROM zsqlite_files INTO @lv_data
       WHERE mandt = @sy-mandt AND filename = @c_file AND blockno = 0.
     cl_abap_unit_assert=>assert_subrc( exp = 0 ).
-    cl_abap_unit_assert=>assert_equals( act = lv_data exp = ls_file-data ).
+    cl_abap_unit_assert=>assert_equals( act = lv_data
+                                        exp = ls_file-data ).
 
     DELETE FROM zsqlite_files
       WHERE mandt = @sy-mandt AND filename = @c_file AND blockno = 0.
     cl_abap_unit_assert=>assert_subrc( exp = 0 ).
-    cl_abap_unit_assert=>assert_equals( act = sy-dbcnt exp = 1 ).
+    cl_abap_unit_assert=>assert_equals( act = sy-dbcnt
+                                        exp = 1 ).
 
     SELECT SINGLE data FROM zsqlite_files INTO @lv_data
       WHERE mandt = @sy-mandt AND filename = @c_file AND blockno = 0.
@@ -86,20 +88,24 @@ CLASS ltcl_files IMPLEMENTATION.
 
     MODIFY zsqlite_files FROM TABLE @lt_write.
     cl_abap_unit_assert=>assert_subrc( exp = 0 ).
-    cl_abap_unit_assert=>assert_equals( act = sy-dbcnt exp = lines( lt_write ) ).
+    cl_abap_unit_assert=>assert_equals( act = sy-dbcnt
+                                        exp = lines( lt_write ) ).
 
     SELECT mandt, filename, blockno, data FROM zsqlite_files INTO TABLE @lt_read
       WHERE mandt = @sy-mandt AND filename = @c_file
       ORDER BY blockno.
     cl_abap_unit_assert=>assert_subrc( exp = 0 ).
-    cl_abap_unit_assert=>assert_equals( act = lines( lt_read ) exp = lines( lt_write ) ).
+    cl_abap_unit_assert=>assert_equals( act = lines( lt_read )
+                                        exp = lines( lt_write ) ).
 
     LOOP AT lt_read INTO ls_file.
       lv_index = sy-tabix.
       READ TABLE lt_sizes INTO lv_size INDEX lv_index.
       cl_abap_unit_assert=>assert_subrc( exp = 0 ).
-      cl_abap_unit_assert=>assert_equals( act = xstrlen( ls_file-data ) exp = lv_size ).
-      cl_abap_unit_assert=>assert_equals( act = ls_file-data exp = build_block( lv_size ) ).
+      cl_abap_unit_assert=>assert_equals( act = xstrlen( ls_file-data )
+                                          exp = lv_size ).
+      cl_abap_unit_assert=>assert_equals( act = ls_file-data
+                                          exp = build_block( lv_size ) ).
     ENDLOOP.
   ENDMETHOD.
 
@@ -121,7 +127,8 @@ CLASS ltcl_files IMPLEMENTATION.
 
     MODIFY zsqlite_files FROM TABLE @lt_write.
     cl_abap_unit_assert=>assert_subrc( exp = 0 ).
-    cl_abap_unit_assert=>assert_equals( act = sy-dbcnt exp = c_rows ).
+    cl_abap_unit_assert=>assert_equals( act = sy-dbcnt
+                                        exp = c_rows ).
 
 * writing the same keys again must update the rows, not duplicate them
     LOOP AT lt_write ASSIGNING FIELD-SYMBOL(<ls_file>).
@@ -129,16 +136,19 @@ CLASS ltcl_files IMPLEMENTATION.
     ENDLOOP.
     MODIFY zsqlite_files FROM TABLE @lt_write.
     cl_abap_unit_assert=>assert_subrc( exp = 0 ).
-    cl_abap_unit_assert=>assert_equals( act = sy-dbcnt exp = c_rows ).
+    cl_abap_unit_assert=>assert_equals( act = sy-dbcnt
+                                        exp = c_rows ).
 
     SELECT COUNT(*) FROM zsqlite_files INTO @lv_count
       WHERE mandt = @sy-mandt AND filename = @c_file.
-    cl_abap_unit_assert=>assert_equals( act = lv_count exp = c_rows ).
+    cl_abap_unit_assert=>assert_equals( act = lv_count
+                                        exp = c_rows ).
 
     SELECT SINGLE data FROM zsqlite_files INTO @lv_data
       WHERE mandt = @sy-mandt AND filename = @c_file AND blockno = 0.
     cl_abap_unit_assert=>assert_subrc( exp = 0 ).
-    cl_abap_unit_assert=>assert_equals( act = xstrlen( lv_data ) exp = 1024 ).
+    cl_abap_unit_assert=>assert_equals( act = xstrlen( lv_data )
+                                        exp = 1024 ).
   ENDMETHOD.
 
   METHOD rollback_work.
@@ -157,7 +167,8 @@ CLASS ltcl_files IMPLEMENTATION.
 
     SELECT COUNT(*) FROM zsqlite_files INTO @lv_count
       WHERE mandt = @sy-mandt AND filename = @c_file.
-    cl_abap_unit_assert=>assert_equals( act = lv_count exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_count
+                                        exp = 0 ).
   ENDMETHOD.
 
   METHOD commit_work.
@@ -178,7 +189,8 @@ CLASS ltcl_files IMPLEMENTATION.
 
     SELECT COUNT(*) FROM zsqlite_files INTO @lv_count
       WHERE mandt = @sy-mandt AND filename = @c_file.
-    cl_abap_unit_assert=>assert_equals( act = lv_count exp = 1 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_count
+                                        exp = 1 ).
   ENDMETHOD.
 
   METHOD select_for_update.
@@ -198,7 +210,8 @@ CLASS ltcl_files IMPLEMENTATION.
       INTO @ls_file
       WHERE mandt = @sy-mandt AND filename = @c_file AND blockno = 0.
     cl_abap_unit_assert=>assert_subrc( exp = 0 ).
-    cl_abap_unit_assert=>assert_equals( act = ls_file-blockno exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_file-blockno
+                                        exp = 0 ).
   ENDMETHOD.
 
   METHOD build_block.

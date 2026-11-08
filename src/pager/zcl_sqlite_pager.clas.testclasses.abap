@@ -62,30 +62,40 @@ CLASS ltcl_pager IMPLEMENTATION.
     lv_all = fixture( ).
     lv_page_size = lo_pager->page_size( ).
 
-    cl_abap_unit_assert=>assert_equals( act = lv_page_size exp = 4096 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_page_size
+                                        exp = 4096 ).
     cl_abap_unit_assert=>assert_true( boolc( lo_pager->page_count( ) >= 3 ) ).
 
     TRY.
         ls_page = lo_pager->get_page( 1 ).
-        cl_abap_unit_assert=>assert_equals( act = ls_page-number exp = 1 ).
-        cl_abap_unit_assert=>assert_equals( act = ls_page-btree_offset exp = 100 ).
+        cl_abap_unit_assert=>assert_equals( act = ls_page-number
+                                            exp = 1 ).
+        cl_abap_unit_assert=>assert_equals( act = ls_page-btree_offset
+                                            exp = 100 ).
         cl_abap_unit_assert=>assert_equals(
-          act = xstrlen( ls_page-data ) exp = lv_page_size ).
+          act = xstrlen( ls_page-data )
+          exp = lv_page_size ).
         lv_page = lv_all+0(lv_page_size).
-        cl_abap_unit_assert=>assert_equals( act = ls_page-data exp = lv_page ).
+        cl_abap_unit_assert=>assert_equals( act = ls_page-data
+                                            exp = lv_page ).
 
         ls_page = lo_pager->get_page( 2 ).
-        cl_abap_unit_assert=>assert_equals( act = ls_page-number exp = 2 ).
-        cl_abap_unit_assert=>assert_equals( act = ls_page-btree_offset exp = 0 ).
+        cl_abap_unit_assert=>assert_equals( act = ls_page-number
+                                            exp = 2 ).
+        cl_abap_unit_assert=>assert_equals( act = ls_page-btree_offset
+                                            exp = 0 ).
         lv_offset = lv_page_size.
         lv_page = lv_all+lv_offset(lv_page_size).
-        cl_abap_unit_assert=>assert_equals( act = ls_page-data exp = lv_page ).
+        cl_abap_unit_assert=>assert_equals( act = ls_page-data
+                                            exp = lv_page ).
 
         ls_page = lo_pager->get_page( 3 ).
-        cl_abap_unit_assert=>assert_equals( act = ls_page-number exp = 3 ).
+        cl_abap_unit_assert=>assert_equals( act = ls_page-number
+                                            exp = 3 ).
         lv_offset = lv_page_size * 2.
         lv_page = lv_all+lv_offset(lv_page_size).
-        cl_abap_unit_assert=>assert_equals( act = ls_page-data exp = lv_page ).
+        cl_abap_unit_assert=>assert_equals( act = ls_page-data
+                                            exp = lv_page ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( |page fetch failed: { lo_error->message }| ).
     ENDTRY.
@@ -109,10 +119,14 @@ CLASS ltcl_pager IMPLEMENTATION.
     ENDTRY.
 
     ls_stats = lo_pager->stats( ).
-    cl_abap_unit_assert=>assert_equals( act = ls_stats-hits exp = 1 ).
-    cl_abap_unit_assert=>assert_equals( act = ls_stats-misses exp = 5 ).
-    cl_abap_unit_assert=>assert_equals( act = ls_stats-evictions exp = 3 ).
-    cl_abap_unit_assert=>assert_equals( act = ls_stats-entries exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_stats-hits
+                                        exp = 1 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_stats-misses
+                                        exp = 5 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_stats-evictions
+                                        exp = 3 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_stats-entries
+                                        exp = 2 ).
   ENDMETHOD.
 
   METHOD invalid_page.
@@ -125,7 +139,8 @@ CLASS ltcl_pager IMPLEMENTATION.
         cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_corrupt ).
     ENDTRY.
   ENDMETHOD.
 
@@ -144,11 +159,14 @@ CLASS ltcl_pager IMPLEMENTATION.
           iv_offset = 0
           iv_value  = 170 ).
 
-        lo_pager->put_page( iv_page = 2 iv_data = lv_modified ).
+        lo_pager->put_page( iv_page = 2
+                            iv_data = lv_modified ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->dirty_page_count( ) exp = 1 ).
+          act = lo_pager->dirty_page_count( )
+          exp = 1 ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->get_page( 2 )-data exp = lv_modified ).
+          act = lo_pager->get_page( 2 )-data
+          exp = lv_modified ).
 
 * copy-on-write: the file still has the old page
         lv_file = file_data( ).
@@ -158,7 +176,8 @@ CLASS ltcl_pager IMPLEMENTATION.
 
         lo_pager->commit( ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->dirty_page_count( ) exp = 0 ).
+          act = lo_pager->dirty_page_count( )
+          exp = 0 ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( |write failed: { lo_error->message }| ).
     ENDTRY.
@@ -184,15 +203,19 @@ CLASS ltcl_pager IMPLEMENTATION.
           iv_offset = 10
           iv_value  = 187 ).
 
-        lo_pager->put_page( iv_page = 2 iv_data = lv_modified ).
+        lo_pager->put_page( iv_page = 2
+                            iv_data = lv_modified ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->get_page( 2 )-data exp = lv_modified ).
+          act = lo_pager->get_page( 2 )-data
+          exp = lv_modified ).
 
         lo_pager->rollback( ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->dirty_page_count( ) exp = 0 ).
+          act = lo_pager->dirty_page_count( )
+          exp = 0 ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->get_page( 2 )-data exp = lv_original ).
+          act = lo_pager->get_page( 2 )-data
+          exp = lv_original ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( |rollback failed: { lo_error->message }| ).
     ENDTRY.
@@ -221,17 +244,22 @@ CLASS ltcl_pager IMPLEMENTATION.
           iv_offset = 0
           iv_value  = 34 ).
 
-        lo_pager->put_page( iv_page = 2 iv_data = lv_page_two ).
-        lo_pager->put_page( iv_page = 3 iv_data = lv_page_three ).
+        lo_pager->put_page( iv_page = 2
+                            iv_data = lv_page_two ).
+        lo_pager->put_page( iv_page = 3
+                            iv_data = lv_page_three ).
 
 * cache size is 1, the dirty pages must not be evicted
         lo_pager->get_page( 1 ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->dirty_page_count( ) exp = 2 ).
+          act = lo_pager->dirty_page_count( )
+          exp = 2 ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->get_page( 2 )-data exp = lv_page_two ).
+          act = lo_pager->get_page( 2 )-data
+          exp = lv_page_two ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->get_page( 3 )-data exp = lv_page_three ).
+          act = lo_pager->get_page( 3 )-data
+          exp = lv_page_three ).
 
         lo_pager->commit( ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
@@ -262,7 +290,8 @@ CLASS ltcl_pager IMPLEMENTATION.
           iv_data   = lo_pager->get_page( 1 )-data
           iv_offset = 200
           iv_value  = 170 ).
-        lo_pager->put_page( iv_page = 1 iv_data = lv_page ).
+        lo_pager->put_page( iv_page = 1
+                            iv_data = lv_page ).
         lo_pager->commit( ).
         ls_pager = lo_pager->header( ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
@@ -277,19 +306,24 @@ CLASS ltcl_pager IMPLEMENTATION.
     ENDTRY.
 
     cl_abap_unit_assert=>assert_equals(
-      act = ls_after-change_counter exp = ls_before-change_counter + 1 ).
+      act = ls_after-change_counter
+      exp = ls_before-change_counter + 1 ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_after-database_size exp = ls_before-database_size ).
+      act = ls_after-database_size
+      exp = ls_before-database_size ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_after-version_valid_for exp = ls_after-change_counter ).
+      act = ls_after-version_valid_for
+      exp = ls_after-change_counter ).
     cl_abap_unit_assert=>assert_equals(
       act = ls_after-sqlite_version
       exp = zcl_sqlite_header=>c_sqlite_version ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_pager-change_counter exp = ls_after-change_counter ).
+      act = ls_pager-change_counter
+      exp = ls_after-change_counter ).
     lv_page = lv_file+200(1).
     cl_abap_unit_assert=>assert_equals(
-      act = lv_page exp = 'AA' ).
+      act = lv_page
+      exp = 'AA' ).
   ENDMETHOD.
 
   METHOD commit_without_changes.
@@ -311,9 +345,11 @@ CLASS ltcl_pager IMPLEMENTATION.
     ENDTRY.
 
     lv_after = file_data( ).
-    cl_abap_unit_assert=>assert_equals( act = lv_after exp = lv_before ).
+    cl_abap_unit_assert=>assert_equals( act = lv_after
+                                        exp = lv_before ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_after-change_counter exp = ls_before-change_counter ).
+      act = ls_after-change_counter
+      exp = ls_before-change_counter ).
   ENDMETHOD.
 
   METHOD invalid_write.
@@ -331,19 +367,23 @@ CLASS ltcl_pager IMPLEMENTATION.
     lv_short = lv_page+0(10).
 
     TRY.
-        lo_pager->put_page( iv_page = 0 iv_data = lv_page ).
+        lo_pager->put_page( iv_page = 0
+                            iv_data = lv_page ).
         cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_corrupt ).
     ENDTRY.
 
     TRY.
-        lo_pager->put_page( iv_page = 2 iv_data = lv_short ).
+        lo_pager->put_page( iv_page = 2
+                            iv_data = lv_short ).
         cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_size_error).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_size_error->code exp = zcx_sqlite_error=>sqlite_misuse ).
+          act = lo_size_error->code
+          exp = zcx_sqlite_error=>sqlite_misuse ).
     ENDTRY.
   ENDMETHOD.
 
@@ -368,32 +408,47 @@ CLASS ltcl_pager IMPLEMENTATION.
         lv_page2 = lo_pager->allocate_page( ).
         lv_page3 = lo_pager->allocate_page( ).
         cl_abap_unit_assert=>assert_equals(
-          act = lv_page1 exp = lv_initial + 1 msg = 'first appended page' ).
+          act = lv_page1
+          exp = lv_initial + 1
+          msg = 'first appended page' ).
         cl_abap_unit_assert=>assert_equals(
-          act = lv_page3 exp = lv_initial + 3 msg = 'third appended page' ).
+          act = lv_page3
+          exp = lv_initial + 3
+          msg = 'third appended page' ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->page_count( ) exp = lv_initial + 3 msg = 'grown page count' ).
+          act = lo_pager->page_count( )
+          exp = lv_initial + 3
+          msg = 'grown page count' ).
 
         lo_pager->free_page( lv_page1 ).
         lo_pager->free_page( lv_page2 ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->freelist_count( ) exp = 2 msg = 'freelist count' ).
+          act = lo_pager->freelist_count( )
+          exp = 2
+          msg = 'freelist count' ).
         ls_header = lo_pager->header( ).
         cl_abap_unit_assert=>assert_equals(
-          act = ls_header-freelist_trunk exp = lv_page1 msg = 'freelist trunk' ).
+          act = ls_header-freelist_trunk
+          exp = lv_page1
+          msg = 'freelist trunk' ).
         cl_abap_unit_assert=>assert_equals(
-          act = ls_header-freelist_pages exp = 2 msg = 'freelist header count' ).
+          act = ls_header-freelist_pages
+          exp = 2
+          msg = 'freelist header count' ).
 
         ls_page = lo_pager->get_page( lv_page1 ).
         cl_abap_unit_assert=>assert_equals(
           act = page_u32( iv_data = ls_page-data iv_offset = 0 )
-          exp = 0 msg = 'trunk next page' ).
+          exp = 0
+          msg = 'trunk next page' ).
         cl_abap_unit_assert=>assert_equals(
           act = page_u32( iv_data = ls_page-data iv_offset = 4 )
-          exp = 1 msg = 'trunk leaf count' ).
+          exp = 1
+          msg = 'trunk leaf count' ).
         cl_abap_unit_assert=>assert_equals(
           act = page_u32( iv_data = ls_page-data iv_offset = 8 )
-          exp = lv_page2 msg = 'trunk leaf page' ).
+          exp = lv_page2
+          msg = 'trunk leaf page' ).
 
         TRY.
             lo_pager->free_page( lv_page1 ).
@@ -413,42 +468,65 @@ CLASS ltcl_pager IMPLEMENTATION.
     lv_file = file_data( ).
     ls_header = zcl_sqlite_header=>parse( lv_file ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-database_size exp = lv_initial + 3 msg = 'committed page count' ).
+      act = ls_header-database_size
+      exp = lv_initial + 3
+      msg = 'committed page count' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-freelist_trunk exp = lv_page1 msg = 'committed freelist trunk' ).
+      act = ls_header-freelist_trunk
+      exp = lv_page1
+      msg = 'committed freelist trunk' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-freelist_pages exp = 2 msg = 'committed freelist count' ).
+      act = ls_header-freelist_pages
+      exp = 2
+      msg = 'committed freelist count' ).
 
-    lv_trunk = page_data( iv_data = lv_file iv_page = lv_page1 ).
+    lv_trunk = page_data( iv_data = lv_file
+                          iv_page = lv_page1 ).
     cl_abap_unit_assert=>assert_equals(
       act = page_u32( iv_data = lv_trunk iv_offset = 4 )
-      exp = 1 msg = 'committed trunk leaf count' ).
+      exp = 1
+      msg = 'committed trunk leaf count' ).
     cl_abap_unit_assert=>assert_equals(
       act = page_u32( iv_data = lv_trunk iv_offset = 8 )
-      exp = lv_page2 msg = 'committed trunk leaf page' ).
+      exp = lv_page2
+      msg = 'committed trunk leaf page' ).
 
     TRY.
         lv_allocated = lo_pager->allocate_page( ).
         cl_abap_unit_assert=>assert_equals(
-          act = lv_allocated exp = lv_page2 msg = 'allocate from leaf' ).
+          act = lv_allocated
+          exp = lv_page2
+          msg = 'allocate from leaf' ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->freelist_count( ) exp = 1 msg = 'freelist after leaf' ).
+          act = lo_pager->freelist_count( )
+          exp = 1
+          msg = 'freelist after leaf' ).
 
         lv_allocated = lo_pager->allocate_page( ).
         cl_abap_unit_assert=>assert_equals(
-          act = lv_allocated exp = lv_page1 msg = 'allocate empty trunk' ).
+          act = lv_allocated
+          exp = lv_page1
+          msg = 'allocate empty trunk' ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->freelist_count( ) exp = 0 msg = 'empty freelist' ).
+          act = lo_pager->freelist_count( )
+          exp = 0
+          msg = 'empty freelist' ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->header( )-freelist_trunk exp = 0 msg = 'cleared trunk' ).
+          act = lo_pager->header( )-freelist_trunk
+          exp = 0
+          msg = 'cleared trunk' ).
 
         lv_new = lo_pager->allocate_page( ).
         cl_abap_unit_assert=>assert_equals(
-          act = lv_new exp = lv_initial + 4 msg = 'append after freelist' ).
+          act = lv_new
+          exp = lv_initial + 4
+          msg = 'append after freelist' ).
 
         lo_pager->free_page( lv_new ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->freelist_count( ) exp = 1 msg = 'new trunk count' ).
+          act = lo_pager->freelist_count( )
+          exp = 1
+          msg = 'new trunk count' ).
         lo_pager->commit( ).
       CATCH zcx_sqlite_error INTO DATA(lo_reuse_error).
         cl_abap_unit_assert=>fail( |freelist reuse failed: { lo_reuse_error->message }| ).
@@ -457,11 +535,17 @@ CLASS ltcl_pager IMPLEMENTATION.
     lv_file = file_data( ).
     ls_header = zcl_sqlite_header=>parse( lv_file ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-database_size exp = lv_initial + 4 msg = 'reused page count' ).
+      act = ls_header-database_size
+      exp = lv_initial + 4
+      msg = 'reused page count' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-freelist_trunk exp = lv_new msg = 'new trunk after free' ).
+      act = ls_header-freelist_trunk
+      exp = lv_new
+      msg = 'new trunk after free' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-freelist_pages exp = 1 msg = 'new trunk free count' ).
+      act = ls_header-freelist_pages
+      exp = 1
+      msg = 'new trunk free count' ).
   ENDMETHOD.
 
   METHOD freelist_rollback.
@@ -479,19 +563,31 @@ CLASS ltcl_pager IMPLEMENTATION.
         lv_page = lo_pager->allocate_page( ).
         lo_pager->free_page( lv_page ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->page_count( ) exp = lv_initial + 1 msg = 'allocated page count' ).
+          act = lo_pager->page_count( )
+          exp = lv_initial + 1
+          msg = 'allocated page count' ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->freelist_count( ) exp = 1 msg = 'allocated freelist count' ).
+          act = lo_pager->freelist_count( )
+          exp = 1
+          msg = 'allocated freelist count' ).
 
         lo_pager->rollback( ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->page_count( ) exp = lv_initial msg = 'rollback page count' ).
+          act = lo_pager->page_count( )
+          exp = lv_initial
+          msg = 'rollback page count' ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->freelist_count( ) exp = 0 msg = 'rollback freelist count' ).
+          act = lo_pager->freelist_count( )
+          exp = 0
+          msg = 'rollback freelist count' ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->header( )-freelist_trunk exp = 0 msg = 'rollback trunk' ).
+          act = lo_pager->header( )-freelist_trunk
+          exp = 0
+          msg = 'rollback trunk' ).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_pager->dirty_page_count( ) exp = 0 msg = 'rollback dirty pages' ).
+          act = lo_pager->dirty_page_count( )
+          exp = 0
+          msg = 'rollback dirty pages' ).
 
         lo_pager->commit( ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
@@ -500,7 +596,9 @@ CLASS ltcl_pager IMPLEMENTATION.
 
     lv_file_after = file_data( ).
     cl_abap_unit_assert=>assert_equals(
-      act = lv_file_after exp = lv_file_before msg = 'rollback leaves file unchanged' ).
+      act = lv_file_after
+      exp = lv_file_before
+      msg = 'rollback leaves file unchanged' ).
   ENDMETHOD.
 
   METHOD open_pager.
@@ -526,7 +624,8 @@ CLASS ltcl_pager IMPLEMENTATION.
     lo_file = mo_vfs->open( c_file ).
 
     TRY.
-        lo_file->write( iv_offset = 0 iv_data = fixture( ) ).
+        lo_file->write( iv_offset = 0
+                        iv_data   = fixture( ) ).
       CATCH cx_sy_range_out_of_bounds.
         cl_abap_unit_assert=>fail( 'could not seed writable pager' ).
     ENDTRY.
@@ -548,7 +647,8 @@ CLASS ltcl_pager IMPLEMENTATION.
     lo_file = mo_vfs->open( c_file ).
     lv_size = lo_file->size( ).
     TRY.
-        ls_read = lo_file->read( iv_offset = 0 iv_amount = lv_size ).
+        ls_read = lo_file->read( iv_offset = 0
+                                 iv_amount = lv_size ).
       CATCH cx_sy_range_out_of_bounds.
         cl_abap_unit_assert=>fail( 'could not read writable pager file' ).
     ENDTRY.

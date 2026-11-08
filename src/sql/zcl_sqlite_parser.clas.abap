@@ -681,7 +681,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       lv_separator = '('.
       advance( ).
       lv_value = parse_pragma_value( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
     ENDIF.
 
     ro_statement = NEW zcl_sqlite_ast_pragma(
@@ -783,7 +784,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       lv_if_not_exists = abap_true.
     ENDIF.
     lv_name = parse_object_name( ).
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                 iv_expected = '(' ).
     IF is_kind( zcl_sqlite_tokenizer=>c_rparen ) = abap_true.
       fail( 'expected column definition' ).
     ENDIF.
@@ -804,7 +806,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       EXIT.
     ENDDO.
 
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                 iv_expected = ')' ).
     parse_table_options(
       CHANGING
         cv_without_rowid = lv_without_rowid
@@ -841,9 +844,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     lv_name = parse_object_name( ).
     expect_keyword( 'ON' ).
     lv_table_name = parse_object_name( ).
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                 iv_expected = '(' ).
     lt_columns = parse_indexed_columns( ).
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                 iv_expected = ')' ).
 
     IF is_keyword( 'WHERE' ) = abap_true.
       advance( ).
@@ -901,7 +906,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
       advance( ).
       lt_columns = parse_name_list( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
     ENDIF.
 
     IF is_keyword( 'DEFAULT' ) = abap_true.
@@ -1184,9 +1190,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
   METHOD parse_parenthesized_select.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
 
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                 iv_expected = '(' ).
     lo_statement = parse_select_statement( ).
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                 iv_expected = ')' ).
 
     ro_ref = NEW zcl_sqlite_ast_subquery_ref( io_statement = lo_statement ).
   ENDMETHOD.
@@ -1230,12 +1238,14 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
       advance( ).
       lt_columns = parse_name_list( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
     ENDIF.
     expect_keyword( 'AS' ).
 
     IF is_word( 'NOT' ) = abap_true
-        AND is_word_at( iv_ahead = 1 iv_word = 'MATERIALIZED' ) = abap_true.
+        AND is_word_at( iv_ahead = 1
+                        iv_word  = 'MATERIALIZED' ) = abap_true.
       lv_materialized = 'NOT MATERIALIZED'.
       advance( ).
       advance( ).
@@ -1244,9 +1254,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       advance( ).
     ENDIF.
 
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                 iv_expected = '(' ).
     lo_statement = parse_select_statement( ).
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                 iv_expected = ')' ).
 
     ro_cte = NEW zcl_sqlite_ast_cte(
       iv_name         = lv_name
@@ -1283,12 +1295,14 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
   METHOD parse_values_row.
     DATA lt_values TYPE zcl_sqlite_ast_node=>ty_nodes.
 
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                 iv_expected = '(' ).
     IF is_kind( zcl_sqlite_tokenizer=>c_rparen ) = abap_true.
       fail( 'expected value' ).
     ENDIF.
     lt_values = parse_expression_list( ).
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                 iv_expected = ')' ).
 
     ro_row = NEW zcl_sqlite_ast_values_row( it_values = lt_values ).
   ENDMETHOD.
@@ -1376,7 +1390,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
       advance( ).
       lo_statement = parse_select_statement( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
       lv_alias = parse_optional_alias( ).
       ro_ref = NEW zcl_sqlite_ast_subquery_ref(
         io_statement = lo_statement
@@ -1438,9 +1453,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       lo_on = parse_expression_internal( 0 ).
     ELSEIF is_keyword( 'USING' ) = abap_true.
       advance( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                   iv_expected = '(' ).
       lt_using = parse_name_list( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
     ENDIF.
 
     IF lv_natural = abap_true
@@ -1551,9 +1568,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     IF is_keyword( 'PRIMARY' ) = abap_true.
       advance( ).
       expect_keyword( 'KEY' ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                   iv_expected = '(' ).
       lt_indexed = parse_indexed_columns( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
       lv_conflict = parse_conflict_clause( ).
       ro_constraint = NEW zcl_sqlite_ast_constraint(
         iv_kind            = 'PRIMARY KEY'
@@ -1562,9 +1581,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
         iv_conflict        = lv_conflict ).
     ELSEIF is_keyword( 'UNIQUE' ) = abap_true.
       advance( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                   iv_expected = '(' ).
       lt_indexed = parse_indexed_columns( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
       lv_conflict = parse_conflict_clause( ).
       ro_constraint = NEW zcl_sqlite_ast_constraint(
         iv_kind            = 'UNIQUE'
@@ -1581,9 +1602,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     ELSEIF is_keyword( 'FOREIGN' ) = abap_true.
       advance( ).
       expect_keyword( 'KEY' ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                   iv_expected = '(' ).
       lt_columns = parse_name_list( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
       expect_keyword( 'REFERENCES' ).
       ls_reference = parse_reference_clause( ).
       ro_constraint = NEW zcl_sqlite_ast_constraint(
@@ -1705,7 +1728,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
 
   METHOD parse_conflict_clause.
     IF is_keyword( 'ON' ) = abap_false
-        OR is_keyword_at( iv_ahead = 1 iv_keyword = 'CONFLICT' ) = abap_false.
+        OR is_keyword_at( iv_ahead   = 1
+                          iv_keyword = 'CONFLICT' ) = abap_false.
       RETURN.
     ENDIF.
 
@@ -1733,7 +1757,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
       advance( ).
       rs_reference-columns = parse_name_list( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
     ENDIF.
     parse_foreign_key_clauses( CHANGING cs_reference = rs_reference ).
   ENDMETHOD.
@@ -1779,7 +1804,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
         advance( ).
         cs_reference-match_name = parse_identifier( ).
       ELSEIF is_keyword( 'NOT' ) = abap_true
-          AND is_keyword_at( iv_ahead = 1 iv_keyword = 'DEFERRABLE' ) = abap_true.
+          AND is_keyword_at( iv_ahead   = 1
+                             iv_keyword = 'DEFERRABLE' ) = abap_true.
         advance( ).
         advance( ).
         cs_reference-deferrable = 'NOT DEFERRABLE'.
@@ -1874,8 +1900,10 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
         advance( ).
         cv_strict = abap_true.
       ELSEIF is_kind( zcl_sqlite_tokenizer=>c_comma ) = abap_true
-          AND ( is_word_at( iv_ahead = 1 iv_word = 'WITHOUT' ) = abap_true
-             OR is_word_at( iv_ahead = 1 iv_word = 'STRICT' ) = abap_true ).
+          AND ( is_word_at( iv_ahead = 1
+                            iv_word  = 'WITHOUT' ) = abap_true
+             OR is_word_at( iv_ahead = 1
+                            iv_word  = 'STRICT' ) = abap_true ).
         advance( ).
       ELSE.
         EXIT.
@@ -1929,7 +1957,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
         rv_type = rv_type && current( )-text.
         advance( ).
       ENDWHILE.
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
       rv_type = rv_type && ')'.
     ENDIF.
   ENDMETHOD.
@@ -2057,7 +2086,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
         iv_operator = 'NOTNULL'
         io_operand  = io_expression ).
     ELSEIF is_keyword( 'NOT' ) = abap_true
-        AND is_keyword_at( iv_ahead = 1 iv_keyword = 'NULL' ) = abap_true.
+        AND is_keyword_at( iv_ahead   = 1
+                           iv_keyword = 'NULL' ) = abap_true.
       IF c_prec_equality < iv_min_precedence.
         RETURN.
       ENDIF.
@@ -2074,10 +2104,14 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     DATA lo_right TYPE REF TO zcl_sqlite_ast_node.
 
     IF is_keyword( 'NOT' ) = abap_true
-        AND ( is_keyword_at( iv_ahead = 1 iv_keyword = 'IN' ) = abap_true
-           OR is_keyword_at( iv_ahead = 1 iv_keyword = 'BETWEEN' ) = abap_true
-           OR is_keyword_at( iv_ahead = 1 iv_keyword = 'LIKE' ) = abap_true
-           OR is_keyword_at( iv_ahead = 1 iv_keyword = 'GLOB' ) = abap_true ).
+        AND ( is_keyword_at( iv_ahead   = 1
+                             iv_keyword = 'IN' ) = abap_true
+           OR is_keyword_at( iv_ahead   = 1
+                             iv_keyword = 'BETWEEN' ) = abap_true
+           OR is_keyword_at( iv_ahead   = 1
+                             iv_keyword = 'LIKE' ) = abap_true
+           OR is_keyword_at( iv_ahead   = 1
+                             iv_keyword = 'GLOB' ) = abap_true ).
       IF c_prec_equality < iv_min_precedence.
         RETURN.
       ENDIF.
@@ -2086,9 +2120,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       advance( ).
       CASE lv_operator.
         WHEN 'IN'.
-          ro_node = parse_in( io_expression = io_expression iv_negated = abap_true ).
+          ro_node = parse_in( io_expression = io_expression
+                              iv_negated    = abap_true ).
         WHEN 'BETWEEN'.
-          ro_node = parse_between( io_expression = io_expression iv_negated = abap_true ).
+          ro_node = parse_between( io_expression = io_expression
+                                   iv_negated    = abap_true ).
         WHEN 'LIKE' OR 'GLOB'.
           ro_node = parse_like(
             io_expression = io_expression
@@ -2103,7 +2139,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
         RETURN.
       ENDIF.
       advance( ).
-      ro_node = parse_in( io_expression = io_expression iv_negated = abap_false ).
+      ro_node = parse_in( io_expression = io_expression
+                          iv_negated    = abap_false ).
       RETURN.
     ENDIF.
 
@@ -2112,7 +2149,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
         RETURN.
       ENDIF.
       advance( ).
-      ro_node = parse_between( io_expression = io_expression iv_negated = abap_false ).
+      ro_node = parse_between( io_expression = io_expression
+                               iv_negated    = abap_false ).
       RETURN.
     ENDIF.
 
@@ -2318,14 +2356,17 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
   METHOD parse_parenthesized.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
 
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                 iv_expected = '(' ).
     IF is_select_start( ) = abap_true.
       lo_statement = parse_select_statement( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
       ro_node = NEW zcl_sqlite_ast_subquery( io_statement = lo_statement ).
     ELSE.
       ro_node = parse_expression_internal( 0 ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
     ENDIF.
   ENDMETHOD.
 
@@ -2333,9 +2374,11 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
 
     expect_keyword( 'EXISTS' ).
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                 iv_expected = '(' ).
     lo_statement = parse_select_statement( ).
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                 iv_expected = ')' ).
 
     ro_node = NEW zcl_sqlite_ast_exists( io_statement = lo_statement ).
   ENDMETHOD.
@@ -2407,7 +2450,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       ENDDO.
     ENDIF.
 
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                 iv_expected = ')' ).
     ro_node = NEW zcl_sqlite_ast_function(
       iv_name      = iv_name
       iv_distinct  = lv_distinct
@@ -2461,11 +2505,13 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     DATA lv_type TYPE string.
 
     expect_keyword( 'CAST' ).
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                 iv_expected = '(' ).
     lo_expression = parse_expression_internal( 0 ).
     expect_keyword( 'AS' ).
     lv_type = parse_type_name( ).
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                 iv_expected = ')' ).
 
     ro_node = NEW zcl_sqlite_ast_cast(
       io_expression = lo_expression
@@ -2484,10 +2530,12 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     DATA lo_value TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
 
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_lparen iv_expected = '(' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_lparen
+                 iv_expected = '(' ).
     IF is_select_start( ) = abap_true.
       lo_statement = parse_select_statement( ).
-      expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
       ro_node = NEW zcl_sqlite_ast_in(
         io_expression = io_expression
         it_values     = lt_values
@@ -2510,7 +2558,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       EXIT.
     ENDDO.
 
-    expect_kind( iv_kind = zcl_sqlite_tokenizer=>c_rparen iv_expected = ')' ).
+    expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                 iv_expected = ')' ).
     ro_node = NEW zcl_sqlite_ast_in(
       io_expression = io_expression
       it_values     = lt_values

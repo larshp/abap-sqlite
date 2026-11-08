@@ -140,25 +140,32 @@ CLASS ltcl_catalog IMPLEMENTATION.
     LOOP AT it_expected INTO ls_expected.
       READ TABLE lt_actual INTO ls_actual INDEX sy-tabix.
       cl_abap_unit_assert=>assert_equals(
-        act = sy-subrc exp = 0
+        act = sy-subrc
+        exp = 0
         msg = |{ iv_name } schema row { sy-tabix } is missing| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_actual-type exp = ls_expected-type
+        act = ls_actual-type
+        exp = ls_expected-type
         msg = |{ iv_name } schema row { sy-tabix } type| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_actual-name exp = ls_expected-name
+        act = ls_actual-name
+        exp = ls_expected-name
         msg = |{ iv_name } schema row { sy-tabix } name| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_actual-tbl_name exp = ls_expected-tbl_name
+        act = ls_actual-tbl_name
+        exp = ls_expected-tbl_name
         msg = |{ iv_name } schema row { sy-tabix } tbl_name| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_actual-rootpage exp = ls_expected-rootpage
+        act = ls_actual-rootpage
+        exp = ls_expected-rootpage
         msg = |{ iv_name } schema row { sy-tabix } rootpage| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_actual-sql_is_null exp = ls_expected-sql_is_null
+        act = ls_actual-sql_is_null
+        exp = ls_expected-sql_is_null
         msg = |{ iv_name } schema row { sy-tabix } sql null flag| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_actual-sql exp = ls_expected-sql
+        act = ls_actual-sql
+        exp = ls_expected-sql
         msg = |{ iv_name } schema row { sy-tabix } sql| ).
     ENDLOOP.
   ENDMETHOD.
@@ -312,7 +319,8 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
       lo_pager = open_pager( ls_fixture-name ).
       ls_header = lo_pager->header( ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_header-page_size exp = ls_fixture-page_size
+        act = ls_header-page_size
+        exp = ls_fixture-page_size
         msg = |{ ls_fixture-name } page size| ).
       assert_table(
         io_pager     = lo_pager
@@ -407,19 +415,23 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     lo_pager = open_pager( 'fixtures/freelist.db' ).
     ls_header = lo_pager->header( ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-page_size exp = 512
+      act = ls_header-page_size
+      exp = 512
       msg = 'freelist page size' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-freelist_pages exp = 37
+      act = ls_header-freelist_pages
+      exp = 37
       msg = 'freelist page count' ).
     lv_has_trunk = boolc( ls_header-freelist_trunk > 0 ).
     cl_abap_unit_assert=>assert_equals(
-      act = lv_has_trunk exp = abap_true
+      act = lv_has_trunk
+      exp = abap_true
       msg = 'freelist trunk pointer' ).
 
     DO 20 TIMES.
       lv_id = sy-index.
-      lv_value = |keep-{ padding( iv_value = lv_id iv_width = 3 ) }|.
+      lv_value = |keep-{ padding( iv_value = lv_id
+                                  iv_width = 3 ) }|.
       ls_row = VALUE #(
         c1    = integer_value( lv_id )
         c2    = text_value( lv_value )
@@ -457,10 +469,12 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     lo_pager = open_pager( 'fixtures/auto_vacuum.db' ).
     ls_header = lo_pager->header( ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-page_size exp = 512
+      act = ls_header-page_size
+      exp = 512
       msg = 'auto-vacuum page size' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-incremental_vacuum exp = 0
+      act = ls_header-incremental_vacuum
+      exp = 0
       msg = 'full auto-vacuum mode is not incremental' ).
 
     ls_page = lo_pager->get_page( 2 ).
@@ -472,7 +486,8 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
 
     DO 20 TIMES.
       lv_id = sy-index.
-      lv_value = |auto-{ padding( iv_value = lv_id iv_width = 3 ) }|.
+      lv_value = |auto-{ padding( iv_value = lv_id
+                                  iv_width = 3 ) }|.
       ls_row = VALUE #(
         c1    = integer_value( lv_id )
         c2    = text_value( lv_value )
@@ -509,8 +524,10 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     lo_pager = open_pager( 'fixtures/without_rowid.db' ).
     DO 40 TIMES.
       lv_id = sy-index.
-      lv_key = |key-{ padding( iv_value = lv_id iv_width = 3 ) }|.
-      lv_value = |value-{ padding( iv_value = lv_id iv_width = 3 ) }|.
+      lv_key = |key-{ padding( iv_value = lv_id
+                               iv_width = 3 ) }|.
+      lv_value = |value-{ padding( iv_value = lv_id
+                                   iv_width = 3 ) }|.
       ls_row = VALUE #(
         c1    = text_value( lv_key )
         c2    = text_value( lv_value )
@@ -753,7 +770,8 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     ENDWHILE.
 
     cl_abap_unit_assert=>assert_equals(
-      act = lv_count exp = lines( it_expected )
+      act = lv_count
+      exp = lines( it_expected )
       msg = |{ iv_name } table row count| ).
   ENDMETHOD.
 
@@ -781,7 +799,8 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     ENDWHILE.
 
     cl_abap_unit_assert=>assert_equals(
-      act = lv_count exp = lines( it_expected )
+      act = lv_count
+      exp = lines( it_expected )
       msg = |{ iv_name } index entry count| ).
   ENDMETHOD.
 
@@ -791,13 +810,15 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
 
     lt_actual = io_values.
     cl_abap_unit_assert=>assert_equals(
-      act = lines( lt_actual ) exp = is_expected-count
+      act = lines( lt_actual )
+      exp = is_expected-count
       msg = |{ iv_context } value count| ).
 
     DO is_expected-count TIMES.
       READ TABLE lt_actual INTO lo_value INDEX sy-index.
       cl_abap_unit_assert=>assert_equals(
-        act = sy-subrc exp = 0
+        act = sy-subrc
+        exp = 0
         msg = |{ iv_context } value { sy-index } is missing| ).
       CASE sy-index.
         WHEN 1.
@@ -828,35 +849,44 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     CASE is_expected-kind.
       WHEN 'TEXT'.
         cl_abap_unit_assert=>assert_equals(
-          act = io_value->value_type( ) exp = zcl_sqlite_value=>c_text
+          act = io_value->value_type( )
+          exp = zcl_sqlite_value=>c_text
           msg = |{ iv_context } type| ).
         cl_abap_unit_assert=>assert_equals(
-          act = io_value->as_text( ) exp = is_expected-text
+          act = io_value->as_text( )
+          exp = is_expected-text
           msg = |{ iv_context } text| ).
       WHEN 'INTEGER'.
         cl_abap_unit_assert=>assert_equals(
-          act = io_value->value_type( ) exp = zcl_sqlite_value=>c_integer
+          act = io_value->value_type( )
+          exp = zcl_sqlite_value=>c_integer
           msg = |{ iv_context } type| ).
         cl_abap_unit_assert=>assert_equals(
-          act = io_value->as_integer( ) exp = is_expected-integer
+          act = io_value->as_integer( )
+          exp = is_expected-integer
           msg = |{ iv_context } integer| ).
       WHEN 'REAL'.
         cl_abap_unit_assert=>assert_equals(
-          act = io_value->value_type( ) exp = zcl_sqlite_value=>c_real
+          act = io_value->value_type( )
+          exp = zcl_sqlite_value=>c_real
           msg = |{ iv_context } type| ).
         cl_abap_unit_assert=>assert_equals(
-          act = io_value->as_real( ) exp = is_expected-real
+          act = io_value->as_real( )
+          exp = is_expected-real
           msg = |{ iv_context } real| ).
       WHEN 'BLOB'.
         cl_abap_unit_assert=>assert_equals(
-          act = io_value->value_type( ) exp = zcl_sqlite_value=>c_blob
+          act = io_value->value_type( )
+          exp = zcl_sqlite_value=>c_blob
           msg = |{ iv_context } type| ).
         cl_abap_unit_assert=>assert_equals(
-          act = io_value->as_blob( ) exp = is_expected-blob
+          act = io_value->as_blob( )
+          exp = is_expected-blob
           msg = |{ iv_context } blob| ).
       WHEN 'NULL'.
         cl_abap_unit_assert=>assert_equals(
-          act = io_value->is_null( ) exp = abap_true
+          act = io_value->is_null( )
+          exp = abap_true
           msg = |{ iv_context } is null| ).
       WHEN OTHERS.
         cl_abap_unit_assert=>fail( |{ iv_context } expectation kind is invalid| ).
@@ -888,12 +918,17 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD page_value.
-    rv_value = |page-{ padding( iv_value = iv_size iv_width = 5 ) }-| &&
-      |{ padding( iv_value = iv_id iv_width = 3 ) }-{ repeat( val = 'x' occ = 20 ) }|.
+    rv_value = |page-{ padding( iv_value = iv_size
+                                iv_width = 5 ) }-| &&
+      |{ padding( iv_value = iv_id
+                  iv_width = 3 ) }-{ repeat( val = 'x'
+                                             occ = 20 ) }|.
   ENDMETHOD.
 
   METHOD bulk_value.
-    rv_value = |value-{ padding( iv_value = iv_id iv_width = 3 ) }-{ repeat( val = 'x' occ = 40 ) }|.
+    rv_value = |value-{ padding( iv_value = iv_id
+                                 iv_width = 3 ) }-{ repeat( val = 'x'
+                                                            occ = 40 ) }|.
   ENDMETHOD.
 
   METHOD padding.

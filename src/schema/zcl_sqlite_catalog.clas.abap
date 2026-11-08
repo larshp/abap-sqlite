@@ -66,22 +66,27 @@ CLASS zcl_sqlite_catalog IMPLEMENTATION.
       ENDIF.
 
       READ TABLE lt_values INTO lo_value INDEX 1.
-      ls_entry-type = as_text( io_value = lo_value iv_column = 'type' ).
+      ls_entry-type = as_text( io_value  = lo_value
+                               iv_column = 'type' ).
       READ TABLE lt_values INTO lo_value INDEX 2.
-      ls_entry-name = as_text( io_value = lo_value iv_column = 'name' ).
+      ls_entry-name = as_text( io_value  = lo_value
+                               iv_column = 'name' ).
       READ TABLE lt_values INTO lo_value INDEX 3.
       ls_entry-tbl_name = as_text(
-        io_value = lo_value iv_column = 'tbl_name' ).
+        io_value  = lo_value
+        iv_column = 'tbl_name' ).
       READ TABLE lt_values INTO lo_value INDEX 4.
       ls_entry-rootpage = as_integer(
-        io_value = lo_value iv_column = 'rootpage' ).
+        io_value  = lo_value
+        iv_column = 'rootpage' ).
       READ TABLE lt_values INTO lo_value INDEX 5.
       IF lo_value->is_null( ) = abap_true.
         ls_entry-sql_is_null = abap_true.
         CLEAR ls_entry-sql.
       ELSE.
         ls_entry-sql_is_null = abap_false.
-        ls_entry-sql = as_text( io_value = lo_value iv_column = 'sql' ).
+        ls_entry-sql = as_text( io_value  = lo_value
+                                iv_column = 'sql' ).
       ENDIF.
 
       APPEND ls_entry TO rt_entries.

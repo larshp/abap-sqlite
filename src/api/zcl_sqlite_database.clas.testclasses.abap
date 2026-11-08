@@ -39,23 +39,33 @@ CLASS ltcl_database IMPLEMENTATION.
     rs_result = lo_database->query( 'SELECT id, price + 1 FROM items WHERE id > 1' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 2 msg = 'row count' ).
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'row count' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 2 msg = 'first id' ).
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'first id' ).
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_real( ) exp = lv_expected msg = 'first price plus one' ).
+      act = lo_value->as_real( )
+      exp = lv_expected
+      msg = 'first price plus one' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 2.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 3 msg = 'second id' ).
+      act = lo_value->as_integer( )
+      exp = 3
+      msg = 'second id' ).
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_true msg = 'null price plus one' ).
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'null price plus one' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -71,21 +81,31 @@ CLASS ltcl_database IMPLEMENTATION.
     rs_result = lo_database->query( |SELECT * FROM items WHERE name = 'beta'| ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-columns ) exp = 3 msg = 'column count' ).
+      act = lines( rs_result-columns )
+      exp = 3
+      msg = 'column count' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 1 msg = 'row count' ).
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'row count' ).
 
     READ TABLE rs_result-columns INTO lv_name INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lv_name exp = 'id' msg = 'first column name' ).
+      act = lv_name
+      exp = 'id'
+      msg = 'first column name' ).
     READ TABLE rs_result-columns INTO lv_name INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lv_name exp = 'name' msg = 'second column name' ).
+      act = lv_name
+      exp = 'name'
+      msg = 'second column name' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'beta' msg = 'name value' ).
+      act = lo_value->as_text( )
+      exp = 'beta'
+      msg = 'name value' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -100,11 +120,15 @@ CLASS ltcl_database IMPLEMENTATION.
     rs_result = lo_database->query( 'SELECT i.name FROM items AS i WHERE i.id = 1' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 1 msg = 'row count' ).
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'row count' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'alpha' msg = 'aliased column' ).
+      act = lo_value->as_text( )
+      exp = 'alpha'
+      msg = 'aliased column' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -119,11 +143,15 @@ CLASS ltcl_database IMPLEMENTATION.
     rs_result = lo_database->query( 'SELECT 1 + 1' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 1 msg = 'row count' ).
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'row count' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 2 msg = 'constant value' ).
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'constant value' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -138,20 +166,28 @@ CLASS ltcl_database IMPLEMENTATION.
     rs_result = lo_database->query( 'SELECT k, n FROM wr WHERE n > 38' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 2 msg = 'row count' ).
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'row count' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'key-039' msg = 'first key' ).
+      act = lo_value->as_text( )
+      exp = 'key-039'
+      msg = 'first key' ).
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 39 msg = 'first number' ).
+      act = lo_value->as_integer( )
+      exp = 39
+      msg = 'first number' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 2.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'key-040' msg = 'second key' ).
+      act = lo_value->as_text( )
+      exp = 'key-040'
+      msg = 'second key' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -183,23 +219,33 @@ CLASS ltcl_database IMPLEMENTATION.
     rs_result = lo_database->query( 'SELECT DISTINCT grp, val FROM ordering ORDER BY grp, val LIMIT 3 OFFSET 1' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 3 msg = 'row count' ).
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'row count' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'a' msg = 'first group' ).
+      act = lo_value->as_text( )
+      exp = 'a'
+      msg = 'first group' ).
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_true msg = 'first value' ).
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'first value' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 2.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'a' msg = 'second group' ).
+      act = lo_value->as_text( )
+      exp = 'a'
+      msg = 'second group' ).
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 2 msg = 'second value' ).
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'second value' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -253,21 +299,31 @@ CLASS ltcl_database IMPLEMENTATION.
     rs_result = lo_database->query( 'SELECT count(*), count(val), min(val), max(val) FROM agg' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 1 msg = 'row count' ).
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'row count' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 19 msg = 'count star' ).
+      act = lo_value->as_integer( )
+      exp = 19
+      msg = 'count star' ).
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 15 msg = 'count non-null' ).
+      act = lo_value->as_integer( )
+      exp = 15
+      msg = 'count non-null' ).
     READ TABLE ls_row INTO lo_value INDEX 3.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 0 msg = 'minimum value' ).
+      act = lo_value->as_integer( )
+      exp = 0
+      msg = 'minimum value' ).
     READ TABLE ls_row INTO lo_value INDEX 4.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'abc' msg = 'maximum value' ).
+      act = lo_value->as_text( )
+      exp = 'abc'
+      msg = 'maximum value' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -282,20 +338,28 @@ CLASS ltcl_database IMPLEMENTATION.
     rs_result = lo_database->query( 'SELECT grp, count(*) AS c FROM agg GROUP BY grp HAVING c > 3 ORDER BY grp' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 2 msg = 'row count' ).
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'row count' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'a' msg = 'first group' ).
+      act = lo_value->as_text( )
+      exp = 'a'
+      msg = 'first group' ).
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 4 msg = 'first count' ).
+      act = lo_value->as_integer( )
+      exp = 4
+      msg = 'first count' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 2.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'b' msg = 'second group' ).
+      act = lo_value->as_text( )
+      exp = 'b'
+      msg = 'second group' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -311,7 +375,9 @@ CLASS ltcl_database IMPLEMENTATION.
       'SELECT grp, group_concat(label), count(DISTINCT label) FROM agg GROUP BY grp ORDER BY grp' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 7 msg = 'row count' ).
+      act = lines( rs_result-rows )
+      exp = 7
+      msg = 'row count' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 2.
     READ TABLE ls_row INTO lo_value INDEX 2.
@@ -321,7 +387,9 @@ CLASS ltcl_database IMPLEMENTATION.
       msg = 'concatenated labels' ).
     READ TABLE ls_row INTO lo_value INDEX 3.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 3 msg = 'distinct labels' ).
+      act = lo_value->as_integer( )
+      exp = 3
+      msg = 'distinct labels' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -339,33 +407,51 @@ CLASS ltcl_database IMPLEMENTATION.
       |group_concat(label) FROM agg WHERE id > 99| ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 1 msg = 'row count' ).
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'row count' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 0 msg = 'count star' ).
+      act = lo_value->as_integer( )
+      exp = 0
+      msg = 'count star' ).
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 0 msg = 'count non-null' ).
+      act = lo_value->as_integer( )
+      exp = 0
+      msg = 'count non-null' ).
     READ TABLE ls_row INTO lo_value INDEX 3.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_true msg = 'sum' ).
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'sum' ).
     READ TABLE ls_row INTO lo_value INDEX 4.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_real( ) exp = lv_zero msg = 'total' ).
+      act = lo_value->as_real( )
+      exp = lv_zero
+      msg = 'total' ).
     READ TABLE ls_row INTO lo_value INDEX 5.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_true msg = 'average' ).
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'average' ).
     READ TABLE ls_row INTO lo_value INDEX 6.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_true msg = 'minimum' ).
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'minimum' ).
     READ TABLE ls_row INTO lo_value INDEX 7.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_true msg = 'maximum' ).
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'maximum' ).
     READ TABLE ls_row INTO lo_value INDEX 8.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_true msg = 'group_concat' ).
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'group_concat' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -381,26 +467,38 @@ CLASS ltcl_database IMPLEMENTATION.
       'SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id ORDER BY b.id' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 3 msg = 'inner row count' ).
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'inner row count' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'Ada' msg = 'inner author' ).
+      act = lo_value->as_text( )
+      exp = 'Ada'
+      msg = 'inner author' ).
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'Alpha' msg = 'inner title' ).
+      act = lo_value->as_text( )
+      exp = 'Alpha'
+      msg = 'inner title' ).
 
     rs_result = lo_database->query(
       'SELECT a.name, b.title FROM authors a LEFT JOIN books b ON a.id = b.author_id ORDER BY a.id, b.id' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 5 msg = 'left row count' ).
+      act = lines( rs_result-rows )
+      exp = 5
+      msg = 'left row count' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 4.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'Linus' msg = 'left author' ).
+      act = lo_value->as_text( )
+      exp = 'Linus'
+      msg = 'left author' ).
     READ TABLE ls_row INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_true msg = 'left null title' ).
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'left null title' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -416,25 +514,37 @@ CLASS ltcl_database IMPLEMENTATION.
     rs_result = lo_database->query( 'SELECT * FROM orders JOIN shipments USING (order_id) ORDER BY order_id' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-columns ) exp = 4 msg = 'using column count' ).
+      act = lines( rs_result-columns )
+      exp = 4
+      msg = 'using column count' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 2 msg = 'using row count' ).
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'using row count' ).
     READ TABLE rs_result-columns INTO lv_name INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lv_name exp = 'order_id' msg = 'using first column' ).
+      act = lv_name
+      exp = 'order_id'
+      msg = 'using first column' ).
 
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 4.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'UPS' msg = 'using carrier' ).
+      act = lo_value->as_text( )
+      exp = 'UPS'
+      msg = 'using carrier' ).
 
     rs_result = lo_database->query( 'SELECT * FROM orders NATURAL LEFT JOIN shipments ORDER BY order_id' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 4 msg = 'natural left row count' ).
+      act = lines( rs_result-rows )
+      exp = 4
+      msg = 'natural left row count' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 3.
     READ TABLE ls_row INTO lo_value INDEX 4.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_true msg = 'natural left null carrier' ).
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'natural left null carrier' ).
 
     lo_database->close( ).
   ENDMETHOD.
@@ -552,42 +662,60 @@ CLASS ltcl_database IMPLEMENTATION.
 
     rs_result = lo_database->query( |SELECT id FROM m WHERE a = 'b' AND b = 2 ORDER BY id| ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 2 msg = 'index equality row count' ).
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'index equality row count' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 4 msg = 'first index equality row' ).
+      act = lo_value->as_integer( )
+      exp = 4
+      msg = 'first index equality row' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 2.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 6 msg = 'second index equality row' ).
+      act = lo_value->as_integer( )
+      exp = 6
+      msg = 'second index equality row' ).
 
     rs_result = lo_database->query( |SELECT id FROM m WHERE a = 'a' AND b > 1 ORDER BY id| ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 1 msg = 'index range row count' ).
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'index range row count' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 2 msg = 'index range row' ).
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'index range row' ).
 
     rs_result = lo_database->query( 'SELECT id FROM m WHERE b < 2 ORDER BY id' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 3 msg = 'upper bound row count' ).
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'upper bound row count' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 3.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 5 msg = 'upper bound last row' ).
+      act = lo_value->as_integer( )
+      exp = 5
+      msg = 'upper bound last row' ).
 
     lo_database->close( ).
 
     lo_database = zcl_sqlite_database=>open( 'fixtures/small.db' ).
     rs_result = lo_database->query( 'SELECT id FROM items WHERE id > 1 AND id <= 2 ORDER BY id' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 1 msg = 'rowid range row count' ).
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'rowid range row count' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 2 msg = 'rowid range row' ).
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'rowid range row' ).
     lo_database->close( ).
   ENDMETHOD.
 
@@ -613,52 +741,75 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_database = zcl_sqlite_database=>create( lv_name ).
     rs_result = lo_database->query( 'SELECT 1 + 1' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( rs_result-rows ) exp = 1 msg = 'empty database is queryable' ).
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'empty database is queryable' ).
     READ TABLE rs_result-rows INTO ls_row INDEX 1.
     READ TABLE ls_row INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = 2 msg = 'empty database constant' ).
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'empty database constant' ).
     lo_database->close( ).
 
     lv_data = lo_vfs->export( lv_name ).
     cl_abap_unit_assert=>assert_equals(
-      act = xstrlen( lv_data ) exp = 4096 msg = 'new database size' ).
+      act = xstrlen( lv_data )
+      exp = 4096
+      msg = 'new database size' ).
 
     ls_header = zcl_sqlite_header=>parse( lv_data ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-page_size exp = 4096 msg = 'new database page size' ).
+      act = ls_header-page_size
+      exp = 4096
+      msg = 'new database page size' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-database_size exp = 1 msg = 'new database page count' ).
+      act = ls_header-database_size
+      exp = 1
+      msg = 'new database page count' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-change_counter exp = 1 msg = 'new database change counter' ).
+      act = ls_header-change_counter
+      exp = 1
+      msg = 'new database change counter' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-schema_cookie exp = 1 msg = 'new database schema cookie' ).
+      act = ls_header-schema_cookie
+      exp = 1
+      msg = 'new database schema cookie' ).
     cl_abap_unit_assert=>assert_equals(
       act = ls_header-text_encoding
       exp = zcl_sqlite_header=>c_encoding_utf8
       msg = 'new database text encoding' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_header-version_valid_for exp = 1 msg = 'new database version valid for' ).
+      act = ls_header-version_valid_for
+      exp = 1
+      msg = 'new database version valid for' ).
     cl_abap_unit_assert=>assert_equals(
       act = ls_header-sqlite_version
       exp = zcl_sqlite_header=>c_sqlite_version
       msg = 'new database SQLite version' ).
 
-    ls_page = zcl_sqlite_page=>parse( iv_data = lv_data iv_offset = 100 ).
+    ls_page = zcl_sqlite_page=>parse( iv_data   = lv_data
+                                      iv_offset = 100 ).
     cl_abap_unit_assert=>assert_equals(
       act = ls_page-page_type
       exp = zcl_sqlite_page=>c_table_leaf
       msg = 'sqlite_schema page type' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_page-cell_count exp = 0 msg = 'sqlite_schema cell count' ).
+      act = ls_page-cell_count
+      exp = 0
+      msg = 'sqlite_schema cell count' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_page-cell_content_offset exp = 4096 msg = 'sqlite_schema content offset' ).
+      act = ls_page-cell_content_offset
+      exp = 4096
+      msg = 'sqlite_schema content offset' ).
 
     lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
     lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
     lt_entries = zcl_sqlite_catalog=>read( lo_pager ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( lt_entries ) exp = 0 msg = 'sqlite_schema is empty' ).
+      act = lines( lt_entries )
+      exp = 0
+      msg = 'sqlite_schema is empty' ).
     lo_file->close( ).
 
     TRY.

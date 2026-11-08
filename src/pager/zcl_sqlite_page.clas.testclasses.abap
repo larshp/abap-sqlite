@@ -101,24 +101,31 @@ CLASS ltcl_page IMPLEMENTATION.
     DATA ls_page TYPE zcl_sqlite_page=>ty_page.
     DATA lv_offset TYPE i.
 
-    ls_raw = raw_page( iv_name = c_small iv_page = 2 ).
+    ls_raw = raw_page( iv_name = c_small
+                       iv_page = 2 ).
     TRY.
         ls_page = zcl_sqlite_page=>parse(
-          iv_data = ls_raw-data iv_offset = ls_raw-btree_offset ).
+          iv_data   = ls_raw-data
+          iv_offset = ls_raw-btree_offset ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( |small page 2 parse failed: { lo_error->message }| ).
     ENDTRY.
 
-    cl_abap_unit_assert=>assert_equals( act = ls_page-cell_count exp = 3 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_page-cell_count
+                                        exp = 3 ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_page-cell_content_offset exp = 4048 ).
+      act = ls_page-cell_content_offset
+      exp = 4048 ).
 
     READ TABLE ls_page-cell_offsets INTO lv_offset INDEX 1.
-    cl_abap_unit_assert=>assert_equals( act = lv_offset exp = 4077 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_offset
+                                        exp = 4077 ).
     READ TABLE ls_page-cell_offsets INTO lv_offset INDEX 2.
-    cl_abap_unit_assert=>assert_equals( act = lv_offset exp = 4059 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_offset
+                                        exp = 4059 ).
     READ TABLE ls_page-cell_offsets INTO lv_offset INDEX 3.
-    cl_abap_unit_assert=>assert_equals( act = lv_offset exp = 4048 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_offset
+                                        exp = 4048 ).
   ENDMETHOD.
 
   METHOD freeblocks.
@@ -127,27 +134,43 @@ CLASS ltcl_page IMPLEMENTATION.
     DATA ls_page TYPE zcl_sqlite_page=>ty_page.
     DATA ls_freeblock TYPE zcl_sqlite_page=>ty_freeblock.
 
-    ls_raw = raw_page( iv_name = c_empty iv_page = 1 ).
+    ls_raw = raw_page( iv_name = c_empty
+                       iv_page = 1 ).
     lv_data = ls_raw-data.
 
     TRY.
         lv_data = zcl_sqlite_bytes=>write_u16(
-          iv_data = lv_data iv_offset = 101 iv_value = 3900 ).
+          iv_data   = lv_data
+          iv_offset = 101
+          iv_value  = 3900 ).
         lv_data = zcl_sqlite_bytes=>write_u16(
-          iv_data = lv_data iv_offset = 105 iv_value = 3900 ).
+          iv_data   = lv_data
+          iv_offset = 105
+          iv_value  = 3900 ).
         lv_data = zcl_sqlite_bytes=>write_u8(
-          iv_data = lv_data iv_offset = 107 iv_value = 7 ).
+          iv_data   = lv_data
+          iv_offset = 107
+          iv_value  = 7 ).
         lv_data = zcl_sqlite_bytes=>write_u16(
-          iv_data = lv_data iv_offset = 3900 iv_value = 3920 ).
+          iv_data   = lv_data
+          iv_offset = 3900
+          iv_value  = 3920 ).
         lv_data = zcl_sqlite_bytes=>write_u16(
-          iv_data = lv_data iv_offset = 3902 iv_value = 20 ).
+          iv_data   = lv_data
+          iv_offset = 3902
+          iv_value  = 20 ).
         lv_data = zcl_sqlite_bytes=>write_u16(
-          iv_data = lv_data iv_offset = 3920 iv_value = 0 ).
+          iv_data   = lv_data
+          iv_offset = 3920
+          iv_value  = 0 ).
         lv_data = zcl_sqlite_bytes=>write_u16(
-          iv_data = lv_data iv_offset = 3922 iv_value = 30 ).
+          iv_data   = lv_data
+          iv_offset = 3922
+          iv_value  = 30 ).
 
         ls_page = zcl_sqlite_page=>parse(
-          iv_data = lv_data iv_offset = ls_raw-btree_offset ).
+          iv_data   = lv_data
+          iv_offset = ls_raw-btree_offset ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( |freeblock page parse failed: { lo_error->message }| ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
@@ -155,40 +178,54 @@ CLASS ltcl_page IMPLEMENTATION.
     ENDTRY.
 
     cl_abap_unit_assert=>assert_equals(
-      act = ls_page-first_freeblock exp = 3900 ).
+      act = ls_page-first_freeblock
+      exp = 3900 ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_page-fragmented_free_bytes exp = 7 ).
+      act = ls_page-fragmented_free_bytes
+      exp = 7 ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_page-freeblocks ) exp = 2 ).
+      act = lines( ls_page-freeblocks )
+      exp = 2 ).
 
     READ TABLE ls_page-freeblocks INTO ls_freeblock INDEX 1.
-    cl_abap_unit_assert=>assert_equals( act = ls_freeblock-offset exp = 3900 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_freeblock-offset
+                                        exp = 3900 ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_freeblock-next_offset exp = 3920 ).
-    cl_abap_unit_assert=>assert_equals( act = ls_freeblock-size exp = 20 ).
+      act = ls_freeblock-next_offset
+      exp = 3920 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_freeblock-size
+                                        exp = 20 ).
 
     READ TABLE ls_page-freeblocks INTO ls_freeblock INDEX 2.
-    cl_abap_unit_assert=>assert_equals( act = ls_freeblock-offset exp = 3920 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_freeblock-offset
+                                        exp = 3920 ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_freeblock-next_offset exp = 0 ).
-    cl_abap_unit_assert=>assert_equals( act = ls_freeblock-size exp = 30 ).
+      act = ls_freeblock-next_offset
+      exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_freeblock-size
+                                        exp = 30 ).
   ENDMETHOD.
 
   METHOD bad_page_type.
     DATA ls_raw TYPE zcl_sqlite_pager=>ty_page.
     DATA lv_data TYPE xstring.
 
-    ls_raw = raw_page( iv_name = c_empty iv_page = 1 ).
+    ls_raw = raw_page( iv_name = c_empty
+                       iv_page = 1 ).
 
     TRY.
         lv_data = zcl_sqlite_bytes=>write_u8(
-          iv_data = ls_raw-data iv_offset = 100 iv_value = 99 ).
+          iv_data   = ls_raw-data
+          iv_offset = 100
+          iv_value  = 99 ).
         zcl_sqlite_page=>parse(
-          iv_data = lv_data iv_offset = ls_raw-btree_offset ).
+          iv_data   = lv_data
+          iv_offset = ls_raw-btree_offset ).
         cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_corrupt ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
         cl_abap_unit_assert=>fail( 'could not modify fixture page' ).
     ENDTRY.
@@ -200,7 +237,8 @@ CLASS ltcl_page IMPLEMENTATION.
         cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_corrupt ).
     ENDTRY.
   ENDMETHOD.
 
@@ -215,42 +253,52 @@ CLASS ltcl_page IMPLEMENTATION.
     lo_pager = open_pager( iv_name ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_pager->page_count( ) exp = lines( it_pages )
+      act = lo_pager->page_count( )
+      exp = lines( it_pages )
       msg = |{ iv_name } page count| ).
 
     LOOP AT it_pages INTO ls_expect.
       TRY.
           ls_raw = lo_pager->get_page( ls_expect-number ).
           ls_page = zcl_sqlite_page=>parse(
-            iv_data = ls_raw-data iv_offset = ls_raw-btree_offset ).
+            iv_data   = ls_raw-data
+            iv_offset = ls_raw-btree_offset ).
         CATCH zcx_sqlite_error INTO DATA(lo_error).
           cl_abap_unit_assert=>fail(
             |{ iv_name } page { ls_expect-number } parse failed: { lo_error->message }| ).
       ENDTRY.
 
       cl_abap_unit_assert=>assert_equals(
-        act = ls_page-page_type exp = ls_expect-page_type
+        act = ls_page-page_type
+        exp = ls_expect-page_type
         msg = |{ iv_name } page { ls_expect-number } type| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_page-cell_count exp = ls_expect-cell_count
+        act = ls_page-cell_count
+        exp = ls_expect-cell_count
         msg = |{ iv_name } page { ls_expect-number } cell count| ).
       cl_abap_unit_assert=>assert_equals(
-        act = lines( ls_page-cell_offsets ) exp = ls_expect-cell_count
+        act = lines( ls_page-cell_offsets )
+        exp = ls_expect-cell_count
         msg = |{ iv_name } page { ls_expect-number } cell pointer count| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_page-cell_content_offset exp = ls_expect-cell_content_offset
+        act = ls_page-cell_content_offset
+        exp = ls_expect-cell_content_offset
         msg = |{ iv_name } page { ls_expect-number } cell content offset| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_page-rightmost_pointer exp = ls_expect-rightmost_pointer
+        act = ls_page-rightmost_pointer
+        exp = ls_expect-rightmost_pointer
         msg = |{ iv_name } page { ls_expect-number } right-most pointer| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_page-first_freeblock exp = 0
+        act = ls_page-first_freeblock
+        exp = 0
         msg = |{ iv_name } page { ls_expect-number } first freeblock| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_page-fragmented_free_bytes exp = 0
+        act = ls_page-fragmented_free_bytes
+        exp = 0
         msg = |{ iv_name } page { ls_expect-number } fragmented bytes| ).
       cl_abap_unit_assert=>assert_equals(
-        act = lines( ls_page-freeblocks ) exp = 0
+        act = lines( ls_page-freeblocks )
+        exp = 0
         msg = |{ iv_name } page { ls_expect-number } freeblocks| ).
 
       IF ls_expect-page_type = zcl_sqlite_page=>c_index_interior
@@ -260,7 +308,8 @@ CLASS ltcl_page IMPLEMENTATION.
         lv_header_size = 8.
       ENDIF.
       cl_abap_unit_assert=>assert_equals(
-        act = ls_page-header_size exp = lv_header_size
+        act = ls_page-header_size
+        exp = lv_header_size
         msg = |{ iv_name } page { ls_expect-number } header size| ).
 
       lv_pointer_offset = lv_header_size.
@@ -268,7 +317,8 @@ CLASS ltcl_page IMPLEMENTATION.
         lv_pointer_offset = zcl_sqlite_header=>c_header_size + lv_header_size.
       ENDIF.
       cl_abap_unit_assert=>assert_equals(
-        act = ls_page-cell_pointer_offset exp = lv_pointer_offset
+        act = ls_page-cell_pointer_offset
+        exp = lv_pointer_offset
         msg = |{ iv_name } page { ls_expect-number } cell pointer offset| ).
     ENDLOOP.
   ENDMETHOD.

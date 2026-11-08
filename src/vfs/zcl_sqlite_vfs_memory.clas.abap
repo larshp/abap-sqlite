@@ -87,7 +87,8 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
       INSERT ls_file INTO TABLE mt_files.
     ENDIF.
 
-    ro_file = NEW zcl_sqlite_file_memory( io_vfs = me iv_name = iv_name ).
+    ro_file = NEW zcl_sqlite_file_memory( io_vfs  = me
+                                          iv_name = iv_name ).
   ENDMETHOD.
 
   METHOD zif_sqlite_vfs~exists.
@@ -180,7 +181,8 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
 
         lv_pos = lv_from - lv_block_start.
         lv_length = lv_to - lv_from.
-        lv_block = get_block( iv_name = iv_name iv_blockno = lv_blockno ).
+        lv_block = get_block( iv_name    = iv_name
+                              iv_blockno = lv_blockno ).
         rs_result-data = rs_result-data && lv_block+lv_pos(lv_length).
 
         lv_blockno = lv_blockno + 1.
@@ -235,20 +237,24 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
       lv_pos = lv_from - lv_block_start.
       lv_patch_pos = lv_from - iv_offset.
       lv_patch_length = lv_to - lv_from.
-      lv_block = get_block( iv_name = iv_name iv_blockno = lv_blockno ).
+      lv_block = get_block( iv_name    = iv_name
+                            iv_blockno = lv_blockno ).
 * ANORMALY: an xstring slice is rejected as a method argument, copy it first
       lv_patch = iv_data+lv_patch_pos(lv_patch_length).
       lv_block = patch_block(
         iv_block = lv_block
         iv_pos   = lv_pos
         iv_data  = lv_patch ).
-      put_block( iv_name = iv_name iv_blockno = lv_blockno iv_data = lv_block ).
+      put_block( iv_name    = iv_name
+                 iv_blockno = lv_blockno
+                 iv_data    = lv_block ).
 
       lv_blockno = lv_blockno + 1.
     ENDWHILE.
 
     IF lv_end > lv_size.
-      put_file( iv_name = iv_name iv_size = lv_end ).
+      put_file( iv_name = iv_name
+                iv_size = lv_end ).
     ENDIF.
   ENDMETHOD.
 
@@ -269,14 +275,18 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
       IF lv_keep = 0.
         DELETE mt_blocks WHERE name = iv_name AND blockno >= lv_blockno.
       ELSE.
-        lv_block = get_block( iv_name = iv_name iv_blockno = lv_blockno ).
+        lv_block = get_block( iv_name    = iv_name
+                              iv_blockno = lv_blockno ).
         lv_block = lv_block+0(lv_keep) && zero_bytes( c_block_size - lv_keep ).
-        put_block( iv_name = iv_name iv_blockno = lv_blockno iv_data = lv_block ).
+        put_block( iv_name    = iv_name
+                   iv_blockno = lv_blockno
+                   iv_data    = lv_block ).
         DELETE mt_blocks WHERE name = iv_name AND blockno > lv_blockno.
       ENDIF.
     ENDIF.
 
-    put_file( iv_name = iv_name iv_size = iv_size ).
+    put_file( iv_name = iv_name
+              iv_size = iv_size ).
   ENDMETHOD.
 
   METHOD file_size.
@@ -290,7 +300,8 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
 
   METHOD zero_bytes.
     IF iv_count > 0.
-      rv_zeros = repeat( val = '00' occ = iv_count ).
+      rv_zeros = repeat( val = '00'
+                         occ = iv_count ).
     ENDIF.
   ENDMETHOD.
 

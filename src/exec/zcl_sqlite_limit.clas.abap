@@ -147,7 +147,9 @@ CLASS zcl_sqlite_limit IMPLEMENTATION.
 
     lv_start = 0.
     WHILE lv_start < lv_length.
-      lv_char = substring( val = iv_text off = lv_start len = 1 ).
+      lv_char = substring( val = iv_text
+                           off = lv_start
+                           len = 1 ).
       IF is_space_char( lv_char ) = abap_false.
         EXIT.
       ENDIF.
@@ -156,7 +158,9 @@ CLASS zcl_sqlite_limit IMPLEMENTATION.
 
     lv_end = lv_length.
     WHILE lv_end > lv_start.
-      lv_char = substring( val = iv_text off = lv_end - 1 len = 1 ).
+      lv_char = substring( val = iv_text
+                           off = lv_end - 1
+                           len = 1 ).
       IF is_space_char( lv_char ) = abap_false.
         EXIT.
       ENDIF.
@@ -167,7 +171,9 @@ CLASS zcl_sqlite_limit IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    lv_char = substring( val = iv_text off = lv_start len = 1 ).
+    lv_char = substring( val = iv_text
+                         off = lv_start
+                         len = 1 ).
     IF lv_char = |+| OR lv_char = |-|.
       lv_start = lv_start + 1.
     ENDIF.
@@ -177,7 +183,9 @@ CLASS zcl_sqlite_limit IMPLEMENTATION.
 
     lv_index = lv_start.
     WHILE lv_index < lv_end.
-      lv_char = substring( val = iv_text off = lv_index len = 1 ).
+      lv_char = substring( val = iv_text
+                           off = lv_index
+                           len = 1 ).
       IF lv_char < |0| OR lv_char > |9|.
         RETURN.
       ENDIF.
@@ -194,7 +202,8 @@ CLASS zcl_sqlite_limit IMPLEMENTATION.
       OR iv_char = cl_abap_char_utilities=>vertical_tab
       OR iv_char = cl_abap_char_utilities=>newline
       OR iv_char = cl_abap_char_utilities=>form_feed
-      OR iv_char = substring( val = cl_abap_char_utilities=>cr_lf len = 1 ) ).
+      OR iv_char = substring( val = cl_abap_char_utilities=>cr_lf
+                              len = 1 ) ).
   ENDMETHOD.
 
 ENDCLASS.

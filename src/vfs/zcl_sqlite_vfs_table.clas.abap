@@ -146,7 +146,8 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
   METHOD zif_sqlite_vfs~open.
     ensure_file( iv_name ).
 
-    ro_file = NEW zcl_sqlite_file_table( io_vfs = me iv_name = iv_name ).
+    ro_file = NEW zcl_sqlite_file_table( io_vfs  = me
+                                         iv_name = iv_name ).
   ENDMETHOD.
 
   METHOD zif_sqlite_vfs~exists.
@@ -160,7 +161,8 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_sqlite_vfs~delete.
-    delete_blocks( iv_name = iv_name iv_from = 0 ).
+    delete_blocks( iv_name = iv_name
+                   iv_from = 0 ).
   ENDMETHOD.
 
   METHOD zif_sqlite_vfs~list.
@@ -242,7 +244,8 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
 
         lv_pos = lv_from - lv_block_start.
         lv_length = lv_to - lv_from.
-        lv_block = get_block( iv_name = iv_name iv_blockno = lv_blockno ).
+        lv_block = get_block( iv_name    = iv_name
+                              iv_blockno = lv_blockno ).
         rs_result-data = rs_result-data && lv_block+lv_pos(lv_length).
 
         lv_blockno = lv_blockno + 1.
@@ -294,9 +297,13 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
       lv_old_last_block = ( lv_size - 1 ) DIV c_block_size.
     ENDIF.
     IF iv_offset >= ( lv_old_last_block + 1 ) * c_block_size.
-      lv_block = get_block( iv_name = iv_name iv_blockno = lv_old_last_block ).
-      lv_block = fit_block( iv_block = lv_block iv_size = c_block_size ).
-      put_block( iv_name = iv_name iv_blockno = lv_old_last_block iv_data = lv_block ).
+      lv_block = get_block( iv_name    = iv_name
+                            iv_blockno = lv_old_last_block ).
+      lv_block = fit_block( iv_block = lv_block
+                            iv_size  = c_block_size ).
+      put_block( iv_name    = iv_name
+                 iv_blockno = lv_old_last_block
+                 iv_data    = lv_block ).
     ENDIF.
 
     lv_blockno = iv_offset DIV c_block_size.
@@ -314,7 +321,8 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
       lv_pos = lv_from - lv_block_start.
       lv_patch_pos = lv_from - iv_offset.
       lv_patch_length = lv_to - lv_from.
-      lv_block = get_block( iv_name = iv_name iv_blockno = lv_blockno ).
+      lv_block = get_block( iv_name    = iv_name
+                            iv_blockno = lv_blockno ).
 * ANORMALY: an xstring slice is rejected as a method argument, copy it first
       lv_patch = iv_data+lv_patch_pos(lv_patch_length).
       lv_block = patch_block(
@@ -329,8 +337,11 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
       ELSE.
         lv_block_length = xstrlen( lv_block ).
       ENDIF.
-      lv_block = fit_block( iv_block = lv_block iv_size = lv_block_length ).
-      put_block( iv_name = iv_name iv_blockno = lv_blockno iv_data = lv_block ).
+      lv_block = fit_block( iv_block = lv_block
+                            iv_size  = lv_block_length ).
+      put_block( iv_name    = iv_name
+                 iv_blockno = lv_blockno
+                 iv_data    = lv_block ).
 
       lv_blockno = lv_blockno + 1.
     ENDWHILE.
@@ -350,13 +361,17 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     IF iv_size = lv_size.
       RETURN.
     ELSEIF iv_size > lv_size.
-      grow_file( iv_name = iv_name iv_size = iv_size ).
+      grow_file( iv_name = iv_name
+                 iv_size = iv_size ).
       RETURN.
     ENDIF.
 
     IF iv_size = 0.
-      delete_blocks( iv_name = iv_name iv_from = 0 ).
-      put_block( iv_name = iv_name iv_blockno = 0 iv_data = zero_bytes( 0 ) ).
+      delete_blocks( iv_name = iv_name
+                     iv_from = 0 ).
+      put_block( iv_name    = iv_name
+                 iv_blockno = 0
+                 iv_data    = zero_bytes( 0 ) ).
       RETURN.
     ENDIF.
 
@@ -367,10 +382,15 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
       lv_keep = c_block_size.
     ENDIF.
 
-    lv_block = get_block( iv_name = iv_name iv_blockno = lv_last_block ).
-    lv_block = fit_block( iv_block = lv_block iv_size = lv_keep ).
-    put_block( iv_name = iv_name iv_blockno = lv_last_block iv_data = lv_block ).
-    delete_blocks( iv_name = iv_name iv_from = lv_last_block + 1 ).
+    lv_block = get_block( iv_name    = iv_name
+                          iv_blockno = lv_last_block ).
+    lv_block = fit_block( iv_block = lv_block
+                          iv_size  = lv_keep ).
+    put_block( iv_name    = iv_name
+               iv_blockno = lv_last_block
+               iv_data    = lv_block ).
+    delete_blocks( iv_name = iv_name
+                   iv_from = lv_last_block + 1 ).
   ENDMETHOD.
 
   METHOD file_size.
@@ -393,7 +413,9 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
   METHOD import.
     zif_sqlite_vfs~delete( iv_name ).
     ensure_file( iv_name ).
-    write_file( iv_name = iv_name iv_offset = 0 iv_data = iv_data ).
+    write_file( iv_name   = iv_name
+                iv_offset = 0
+                iv_data   = iv_data ).
   ENDMETHOD.
 
   METHOD export.
@@ -409,13 +431,16 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    ls_result = read_file( iv_name = iv_name iv_offset = 0 iv_amount = lv_size ).
+    ls_result = read_file( iv_name   = iv_name
+                           iv_offset = 0
+                           iv_amount = lv_size ).
     rv_data = ls_result-data.
   ENDMETHOD.
 
   METHOD zero_bytes.
     IF iv_count > 0.
-      rv_zeros = repeat( val = '00' occ = iv_count ).
+      rv_zeros = repeat( val = '00'
+                         occ = iv_count ).
     ENDIF.
   ENDMETHOD.
 
@@ -533,16 +558,23 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
       lv_blockno = lv_size DIV c_block_size.
     ENDIF.
     lv_block_start = lv_blockno * c_block_size.
-    lv_block = get_block( iv_name = iv_name iv_blockno = lv_blockno ).
+    lv_block = get_block( iv_name    = iv_name
+                          iv_blockno = lv_blockno ).
 
     IF iv_size <= lv_block_start + c_block_size.
-      lv_block = fit_block( iv_block = lv_block iv_size = iv_size - lv_block_start ).
-      put_block( iv_name = iv_name iv_blockno = lv_blockno iv_data = lv_block ).
+      lv_block = fit_block( iv_block = lv_block
+                            iv_size  = iv_size - lv_block_start ).
+      put_block( iv_name    = iv_name
+                 iv_blockno = lv_blockno
+                 iv_data    = lv_block ).
       RETURN.
     ENDIF.
 
-    lv_block = fit_block( iv_block = lv_block iv_size = c_block_size ).
-    put_block( iv_name = iv_name iv_blockno = lv_blockno iv_data = lv_block ).
+    lv_block = fit_block( iv_block = lv_block
+                          iv_size  = c_block_size ).
+    put_block( iv_name    = iv_name
+               iv_blockno = lv_blockno
+               iv_data    = lv_block ).
 
     lv_blockno = lv_blockno + 1.
     lv_last_block = ( iv_size - 1 ) DIV c_block_size.
@@ -563,7 +595,9 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
 
   METHOD ensure_file.
     IF zif_sqlite_vfs~exists( iv_name ) = abap_false.
-      put_block( iv_name = iv_name iv_blockno = 0 iv_data = zero_bytes( 0 ) ).
+      put_block( iv_name    = iv_name
+                 iv_blockno = 0
+                 iv_data    = zero_bytes( 0 ) ).
     ENDIF.
   ENDMETHOD.
 

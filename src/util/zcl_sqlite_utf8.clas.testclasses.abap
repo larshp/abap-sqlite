@@ -40,21 +40,27 @@ CLASS ltcl_utf8 IMPLEMENTATION.
       lv_text = zcl_sqlite_utf8=>decode( ls_case-hex ).
 
       cl_abap_unit_assert=>assert_equals(
-        act = zcl_sqlite_utf8=>encode( lv_text ) exp = ls_case-hex ).
+        act = zcl_sqlite_utf8=>encode( lv_text )
+        exp = ls_case-hex ).
       cl_abap_unit_assert=>assert_equals(
-        act = zcl_sqlite_utf8=>byte_length( lv_text ) exp = ls_case-size ).
+        act = zcl_sqlite_utf8=>byte_length( lv_text )
+        exp = ls_case-size ).
       cl_abap_unit_assert=>assert_equals(
-        act = xstrlen( zcl_sqlite_utf8=>encode( lv_text ) ) exp = ls_case-size ).
+        act = xstrlen( zcl_sqlite_utf8=>encode( lv_text ) )
+        exp = ls_case-size ).
     ENDLOOP.
   ENDMETHOD.
 
   METHOD ascii.
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_utf8=>encode( 'Hello' ) exp = '48656C6C6F' ).
+      act = zcl_sqlite_utf8=>encode( 'Hello' )
+      exp = '48656C6C6F' ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_utf8=>decode( '48656C6C6F' ) exp = 'Hello' ).
+      act = zcl_sqlite_utf8=>decode( '48656C6C6F' )
+      exp = 'Hello' ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_utf8=>byte_length( 'Hello' ) exp = 5 ).
+      act = zcl_sqlite_utf8=>byte_length( 'Hello' )
+      exp = 5 ).
   ENDMETHOD.
 
   METHOD empty.
@@ -63,11 +69,14 @@ CLASS ltcl_utf8 IMPLEMENTATION.
     lv_empty = ''.
 
     cl_abap_unit_assert=>assert_equals(
-      act = xstrlen( zcl_sqlite_utf8=>encode( '' ) ) exp = 0 ).
+      act = xstrlen( zcl_sqlite_utf8=>encode( '' ) )
+      exp = 0 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_utf8=>decode( lv_empty ) exp = '' ).
+      act = zcl_sqlite_utf8=>decode( lv_empty )
+      exp = '' ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_utf8=>byte_length( '' ) exp = 0 ).
+      act = zcl_sqlite_utf8=>byte_length( '' )
+      exp = 0 ).
   ENDMETHOD.
 
 ENDCLASS.

@@ -119,7 +119,8 @@ CLASS zcl_sqlite_btree IMPLEMENTATION.
     ENDIF.
     TRY.
         lv_next_page_i8 = zcl_sqlite_bytes=>read_u32(
-          iv_data = iv_page_data iv_offset = lv_pointer_offset ).
+          iv_data   = iv_page_data
+          iv_offset = lv_pointer_offset ).
       CATCH cx_sy_range_out_of_bounds.
         fail( 'overflow page pointer is truncated' ).
     ENDTRY.
@@ -144,7 +145,8 @@ CLASS zcl_sqlite_btree IMPLEMENTATION.
       ENDIF.
       TRY.
           lv_next_page_i8 = zcl_sqlite_bytes=>read_u32(
-            iv_data = lv_page-data iv_offset = 0 ).
+            iv_data   = lv_page-data
+            iv_offset = 0 ).
         CATCH cx_sy_range_out_of_bounds.
           fail( 'overflow page pointer is truncated' ).
       ENDTRY.

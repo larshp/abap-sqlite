@@ -20,9 +20,11 @@ CLASS ltcl_value IMPLEMENTATION.
     lo_value = zcl_sqlite_value=>null( ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_null ).
+      act = lo_value->value_type( )
+      exp = zcl_sqlite_value=>c_null ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_true ).
+      act = lo_value->is_null( )
+      exp = abap_true ).
   ENDMETHOD.
 
   METHOD integer_value.
@@ -31,11 +33,14 @@ CLASS ltcl_value IMPLEMENTATION.
     lo_value = zcl_sqlite_value=>integer( -42 ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_integer ).
+      act = lo_value->value_type( )
+      exp = zcl_sqlite_value=>c_integer ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->is_null( ) exp = abap_false ).
+      act = lo_value->is_null( )
+      exp = abap_false ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( ) exp = -42 ).
+      act = lo_value->as_integer( )
+      exp = -42 ).
   ENDMETHOD.
 
   METHOD real_value.
@@ -44,9 +49,11 @@ CLASS ltcl_value IMPLEMENTATION.
     lo_value = zcl_sqlite_value=>real( '1.5' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_real ).
+      act = lo_value->value_type( )
+      exp = zcl_sqlite_value=>c_real ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_real( ) exp = '1.5' ).
+      act = lo_value->as_real( )
+      exp = '1.5' ).
   ENDMETHOD.
 
   METHOD text_value.
@@ -55,9 +62,11 @@ CLASS ltcl_value IMPLEMENTATION.
     lo_value = zcl_sqlite_value=>text( 'hello' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_text ).
+      act = lo_value->value_type( )
+      exp = zcl_sqlite_value=>c_text ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'hello' ).
+      act = lo_value->as_text( )
+      exp = 'hello' ).
   ENDMETHOD.
 
   METHOD blob_value.
@@ -66,9 +75,11 @@ CLASS ltcl_value IMPLEMENTATION.
     lo_value = zcl_sqlite_value=>blob( '010203' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_blob ).
+      act = lo_value->value_type( )
+      exp = zcl_sqlite_value=>c_blob ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_blob( ) exp = '010203' ).
+      act = lo_value->as_blob( )
+      exp = '010203' ).
   ENDMETHOD.
 
   METHOD empty_text_and_blob.
@@ -81,9 +92,11 @@ CLASS ltcl_value IMPLEMENTATION.
     lo_blob = zcl_sqlite_value=>blob( lv_empty_blob ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_text->as_text( ) exp = '' ).
+      act = lo_text->as_text( )
+      exp = '' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_blob->as_blob( ) exp = '' ).
+      act = lo_blob->as_blob( )
+      exp = '' ).
   ENDMETHOD.
 
 ENDCLASS.

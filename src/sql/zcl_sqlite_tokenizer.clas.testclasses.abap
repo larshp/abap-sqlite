@@ -223,37 +223,63 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
 
     lt_tokens = zcl_sqlite_tokenizer=>tokenize( |SELECT| && cl_abap_char_utilities=>newline && |  x| ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( lt_tokens ) exp = 3 msg = 'token count' ).
+      act = lines( lt_tokens )
+      exp = 3
+      msg = 'token count' ).
 
     READ TABLE lt_tokens INTO ls_token INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-offset exp = 1 msg = 'SELECT offset' ).
+      act = ls_token-offset
+      exp = 1
+      msg = 'SELECT offset' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-length exp = 6 msg = 'SELECT length' ).
+      act = ls_token-length
+      exp = 6
+      msg = 'SELECT length' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-line exp = 1 msg = 'SELECT line' ).
+      act = ls_token-line
+      exp = 1
+      msg = 'SELECT line' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-column exp = 1 msg = 'SELECT column' ).
+      act = ls_token-column
+      exp = 1
+      msg = 'SELECT column' ).
 
     READ TABLE lt_tokens INTO ls_token INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-offset exp = 10 msg = 'x offset' ).
+      act = ls_token-offset
+      exp = 10
+      msg = 'x offset' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-length exp = 1 msg = 'x length' ).
+      act = ls_token-length
+      exp = 1
+      msg = 'x length' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-line exp = 2 msg = 'x line' ).
+      act = ls_token-line
+      exp = 2
+      msg = 'x line' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-column exp = 3 msg = 'x column' ).
+      act = ls_token-column
+      exp = 3
+      msg = 'x column' ).
 
     READ TABLE lt_tokens INTO ls_token INDEX 3.
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-offset exp = 11 msg = 'EOF offset' ).
+      act = ls_token-offset
+      exp = 11
+      msg = 'EOF offset' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-length exp = 0 msg = 'EOF length' ).
+      act = ls_token-length
+      exp = 0
+      msg = 'EOF length' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-line exp = 2 msg = 'EOF line' ).
+      act = ls_token-line
+      exp = 2
+      msg = 'EOF line' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_token-column exp = 4 msg = 'EOF column' ).
+      act = ls_token-column
+      exp = 4
+      msg = 'EOF column' ).
   ENDMETHOD.
 
   METHOD illegal_tokens.
@@ -348,7 +374,8 @@ CLASS ltcl_tokenizer IMPLEMENTATION.
 
     LOOP AT it_expected INTO ls_expected.
       READ TABLE lt_actual INTO ls_actual INDEX sy-tabix.
-      assert_token( is_actual = ls_actual is_expected = ls_expected ).
+      assert_token( is_actual   = ls_actual
+                    is_expected = ls_expected ).
     ENDLOOP.
   ENDMETHOD.
 

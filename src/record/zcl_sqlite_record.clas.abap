@@ -115,9 +115,11 @@ CLASS zcl_sqlite_record IMPLEMENTATION.
 
     TRY.
         lv_header_size = zcl_sqlite_bytes=>read_varint(
-          iv_data = iv_data iv_offset = 0 ).
+          iv_data   = iv_data
+          iv_offset = 0 ).
         lv_header_varint = zcl_sqlite_bytes=>varint_length(
-          iv_data = iv_data iv_offset = 0 ).
+          iv_data   = iv_data
+          iv_offset = 0 ).
       CATCH cx_sy_range_out_of_bounds.
         fail( 'record header is truncated' ).
     ENDTRY.
@@ -132,9 +134,11 @@ CLASS zcl_sqlite_record IMPLEMENTATION.
     WHILE lv_header_pos < ev_header_end.
       TRY.
           lv_serial_type = zcl_sqlite_bytes=>read_varint(
-            iv_data = iv_data iv_offset = lv_header_pos ).
+            iv_data   = iv_data
+            iv_offset = lv_header_pos ).
           lv_serial_varint = zcl_sqlite_bytes=>varint_length(
-            iv_data = iv_data iv_offset = lv_header_pos ).
+            iv_data   = iv_data
+            iv_offset = lv_header_pos ).
         CATCH cx_sy_range_out_of_bounds.
           fail( 'record serial type is truncated' ).
       ENDTRY.
@@ -214,7 +218,8 @@ CLASS zcl_sqlite_record IMPLEMENTATION.
 
     TRY.
         ls_float = zcl_sqlite_bytes=>read_f64(
-          iv_data = iv_data iv_offset = iv_offset ).
+          iv_data   = iv_data
+          iv_offset = iv_offset ).
         rv_value = zcl_sqlite_bytes=>f64_to_f( ls_float ).
       CATCH cx_sy_range_out_of_bounds.
         fail( 'record real value is truncated' ).
@@ -279,32 +284,38 @@ CLASS zcl_sqlite_record IMPLEMENTATION.
         CASE iv_length.
           WHEN 1.
             lv_unsigned = zcl_sqlite_bytes=>read_u8(
-              iv_data = iv_data iv_offset = iv_offset ).
+              iv_data   = iv_data
+              iv_offset = iv_offset ).
             lv_limit = c_two_pow_7.
             lv_modulus = c_two_pow_8.
           WHEN 2.
             lv_unsigned = zcl_sqlite_bytes=>read_u16(
-              iv_data = iv_data iv_offset = iv_offset ).
+              iv_data   = iv_data
+              iv_offset = iv_offset ).
             lv_limit = c_two_pow_15.
             lv_modulus = c_two_pow_16.
           WHEN 3.
             lv_unsigned = zcl_sqlite_bytes=>read_u24(
-              iv_data = iv_data iv_offset = iv_offset ).
+              iv_data   = iv_data
+              iv_offset = iv_offset ).
             lv_limit = c_two_pow_23.
             lv_modulus = c_two_pow_24.
           WHEN 4.
             lv_unsigned = zcl_sqlite_bytes=>read_u32(
-              iv_data = iv_data iv_offset = iv_offset ).
+              iv_data   = iv_data
+              iv_offset = iv_offset ).
             lv_limit = c_two_pow_31.
             lv_modulus = c_two_pow_32.
           WHEN 6.
             lv_unsigned = zcl_sqlite_bytes=>read_u48(
-              iv_data = iv_data iv_offset = iv_offset ).
+              iv_data   = iv_data
+              iv_offset = iv_offset ).
             lv_limit = c_two_pow_47.
             lv_modulus = c_two_pow_48.
           WHEN 8.
             rv_value = zcl_sqlite_bytes=>read_i64(
-              iv_data = iv_data iv_offset = iv_offset ).
+              iv_data   = iv_data
+              iv_offset = iv_offset ).
             RETURN.
           WHEN OTHERS.
             fail( 'record integer length is invalid' ).

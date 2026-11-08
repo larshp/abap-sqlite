@@ -61,8 +61,11 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     LOOP AT lt_cases INTO ls_case.
       lv_data = '00'.
-      lv_data = zcl_sqlite_bytes=>write_u8( iv_data = lv_data iv_offset = 0 iv_value = ls_case-value ).
-      cl_abap_unit_assert=>assert_equals( act = lv_data exp = ls_case-hex ).
+      lv_data = zcl_sqlite_bytes=>write_u8( iv_data   = lv_data
+                                            iv_offset = 0
+                                            iv_value  = ls_case-value ).
+      cl_abap_unit_assert=>assert_equals( act = lv_data
+                                          exp = ls_case-hex ).
       cl_abap_unit_assert=>assert_equals(
         act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 )
         exp = ls_case-value ).
@@ -85,8 +88,11 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     LOOP AT lt_cases INTO ls_case.
       lv_data = '0000'.
-      lv_data = zcl_sqlite_bytes=>write_u16( iv_data = lv_data iv_offset = 0 iv_value = ls_case-value ).
-      cl_abap_unit_assert=>assert_equals( act = lv_data exp = ls_case-hex ).
+      lv_data = zcl_sqlite_bytes=>write_u16( iv_data   = lv_data
+                                             iv_offset = 0
+                                             iv_value  = ls_case-value ).
+      cl_abap_unit_assert=>assert_equals( act = lv_data
+                                          exp = ls_case-hex ).
       cl_abap_unit_assert=>assert_equals(
         act = zcl_sqlite_bytes=>read_u16( iv_data = lv_data iv_offset = 0 )
         exp = ls_case-value ).
@@ -107,8 +113,11 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     LOOP AT lt_cases INTO ls_case.
       lv_data = '000000'.
-      lv_data = zcl_sqlite_bytes=>write_u24( iv_data = lv_data iv_offset = 0 iv_value = ls_case-value ).
-      cl_abap_unit_assert=>assert_equals( act = lv_data exp = ls_case-hex ).
+      lv_data = zcl_sqlite_bytes=>write_u24( iv_data   = lv_data
+                                             iv_offset = 0
+                                             iv_value  = ls_case-value ).
+      cl_abap_unit_assert=>assert_equals( act = lv_data
+                                          exp = ls_case-hex ).
       cl_abap_unit_assert=>assert_equals(
         act = zcl_sqlite_bytes=>read_u24( iv_data = lv_data iv_offset = 0 )
         exp = ls_case-value ).
@@ -131,8 +140,11 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     LOOP AT lt_cases INTO ls_case.
       lv_data = '00000000'.
-      lv_data = zcl_sqlite_bytes=>write_u32( iv_data = lv_data iv_offset = 0 iv_value = ls_case-value ).
-      cl_abap_unit_assert=>assert_equals( act = lv_data exp = ls_case-hex ).
+      lv_data = zcl_sqlite_bytes=>write_u32( iv_data   = lv_data
+                                             iv_offset = 0
+                                             iv_value  = ls_case-value ).
+      cl_abap_unit_assert=>assert_equals( act = lv_data
+                                          exp = ls_case-hex ).
       cl_abap_unit_assert=>assert_equals(
         act = zcl_sqlite_bytes=>read_u32( iv_data = lv_data iv_offset = 0 )
         exp = ls_case-value ).
@@ -153,8 +165,11 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     LOOP AT lt_cases INTO ls_case.
       lv_data = '000000000000'.
-      lv_data = zcl_sqlite_bytes=>write_u48( iv_data = lv_data iv_offset = 0 iv_value = ls_case-value ).
-      cl_abap_unit_assert=>assert_equals( act = lv_data exp = ls_case-hex ).
+      lv_data = zcl_sqlite_bytes=>write_u48( iv_data   = lv_data
+                                             iv_offset = 0
+                                             iv_value  = ls_case-value ).
+      cl_abap_unit_assert=>assert_equals( act = lv_data
+                                          exp = ls_case-hex ).
       cl_abap_unit_assert=>assert_equals(
         act = zcl_sqlite_bytes=>read_u48( iv_data = lv_data iv_offset = 0 )
         exp = ls_case-value ).
@@ -177,8 +192,11 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     LOOP AT lt_cases INTO ls_case.
       lv_data = '0000000000000000'.
-      lv_data = zcl_sqlite_bytes=>write_i64( iv_data = lv_data iv_offset = 0 iv_value = ls_case-value ).
-      cl_abap_unit_assert=>assert_equals( act = lv_data exp = ls_case-hex ).
+      lv_data = zcl_sqlite_bytes=>write_i64( iv_data   = lv_data
+                                             iv_offset = 0
+                                             iv_value  = ls_case-value ).
+      cl_abap_unit_assert=>assert_equals( act = lv_data
+                                          exp = ls_case-hex ).
       cl_abap_unit_assert=>assert_equals(
         act = zcl_sqlite_bytes=>read_i64( iv_data = lv_data iv_offset = 0 )
         exp = ls_case-value ).
@@ -189,24 +207,36 @@ CLASS ltcl_bytes IMPLEMENTATION.
     DATA lv_data TYPE xstring.
 
     lv_data = 'AABBCCDDEE'.
-    lv_data = zcl_sqlite_bytes=>write_u16( iv_data = lv_data iv_offset = 2 iv_value = 4386 ).
-    cl_abap_unit_assert=>assert_equals( act = lv_data exp = 'AABB1122EE' ).
+    lv_data = zcl_sqlite_bytes=>write_u16( iv_data   = lv_data
+                                           iv_offset = 2
+                                           iv_value  = 4386 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_data
+                                        exp = 'AABB1122EE' ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u16( iv_data = lv_data iv_offset = 2 ) exp = 4386 ).
+      act = zcl_sqlite_bytes=>read_u16( iv_data = lv_data iv_offset = 2 )
+      exp = 4386 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 ) exp = 170 ).
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 )
+      exp = 170 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 4 ) exp = 238 ).
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 4 )
+      exp = 238 ).
 
     lv_data = '00000000000000000000'.
-    lv_data = zcl_sqlite_bytes=>write_i64( iv_data = lv_data iv_offset = 1 iv_value = -1 ).
-    cl_abap_unit_assert=>assert_equals( act = lv_data exp = '00FFFFFFFFFFFFFFFF00' ).
+    lv_data = zcl_sqlite_bytes=>write_i64( iv_data   = lv_data
+                                           iv_offset = 1
+                                           iv_value  = -1 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_data
+                                        exp = '00FFFFFFFFFFFFFFFF00' ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_i64( iv_data = lv_data iv_offset = 1 ) exp = -1 ).
+      act = zcl_sqlite_bytes=>read_i64( iv_data = lv_data iv_offset = 1 )
+      exp = -1 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 ) exp = 0 ).
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 )
+      exp = 0 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 9 ) exp = 0 ).
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 9 )
+      exp = 0 ).
   ENDMETHOD.
 
   METHOD known_vectors.
@@ -214,23 +244,28 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     lv_data = 'FF'.
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 ) exp = 255 ).
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 )
+      exp = 255 ).
 
     lv_data = '0102'.
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u16( iv_data = lv_data iv_offset = 0 ) exp = 258 ).
+      act = zcl_sqlite_bytes=>read_u16( iv_data = lv_data iv_offset = 0 )
+      exp = 258 ).
 
     lv_data = '010203'.
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u24( iv_data = lv_data iv_offset = 0 ) exp = 66051 ).
+      act = zcl_sqlite_bytes=>read_u24( iv_data = lv_data iv_offset = 0 )
+      exp = 66051 ).
 
     lv_data = '01020304'.
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u32( iv_data = lv_data iv_offset = 0 ) exp = 16909060 ).
+      act = zcl_sqlite_bytes=>read_u32( iv_data = lv_data iv_offset = 0 )
+      exp = 16909060 ).
 
     lv_data = '010203040506'.
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u48( iv_data = lv_data iv_offset = 0 ) exp = 1108152157446 ).
+      act = zcl_sqlite_bytes=>read_u48( iv_data = lv_data iv_offset = 0 )
+      exp = 1108152157446 ).
 
     lv_data = '7FFFFFFFFFFFFFFF'.
     cl_abap_unit_assert=>assert_equals(
@@ -244,7 +279,8 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     lv_data = 'FFFFFFFFFFFFFFFF'.
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_i64( iv_data = lv_data iv_offset = 0 ) exp = -1 ).
+      act = zcl_sqlite_bytes=>read_i64( iv_data = lv_data iv_offset = 0 )
+      exp = -1 ).
   ENDMETHOD.
 
   METHOD read_out_of_bounds.
@@ -253,21 +289,24 @@ CLASS ltcl_bytes IMPLEMENTATION.
     lv_data = '0011'.
 
     TRY.
-        zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 2 ).
+        zcl_sqlite_bytes=>read_u8( iv_data   = lv_data
+                                   iv_offset = 2 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
-        zcl_sqlite_bytes=>read_u16( iv_data = lv_data iv_offset = 1 ).
+        zcl_sqlite_bytes=>read_u16( iv_data   = lv_data
+                                    iv_offset = 1 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
-        zcl_sqlite_bytes=>read_i64( iv_data = lv_data iv_offset = -1 ).
+        zcl_sqlite_bytes=>read_i64( iv_data   = lv_data
+                                    iv_offset = -1 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
@@ -280,21 +319,27 @@ CLASS ltcl_bytes IMPLEMENTATION.
     lv_data = '0011'.
 
     TRY.
-        zcl_sqlite_bytes=>write_u32( iv_data = lv_data iv_offset = 0 iv_value = 1 ).
+        zcl_sqlite_bytes=>write_u32( iv_data   = lv_data
+                                     iv_offset = 0
+                                     iv_value  = 1 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
-        zcl_sqlite_bytes=>write_u8( iv_data = lv_data iv_offset = 2 iv_value = 1 ).
+        zcl_sqlite_bytes=>write_u8( iv_data   = lv_data
+                                    iv_offset = 2
+                                    iv_value  = 1 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
-        zcl_sqlite_bytes=>write_u16( iv_data = lv_data iv_offset = -1 iv_value = 1 ).
+        zcl_sqlite_bytes=>write_u16( iv_data   = lv_data
+                                     iv_offset = -1
+                                     iv_value  = 1 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
@@ -307,14 +352,18 @@ CLASS ltcl_bytes IMPLEMENTATION.
     lv_data = '00'.
 
     TRY.
-        zcl_sqlite_bytes=>write_u8( iv_data = lv_data iv_offset = 0 iv_value = 256 ).
+        zcl_sqlite_bytes=>write_u8( iv_data   = lv_data
+                                    iv_offset = 0
+                                    iv_value  = 256 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
 
     TRY.
-        zcl_sqlite_bytes=>write_u8( iv_data = lv_data iv_offset = 0 iv_value = -1 ).
+        zcl_sqlite_bytes=>write_u8( iv_data   = lv_data
+                                    iv_offset = 0
+                                    iv_value  = -1 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
@@ -323,7 +372,9 @@ CLASS ltcl_bytes IMPLEMENTATION.
     lv_data = '0000'.
 
     TRY.
-        zcl_sqlite_bytes=>write_u16( iv_data = lv_data iv_offset = 0 iv_value = 65536 ).
+        zcl_sqlite_bytes=>write_u16( iv_data   = lv_data
+                                     iv_offset = 0
+                                     iv_value  = 65536 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
@@ -332,7 +383,9 @@ CLASS ltcl_bytes IMPLEMENTATION.
     lv_data = '000000'.
 
     TRY.
-        zcl_sqlite_bytes=>write_u24( iv_data = lv_data iv_offset = 0 iv_value = 16777216 ).
+        zcl_sqlite_bytes=>write_u24( iv_data   = lv_data
+                                     iv_offset = 0
+                                     iv_value  = 16777216 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
@@ -341,14 +394,18 @@ CLASS ltcl_bytes IMPLEMENTATION.
     lv_data = '00000000'.
 
     TRY.
-        zcl_sqlite_bytes=>write_u32( iv_data = lv_data iv_offset = 0 iv_value = 4294967296 ).
+        zcl_sqlite_bytes=>write_u32( iv_data   = lv_data
+                                     iv_offset = 0
+                                     iv_value  = 4294967296 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
 
     TRY.
-        zcl_sqlite_bytes=>write_u32( iv_data = lv_data iv_offset = 0 iv_value = -1 ).
+        zcl_sqlite_bytes=>write_u32( iv_data   = lv_data
+                                     iv_offset = 0
+                                     iv_value  = -1 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
@@ -357,7 +414,9 @@ CLASS ltcl_bytes IMPLEMENTATION.
     lv_data = '000000000000'.
 
     TRY.
-        zcl_sqlite_bytes=>write_u48( iv_data = lv_data iv_offset = 0 iv_value = 281474976710656 ).
+        zcl_sqlite_bytes=>write_u48( iv_data   = lv_data
+                                     iv_offset = 0
+                                     iv_value  = 281474976710656 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
@@ -414,15 +473,20 @@ CLASS ltcl_bytes IMPLEMENTATION.
     lv_data = 'AABB' && lv_varint && 'CCDD'.
 
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 2 ) exp = 128 ).
+      act = zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 2 )
+      exp = 128 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 2 ) exp = 2 ).
+      act = zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 2 )
+      exp = 2 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 ) exp = 170 ).
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 )
+      exp = 170 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 4 ) exp = 204 ).
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 4 )
+      exp = 204 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 5 ) exp = 221 ).
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 5 )
+      exp = 221 ).
   ENDMETHOD.
 
   METHOD varint_non_canonical.
@@ -430,15 +494,19 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     lv_data = '8000'.
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 ) exp = 0 ).
+      act = zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 )
+      exp = 0 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 0 ) exp = 2 ).
+      act = zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 0 )
+      exp = 2 ).
 
     lv_data = '808000'.
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 ) exp = 0 ).
+      act = zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 )
+      exp = 0 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 0 ) exp = 3 ).
+      act = zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 0 )
+      exp = 3 ).
   ENDMETHOD.
 
   METHOD varint_truncated.
@@ -447,14 +515,16 @@ CLASS ltcl_bytes IMPLEMENTATION.
     lv_data = 'FFFFFFFFFFFFFFFF'.
 
     TRY.
-        zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 ).
+        zcl_sqlite_bytes=>read_varint( iv_data   = lv_data
+                                       iv_offset = 0 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
-        zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 0 ).
+        zcl_sqlite_bytes=>varint_length( iv_data   = lv_data
+                                         iv_offset = 0 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
@@ -463,7 +533,8 @@ CLASS ltcl_bytes IMPLEMENTATION.
     lv_data = ''.
 
     TRY.
-        zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 ).
+        zcl_sqlite_bytes=>read_varint( iv_data   = lv_data
+                                       iv_offset = 0 ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
@@ -495,12 +566,17 @@ CLASS ltcl_bytes IMPLEMENTATION.
       ( hex = '7FF0000000000001' sign = 0 exponent = 2047 mantissa = 1 ) ).
 
     LOOP AT lt_cases INTO ls_case.
-      ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = ls_case-hex iv_offset = 0 ).
-      cl_abap_unit_assert=>assert_equals( act = ls_bits-sign exp = ls_case-sign ).
-      cl_abap_unit_assert=>assert_equals( act = ls_bits-exponent exp = ls_case-exponent ).
-      cl_abap_unit_assert=>assert_equals( act = ls_bits-mantissa exp = ls_case-mantissa ).
+      ls_bits = zcl_sqlite_bytes=>read_f64( iv_data   = ls_case-hex
+                                            iv_offset = 0 ).
+      cl_abap_unit_assert=>assert_equals( act = ls_bits-sign
+                                          exp = ls_case-sign ).
+      cl_abap_unit_assert=>assert_equals( act = ls_bits-exponent
+                                          exp = ls_case-exponent ).
+      cl_abap_unit_assert=>assert_equals( act = ls_bits-mantissa
+                                          exp = ls_case-mantissa ).
       cl_abap_unit_assert=>assert_equals(
-        act = zcl_sqlite_bytes=>write_f64( ls_bits ) exp = ls_case-hex ).
+        act = zcl_sqlite_bytes=>write_f64( ls_bits )
+        exp = ls_case-hex ).
     ENDLOOP.
   ENDMETHOD.
 
@@ -528,7 +604,8 @@ CLASS ltcl_bytes IMPLEMENTATION.
       lv_value = ls_case-text.
       ls_bits = zcl_sqlite_bytes=>f64_from_f( lv_value ).
       cl_abap_unit_assert=>assert_equals(
-        act = zcl_sqlite_bytes=>write_f64( ls_bits ) exp = ls_case-hex ).
+        act = zcl_sqlite_bytes=>write_f64( ls_bits )
+        exp = ls_case-hex ).
     ENDLOOP.
   ENDMETHOD.
 
@@ -551,7 +628,8 @@ CLASS ltcl_bytes IMPLEMENTATION.
       ( '01A56E1FC2F8F359' ) ).
 
     LOOP AT lt_hex INTO lv_hex.
-      ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = lv_hex iv_offset = 0 ).
+      ls_bits = zcl_sqlite_bytes=>read_f64( iv_data   = lv_hex
+                                            iv_offset = 0 ).
       lv_value = zcl_sqlite_bytes=>f64_to_f( ls_bits ).
       cl_abap_unit_assert=>assert_equals(
         act = zcl_sqlite_bytes=>write_f64( zcl_sqlite_bytes=>f64_from_f( lv_value ) )
@@ -564,15 +642,21 @@ CLASS ltcl_bytes IMPLEMENTATION.
     DATA ls_bits TYPE zcl_sqlite_bytes=>ty_float64.
 
     lv_data = 'AABB3FF0000000000000CC'.
-    ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = lv_data iv_offset = 2 ).
+    ls_bits = zcl_sqlite_bytes=>read_f64( iv_data   = lv_data
+                                          iv_offset = 2 ).
 
-    cl_abap_unit_assert=>assert_equals( act = ls_bits-sign exp = 0 ).
-    cl_abap_unit_assert=>assert_equals( act = ls_bits-exponent exp = 1023 ).
-    cl_abap_unit_assert=>assert_equals( act = ls_bits-mantissa exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_bits-sign
+                                        exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_bits-exponent
+                                        exp = 1023 ).
+    cl_abap_unit_assert=>assert_equals( act = ls_bits-mantissa
+                                        exp = 0 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 ) exp = 170 ).
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 0 )
+      exp = 170 ).
     cl_abap_unit_assert=>assert_equals(
-      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 10 ) exp = 204 ).
+      act = zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 10 )
+      exp = 204 ).
   ENDMETHOD.
 
   METHOD f64_invalid_bits.
@@ -625,7 +709,8 @@ CLASS ltcl_bytes IMPLEMENTATION.
     DATA lv_value TYPE f.
     DATA ls_bits TYPE zcl_sqlite_bytes=>ty_float64.
 
-    ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = '7FF0000000000000' iv_offset = 0 ).
+    ls_bits = zcl_sqlite_bytes=>read_f64( iv_data   = '7FF0000000000000'
+                                          iv_offset = 0 ).
     TRY.
         lv_value = zcl_sqlite_bytes=>f64_to_f( ls_bits ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
@@ -633,7 +718,8 @@ CLASS ltcl_bytes IMPLEMENTATION.
 * expected
     ENDTRY.
 
-    ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = '7FF8000000000000' iv_offset = 0 ).
+    ls_bits = zcl_sqlite_bytes=>read_f64( iv_data   = '7FF8000000000000'
+                                          iv_offset = 0 ).
     TRY.
         lv_value = zcl_sqlite_bytes=>f64_to_f( ls_bits ).
         cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
@@ -653,7 +739,8 @@ CLASS ltcl_bytes IMPLEMENTATION.
       ( '000FFFFFFFFFFFFF' ) ).
 
     LOOP AT lt_hex INTO lv_hex.
-      ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = lv_hex iv_offset = 0 ).
+      ls_bits = zcl_sqlite_bytes=>read_f64( iv_data   = lv_hex
+                                            iv_offset = 0 ).
 
       TRY.
           lv_value = zcl_sqlite_bytes=>f64_to_f( ls_bits ).

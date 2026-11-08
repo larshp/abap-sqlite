@@ -192,7 +192,8 @@ CLASS zcl_sqlite_index_cursor IMPLEMENTATION.
 
       ls_raw = mo_pager->get_page( lv_page ).
       ls_page = zcl_sqlite_page=>parse(
-        iv_data = ls_raw-data iv_offset = ls_raw-btree_offset ).
+        iv_data   = ls_raw-data
+        iv_offset = ls_raw-btree_offset ).
 
       CASE ls_page-page_type.
         WHEN zcl_sqlite_page=>c_index_leaf.
@@ -297,7 +298,8 @@ CLASS zcl_sqlite_index_cursor IMPLEMENTATION.
 
       ls_raw = mo_pager->get_page( lv_page ).
       ls_page = zcl_sqlite_page=>parse(
-        iv_data = ls_raw-data iv_offset = ls_raw-btree_offset ).
+        iv_data   = ls_raw-data
+        iv_offset = ls_raw-btree_offset ).
 
       CASE ls_page-page_type.
         WHEN zcl_sqlite_page=>c_index_leaf.
@@ -389,10 +391,12 @@ CLASS zcl_sqlite_index_cursor IMPLEMENTATION.
 
     TRY.
         lv_payload_length = zcl_sqlite_bytes=>read_varint(
-          iv_data = iv_page_data iv_offset = lv_varint_offset ).
+          iv_data   = iv_page_data
+          iv_offset = lv_varint_offset ).
         lv_payload_offset = lv_varint_offset
           + zcl_sqlite_bytes=>varint_length(
-            iv_data = iv_page_data iv_offset = lv_varint_offset ).
+            iv_data   = iv_page_data
+            iv_offset = lv_varint_offset ).
       CATCH cx_sy_range_out_of_bounds.
         fail( 'index cell header is truncated' ).
     ENDTRY.
@@ -426,7 +430,8 @@ CLASS zcl_sqlite_index_cursor IMPLEMENTATION.
       ENDIF.
       TRY.
           rv_page = zcl_sqlite_bytes=>read_u32(
-            iv_data = is_frame-data iv_offset = lv_offset ).
+            iv_data   = is_frame-data
+            iv_offset = lv_offset ).
         CATCH cx_sy_range_out_of_bounds.
           fail( 'index b-tree child pointer is truncated' ).
       ENDTRY.
@@ -644,9 +649,11 @@ CLASS zcl_sqlite_index_cursor IMPLEMENTATION.
     DO lv_length TIMES.
       lv_offset = sy-index - 1.
       lv_left_byte = zcl_sqlite_bytes=>read_u8(
-        iv_data = iv_left iv_offset = lv_offset ).
+        iv_data   = iv_left
+        iv_offset = lv_offset ).
       lv_right_byte = zcl_sqlite_bytes=>read_u8(
-        iv_data = iv_right iv_offset = lv_offset ).
+        iv_data   = iv_right
+        iv_offset = lv_offset ).
       IF lv_left_byte < lv_right_byte.
         rv_compare = -1.
         RETURN.

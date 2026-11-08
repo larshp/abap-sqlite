@@ -160,7 +160,8 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
 
   METHOD seek.
     clear_position( ).
-    rv_found = find_leaf( iv_page = mv_root_page iv_rowid = iv_rowid ).
+    rv_found = find_leaf( iv_page  = mv_root_page
+                          iv_rowid = iv_rowid ).
     IF rv_found = abap_false.
       RETURN.
     ENDIF.
@@ -206,7 +207,8 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
 
       ls_raw = mo_pager->get_page( lv_page ).
       ls_page = zcl_sqlite_page=>parse(
-        iv_data = ls_raw-data iv_offset = ls_raw-btree_offset ).
+        iv_data   = ls_raw-data
+        iv_offset = ls_raw-btree_offset ).
 
       CASE ls_page-page_type.
         WHEN zcl_sqlite_page=>c_table_leaf.
@@ -230,7 +232,8 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
           ls_frame-page = ls_page.
           ls_frame-cell_index = 1.
           APPEND ls_frame TO mt_frames.
-          lv_page = child_page( is_frame = ls_frame iv_index = 1 ).
+          lv_page = child_page( is_frame = ls_frame
+                                iv_index = 1 ).
         WHEN OTHERS.
           fail( 'cursor found a non-table b-tree page' ).
       ENDCASE.
@@ -258,7 +261,8 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
 
       ls_raw = mo_pager->get_page( lv_page ).
       ls_page = zcl_sqlite_page=>parse(
-        iv_data = ls_raw-data iv_offset = ls_raw-btree_offset ).
+        iv_data   = ls_raw-data
+        iv_offset = ls_raw-btree_offset ).
 
       CASE ls_page-page_type.
         WHEN zcl_sqlite_page=>c_table_leaf.
@@ -302,7 +306,8 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
           ls_frame-page = ls_page.
           ls_frame-cell_index = 0.
           DO ls_page-cell_count TIMES.
-            lv_key = interior_key( is_frame = ls_frame iv_index = sy-index ).
+            lv_key = interior_key( is_frame = ls_frame
+                                   iv_index = sy-index ).
             IF iv_rowid <= lv_key.
               ls_frame-cell_index = sy-index.
               EXIT.
@@ -313,7 +318,8 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
           ENDIF.
 
           lv_child = child_page(
-            is_frame = ls_frame iv_index = ls_frame-cell_index ).
+            is_frame = ls_frame
+            iv_index = ls_frame-cell_index ).
           APPEND ls_frame TO mt_frames.
           lv_page = lv_child.
         WHEN OTHERS.
@@ -338,13 +344,17 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
 
     TRY.
         lv_payload_length = zcl_sqlite_bytes=>read_varint(
-          iv_data = ms_leaf_data iv_offset = lv_cell_offset ).
+          iv_data   = ms_leaf_data
+          iv_offset = lv_cell_offset ).
         lv_rowid_offset = lv_cell_offset + zcl_sqlite_bytes=>varint_length(
-          iv_data = ms_leaf_data iv_offset = lv_cell_offset ).
+          iv_data   = ms_leaf_data
+          iv_offset = lv_cell_offset ).
         mv_rowid = zcl_sqlite_bytes=>read_varint(
-          iv_data = ms_leaf_data iv_offset = lv_rowid_offset ).
+          iv_data   = ms_leaf_data
+          iv_offset = lv_rowid_offset ).
         lv_payload_offset = lv_rowid_offset + zcl_sqlite_bytes=>varint_length(
-          iv_data = ms_leaf_data iv_offset = lv_rowid_offset ).
+          iv_data   = ms_leaf_data
+          iv_offset = lv_rowid_offset ).
       CATCH cx_sy_range_out_of_bounds.
         fail( 'table cell header is truncated' ).
     ENDTRY.
@@ -373,9 +383,11 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
 
     TRY.
         lv_rowid_offset = lv_cell_offset + zcl_sqlite_bytes=>varint_length(
-          iv_data = ms_leaf_data iv_offset = lv_cell_offset ).
+          iv_data   = ms_leaf_data
+          iv_offset = lv_cell_offset ).
         rv_rowid = zcl_sqlite_bytes=>read_varint(
-          iv_data = ms_leaf_data iv_offset = lv_rowid_offset ).
+          iv_data   = ms_leaf_data
+          iv_offset = lv_rowid_offset ).
       CATCH cx_sy_range_out_of_bounds.
         fail( 'table leaf cell header is truncated' ).
     ENDTRY.
@@ -397,7 +409,8 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
       ENDIF.
       TRY.
           rv_page = zcl_sqlite_bytes=>read_u32(
-            iv_data = is_frame-data iv_offset = lv_offset ).
+            iv_data   = is_frame-data
+            iv_offset = lv_offset ).
         CATCH cx_sy_range_out_of_bounds.
           fail( 'b-tree child pointer is truncated' ).
       ENDTRY.
@@ -418,7 +431,8 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
 
     TRY.
         rv_rowid = zcl_sqlite_bytes=>read_varint(
-          iv_data = is_frame-data iv_offset = lv_offset + 4 ).
+          iv_data   = is_frame-data
+          iv_offset = lv_offset + 4 ).
       CATCH cx_sy_range_out_of_bounds.
         fail( 'table interior cell key is truncated' ).
     ENDTRY.

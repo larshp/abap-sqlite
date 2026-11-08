@@ -40,7 +40,8 @@ CLASS zcl_sqlite_file_table IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_sqlite_file~truncate.
-    mo_vfs->truncate_file( iv_name = mv_name iv_size = iv_size ).
+    mo_vfs->truncate_file( iv_name = mv_name
+                           iv_size = iv_size ).
   ENDMETHOD.
 
   METHOD zif_sqlite_file~size.

@@ -331,7 +331,9 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
           OR lv_char = '%' OR lv_char = '&' OR lv_char = '~'.
         scan_operator( ).
       ELSE.
-        emit_fixed( iv_kind = c_illegal iv_text = lv_char iv_value = lv_char ).
+        emit_fixed( iv_kind  = c_illegal
+                    iv_text  = lv_char
+                    iv_value = lv_char ).
       ENDIF.
     ENDWHILE.
 
@@ -798,15 +800,25 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
     lv_char = current( ).
     CASE lv_char.
       WHEN ';'.
-        emit_fixed( iv_kind = c_semicolon iv_text = ';' iv_value = ';' ).
+        emit_fixed( iv_kind  = c_semicolon
+                    iv_text  = ';'
+                    iv_value = ';' ).
       WHEN '('.
-        emit_fixed( iv_kind = c_lparen iv_text = '(' iv_value = '(' ).
+        emit_fixed( iv_kind  = c_lparen
+                    iv_text  = '('
+                    iv_value = '(' ).
       WHEN ')'.
-        emit_fixed( iv_kind = c_rparen iv_text = ')' iv_value = ')' ).
+        emit_fixed( iv_kind  = c_rparen
+                    iv_text  = ')'
+                    iv_value = ')' ).
       WHEN ','.
-        emit_fixed( iv_kind = c_comma iv_text = ',' iv_value = ',' ).
+        emit_fixed( iv_kind  = c_comma
+                    iv_text  = ','
+                    iv_value = ',' ).
       WHEN '.'.
-        emit_fixed( iv_kind = c_dot iv_text = '.' iv_value = '.' ).
+        emit_fixed( iv_kind  = c_dot
+                    iv_text  = '.'
+                    iv_value = '.' ).
     ENDCASE.
   ENDMETHOD.
 
@@ -817,33 +829,59 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
     IF lv_char = '-'.
       IF peek( 1 ) = '>'.
         IF peek( 2 ) = '>'.
-          emit_fixed( iv_kind = c_operator iv_text = '->>' iv_value = '->>' ).
+          emit_fixed( iv_kind  = c_operator
+                      iv_text  = '->>'
+                      iv_value = '->>' ).
         ELSE.
-          emit_fixed( iv_kind = c_operator iv_text = '->' iv_value = '->' ).
+          emit_fixed( iv_kind  = c_operator
+                      iv_text  = '->'
+                      iv_value = '->' ).
         ENDIF.
       ELSE.
-        emit_fixed( iv_kind = c_operator iv_text = '-' iv_value = '-' ).
+        emit_fixed( iv_kind  = c_operator
+                    iv_text  = '-'
+                    iv_value = '-' ).
       ENDIF.
     ELSEIF lv_char = '=' AND peek( 1 ) = '='.
-      emit_fixed( iv_kind = c_operator iv_text = '==' iv_value = '==' ).
+      emit_fixed( iv_kind  = c_operator
+                  iv_text  = '=='
+                  iv_value = '==' ).
     ELSEIF lv_char = '!' AND peek( 1 ) = '='.
-      emit_fixed( iv_kind = c_operator iv_text = '!=' iv_value = '!=' ).
+      emit_fixed( iv_kind  = c_operator
+                  iv_text  = '!='
+                  iv_value = '!=' ).
     ELSEIF lv_char = '<' AND peek( 1 ) = '='.
-      emit_fixed( iv_kind = c_operator iv_text = '<=' iv_value = '<=' ).
+      emit_fixed( iv_kind  = c_operator
+                  iv_text  = '<='
+                  iv_value = '<=' ).
     ELSEIF lv_char = '<' AND peek( 1 ) = '>'.
-      emit_fixed( iv_kind = c_operator iv_text = '<>' iv_value = '<>' ).
+      emit_fixed( iv_kind  = c_operator
+                  iv_text  = '<>'
+                  iv_value = '<>' ).
     ELSEIF lv_char = '<' AND peek( 1 ) = '<'.
-      emit_fixed( iv_kind = c_operator iv_text = '<<' iv_value = '<<' ).
+      emit_fixed( iv_kind  = c_operator
+                  iv_text  = '<<'
+                  iv_value = '<<' ).
     ELSEIF lv_char = '>' AND peek( 1 ) = '='.
-      emit_fixed( iv_kind = c_operator iv_text = '>=' iv_value = '>=' ).
+      emit_fixed( iv_kind  = c_operator
+                  iv_text  = '>='
+                  iv_value = '>=' ).
     ELSEIF lv_char = '>' AND peek( 1 ) = '>'.
-      emit_fixed( iv_kind = c_operator iv_text = '>>' iv_value = '>>' ).
+      emit_fixed( iv_kind  = c_operator
+                  iv_text  = '>>'
+                  iv_value = '>>' ).
     ELSEIF lv_char = '|' AND peek( 1 ) = '|'.
-      emit_fixed( iv_kind = c_operator iv_text = '||' iv_value = '||' ).
+      emit_fixed( iv_kind  = c_operator
+                  iv_text  = '||'
+                  iv_value = '||' ).
     ELSEIF lv_char = '!'.
-      emit_fixed( iv_kind = c_illegal iv_text = '!' iv_value = '!' ).
+      emit_fixed( iv_kind  = c_illegal
+                  iv_text  = '!'
+                  iv_value = '!' ).
     ELSE.
-      emit_fixed( iv_kind = c_operator iv_text = lv_char iv_value = lv_char ).
+      emit_fixed( iv_kind  = c_operator
+                  iv_text  = lv_char
+                  iv_value = lv_char ).
     ENDIF.
   ENDMETHOD.
 
@@ -986,7 +1024,8 @@ CLASS zcl_sqlite_tokenizer IMPLEMENTATION.
 
     IF xstrlen( lv_data ) > 0
         AND zcl_sqlite_bytes=>read_u8(
-          iv_data = lv_data iv_offset = 0 ) >= 128.
+          iv_data   = lv_data
+          iv_offset = 0 ) >= 128.
       rv_high = abap_true.
     ENDIF.
   ENDMETHOD.

@@ -1,6 +1,4 @@
-* Evaluates the result columns of a SELECT for every row of a child operator.
-* Without a child operator it produces exactly one row, which is what a
-* SELECT without FROM needs.
+
 CLASS zcl_sqlite_project DEFINITION
   PUBLIC
   FINAL

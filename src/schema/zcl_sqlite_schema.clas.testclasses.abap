@@ -77,10 +77,12 @@ CLASS ltcl_schema IMPLEMENTATION.
     lo_schema = schema_from_fixture( 'fixtures/empty.db' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( lo_schema->tables( ) ) exp = 0
+      act = lines( lo_schema->tables( ) )
+      exp = 0
       msg = 'empty.db tables' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( lo_schema->indexes( ) ) exp = 0
+      act = lines( lo_schema->indexes( ) )
+      exp = 0
       msg = 'empty.db indexes' ).
   ENDMETHOD.
 
@@ -92,19 +94,28 @@ CLASS ltcl_schema IMPLEMENTATION.
     ls_table = lo_schema->table( 'items' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = ls_table-name exp = 'items' msg = 'small.db table name' ).
+      act = ls_table-name
+      exp = 'items'
+      msg = 'small.db table name' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_table-rootpage exp = 2 msg = 'small.db table rootpage' ).
+      act = ls_table-rootpage
+      exp = 2
+      msg = 'small.db table rootpage' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_table-without_rowid exp = abap_false
+      act = ls_table-without_rowid
+      exp = abap_false
       msg = 'small.db without rowid' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_table-strict exp = abap_false msg = 'small.db strict' ).
+      act = ls_table-strict
+      exp = abap_false
+      msg = 'small.db strict' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-columns ) exp = 3
+      act = lines( ls_table-columns )
+      exp = 3
       msg = 'small.db column count' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-indexes ) exp = 0
+      act = lines( ls_table-indexes )
+      exp = 0
       msg = 'small.db index count' ).
 
     assert_column(
@@ -154,7 +165,8 @@ CLASS ltcl_schema IMPLEMENTATION.
     ls_table = lo_schema->table( 'items' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-columns ) exp = 2
+      act = lines( ls_table-columns )
+      exp = 2
       msg = 'indexed.db column count' ).
     assert_column(
       is_table        = ls_table
@@ -170,7 +182,8 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_context      = 'indexed.db items.value' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-indexes ) exp = 1
+      act = lines( ls_table-indexes )
+      exp = 1
       msg = 'indexed.db index count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
@@ -183,9 +196,12 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_columns  = '1:value'
       iv_context  = 'indexed.db items_value' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_index-seq exp = 0 msg = 'indexed.db index seq' ).
+      act = ls_index-seq
+      exp = 0
+      msg = 'indexed.db index seq' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_index-rootpage exp = 3
+      act = ls_index-rootpage
+      exp = 3
       msg = 'indexed.db index rootpage' ).
   ENDMETHOD.
 
@@ -198,10 +214,12 @@ CLASS ltcl_schema IMPLEMENTATION.
     ls_table = lo_schema->table( 'wr' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = ls_table-without_rowid exp = abap_true
+      act = ls_table-without_rowid
+      exp = abap_true
       msg = 'without_rowid.db table option' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-columns ) exp = 3
+      act = lines( ls_table-columns )
+      exp = 3
       msg = 'without_rowid.db column count' ).
     assert_column(
       is_table        = ls_table
@@ -246,7 +264,8 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_columns  = '1:v'
       iv_context  = 'without_rowid.db wr_v' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_index-rootpage exp = 3
+      act = ls_index-rootpage
+      exp = 3
       msg = 'without_rowid.db wr_v rootpage' ).
 
     READ TABLE ls_table-indexes INTO ls_index INDEX 2.
@@ -260,7 +279,8 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_columns  = '0:k'
       iv_context  = 'without_rowid.db primary key' ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_index-rootpage exp = 0
+      act = ls_index-rootpage
+      exp = 0
       msg = 'without_rowid.db primary key rootpage' ).
   ENDMETHOD.
 
@@ -385,7 +405,8 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_dflt_is_null = abap_true
       iv_context      = 'rowid alias INTEGER PRIMARY KEY' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-indexes ) exp = 0
+      act = lines( ls_table-indexes )
+      exp = 0
       msg = 'rowid alias has no autoindex' ).
 
     lo_schema = build_from_sql( 'CREATE TABLE t (id INT PRIMARY KEY, v TEXT)' ).
@@ -403,7 +424,8 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_dflt_is_null = abap_true
       iv_context      = 'INT PRIMARY KEY' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-indexes ) exp = 1
+      act = lines( ls_table-indexes )
+      exp = 1
       msg = 'INT PRIMARY KEY autoindex count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
@@ -431,7 +453,8 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_dflt_is_null = abap_true
       iv_context      = 'INTEGER PRIMARY KEY DESC' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-indexes ) exp = 1
+      act = lines( ls_table-indexes )
+      exp = 1
       msg = 'INTEGER PRIMARY KEY DESC autoindex count' ).
 
     lo_schema = build_from_sql( 'CREATE TABLE t (id INTEGER, PRIMARY KEY(id DESC))' ).
@@ -449,7 +472,8 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_dflt_is_null = abap_true
       iv_context      = 'table-level INTEGER PRIMARY KEY DESC' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-indexes ) exp = 0
+      act = lines( ls_table-indexes )
+      exp = 0
       msg = 'table-level rowid alias has no autoindex' ).
   ENDMETHOD.
 
@@ -490,7 +514,8 @@ CLASS ltcl_schema IMPLEMENTATION.
     lo_schema = build_from_sql( 'CREATE TABLE t (a TEXT, b TEXT, UNIQUE(a,b))' ).
     ls_table = lo_schema->table( 't' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-indexes ) exp = 1
+      act = lines( ls_table-indexes )
+      exp = 1
       msg = 'composite unique index count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
@@ -506,7 +531,8 @@ CLASS ltcl_schema IMPLEMENTATION.
     lo_schema = build_from_sql( 'CREATE TABLE t (a INTEGER PRIMARY KEY, UNIQUE(a))' ).
     ls_table = lo_schema->table( 't' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-indexes ) exp = 1
+      act = lines( ls_table-indexes )
+      exp = 1
       msg = 'unique on rowid alias index count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
@@ -522,7 +548,8 @@ CLASS ltcl_schema IMPLEMENTATION.
     lo_schema = build_from_sql( 'CREATE TABLE t (a TEXT PRIMARY KEY, UNIQUE(a))' ).
     ls_table = lo_schema->table( 't' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-indexes ) exp = 1
+      act = lines( ls_table-indexes )
+      exp = 1
       msg = 'duplicate primary key index count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
@@ -538,7 +565,8 @@ CLASS ltcl_schema IMPLEMENTATION.
     lo_schema = build_from_sql( 'CREATE TABLE t (a TEXT, UNIQUE(a), PRIMARY KEY(a))' ).
     ls_table = lo_schema->table( 't' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( ls_table-indexes ) exp = 1
+      act = lines( ls_table-indexes )
+      exp = 1
       msg = 'unique promoted to primary key index count' ).
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
     assert_index(
@@ -717,34 +745,44 @@ CLASS ltcl_schema IMPLEMENTATION.
 
     READ TABLE is_table-columns INTO ls_column INDEX iv_index.
     cl_abap_unit_assert=>assert_equals(
-      act = sy-subrc exp = 0
+      act = sy-subrc
+      exp = 0
       msg = |{ iv_context } column { iv_index } is missing| ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_column-cid exp = iv_index - 1
+      act = ls_column-cid
+      exp = iv_index - 1
       msg = |{ iv_context } cid| ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_column-name exp = iv_name
+      act = ls_column-name
+      exp = iv_name
       msg = |{ iv_context } name| ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_column-type exp = iv_type
+      act = ls_column-type
+      exp = iv_type
       msg = |{ iv_context } type| ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_column-notnull exp = iv_notnull
+      act = ls_column-notnull
+      exp = iv_notnull
       msg = |{ iv_context } notnull| ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_column-pk exp = iv_pk
+      act = ls_column-pk
+      exp = iv_pk
       msg = |{ iv_context } pk| ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_column-affinity exp = iv_affinity
+      act = ls_column-affinity
+      exp = iv_affinity
       msg = |{ iv_context } affinity| ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_column-rowid_alias exp = iv_rowid_alias
+      act = ls_column-rowid_alias
+      exp = iv_rowid_alias
       msg = |{ iv_context } rowid alias| ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_column-dflt_value exp = iv_dflt_value
+      act = ls_column-dflt_value
+      exp = iv_dflt_value
       msg = |{ iv_context } default value| ).
     cl_abap_unit_assert=>assert_equals(
-      act = ls_column-dflt_value_is_null exp = iv_dflt_is_null
+      act = ls_column-dflt_value_is_null
+      exp = iv_dflt_is_null
       msg = |{ iv_context } default null flag| ).
   ENDMETHOD.
 
@@ -753,19 +791,24 @@ CLASS ltcl_schema IMPLEMENTATION.
     DATA lv_columns TYPE string.
 
     cl_abap_unit_assert=>assert_equals(
-      act = is_index-name exp = iv_name
+      act = is_index-name
+      exp = iv_name
       msg = |{ iv_context } index name| ).
     cl_abap_unit_assert=>assert_equals(
-      act = is_index-tbl_name exp = iv_tbl_name
+      act = is_index-tbl_name
+      exp = iv_tbl_name
       msg = |{ iv_context } index table| ).
     cl_abap_unit_assert=>assert_equals(
-      act = is_index-is_unique exp = iv_unique
+      act = is_index-is_unique
+      exp = iv_unique
       msg = |{ iv_context } index unique| ).
     cl_abap_unit_assert=>assert_equals(
-      act = is_index-origin exp = iv_origin
+      act = is_index-origin
+      exp = iv_origin
       msg = |{ iv_context } index origin| ).
     cl_abap_unit_assert=>assert_equals(
-      act = is_index-partial exp = iv_partial
+      act = is_index-partial
+      exp = iv_partial
       msg = |{ iv_context } index partial| ).
 
     LOOP AT is_index-columns INTO ls_column.
@@ -774,11 +817,13 @@ CLASS ltcl_schema IMPLEMENTATION.
       ENDIF.
       lv_columns = lv_columns && |{ ls_column-cid }:{ ls_column-name }|.
       cl_abap_unit_assert=>assert_equals(
-        act = ls_column-seqno exp = sy-tabix - 1
+        act = ls_column-seqno
+        exp = sy-tabix - 1
         msg = |{ iv_context } index column seqno| ).
     ENDLOOP.
     cl_abap_unit_assert=>assert_equals(
-      act = lv_columns exp = iv_columns
+      act = lv_columns
+      exp = iv_columns
       msg = |{ iv_context } index columns| ).
   ENDMETHOD.
 
@@ -787,16 +832,19 @@ CLASS ltcl_schema IMPLEMENTATION.
     DATA lv_name TYPE string.
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( it_indexes ) exp = lines( it_names )
+      act = lines( it_indexes )
+      exp = lines( it_names )
       msg = |{ iv_context } index count| ).
 
     LOOP AT it_names INTO lv_name.
       READ TABLE it_indexes INTO ls_index INDEX sy-tabix.
       cl_abap_unit_assert=>assert_equals(
-        act = ls_index-name exp = lv_name
+        act = ls_index-name
+        exp = lv_name
         msg = |{ iv_context } index { sy-tabix } name| ).
       cl_abap_unit_assert=>assert_equals(
-        act = ls_index-seq exp = sy-tabix - 1
+        act = ls_index-seq
+        exp = sy-tabix - 1
         msg = |{ iv_context } index { sy-tabix } seq| ).
     ENDLOOP.
   ENDMETHOD.

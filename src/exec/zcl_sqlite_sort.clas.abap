@@ -166,7 +166,8 @@ CLASS zcl_sqlite_sort IMPLEMENTATION.
           ELSE.
             READ TABLE lt_source INTO ls_left INDEX lv_left.
             READ TABLE lt_source INTO ls_right INDEX lv_right.
-            IF compare_rows( is_left = ls_left is_right = ls_right ) <= 0.
+            IF compare_rows( is_left  = ls_left
+                             is_right = ls_right ) <= 0.
               APPEND ls_left TO lt_target.
               lv_left = lv_left + 1.
             ELSE.

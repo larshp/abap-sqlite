@@ -179,7 +179,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     lv_page = empty_page( ).
     lo_file = lo_vfs->open( iv_name ).
     TRY.
-        lo_file->write( iv_offset = 0 iv_data = lv_page ).
+        lo_file->write( iv_offset = 0
+                        iv_data   = lv_page ).
         lo_file->sync( ).
         lo_file->close( ).
       CATCH cx_sy_range_out_of_bounds.
@@ -826,8 +827,12 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     lv_text = lo_name->get_text( ).
     lv_length = strlen( lv_text ).
     IF lv_length >= 2
-        AND substring( val = lv_text off = lv_length - 2 len = 2 ) = '.*'.
-      rv_qualifier = substring( val = lv_text off = 0 len = lv_length - 2 ).
+        AND substring( val = lv_text
+                       off = lv_length - 2
+                       len = 2 ) = '.*'.
+      rv_qualifier = substring( val = lv_text
+                                off = 0
+                                len = lv_length - 2 ).
     ENDIF.
   ENDMETHOD.
 
@@ -848,7 +853,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       lv_text = lo_name->get_text( ).
       lv_length = strlen( lv_text ).
       IF lv_length >= 2
-          AND substring( val = lv_text off = lv_length - 2 len = 2 ) = '.*'.
+          AND substring( val = lv_text
+                         off = lv_length - 2
+                         len = 2 ) = '.*'.
         rv_star = abap_true.
       ENDIF.
     ENDIF.
@@ -861,8 +868,11 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     lv_index = strlen( iv_name ).
     WHILE lv_index > 0.
       lv_index = lv_index - 1.
-      IF substring( val = iv_name off = lv_index len = 1 ) = '.'.
-        rv_name = substring( val = iv_name off = lv_index + 1 ).
+      IF substring( val = iv_name
+                    off = lv_index
+                    len = 1 ) = '.'.
+        rv_name = substring( val = iv_name
+                             off = lv_index + 1 ).
         RETURN.
       ENDIF.
     ENDWHILE.

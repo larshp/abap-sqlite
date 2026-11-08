@@ -71,7 +71,8 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
   METHOD build.
     DATA lv_zeros TYPE xstring.
 
-    lv_zeros = repeat( val = '00' occ = c_header_size - xstrlen( c_magic ) ).
+    lv_zeros = repeat( val = '00'
+                       occ = c_header_size - xstrlen( c_magic ) ).
     rv_data = c_magic && lv_zeros.
 
     TRY.
@@ -80,26 +81,45 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
           iv_offset = 16
           iv_value  = CONV int8( c_default_page_size ) ).
         rv_data = zcl_sqlite_bytes=>write_u8(
-          iv_data   = rv_data iv_offset = 18 iv_value = 1 ).
+          iv_data   = rv_data
+          iv_offset = 18
+          iv_value  = 1 ).
         rv_data = zcl_sqlite_bytes=>write_u8(
-          iv_data   = rv_data iv_offset = 19 iv_value = 1 ).
+          iv_data   = rv_data
+          iv_offset = 19
+          iv_value  = 1 ).
         rv_data = zcl_sqlite_bytes=>write_u8(
-          iv_data   = rv_data iv_offset = 21 iv_value = 64 ).
+          iv_data   = rv_data
+          iv_offset = 21
+          iv_value  = 64 ).
         rv_data = zcl_sqlite_bytes=>write_u8(
-          iv_data   = rv_data iv_offset = 22 iv_value = 32 ).
+          iv_data   = rv_data
+          iv_offset = 22
+          iv_value  = 32 ).
         rv_data = zcl_sqlite_bytes=>write_u8(
-          iv_data   = rv_data iv_offset = 23 iv_value = 32 ).
+          iv_data   = rv_data
+          iv_offset = 23
+          iv_value  = 32 ).
         rv_data = zcl_sqlite_bytes=>write_u32(
-          iv_data   = rv_data iv_offset = 24 iv_value = 1 ).
+          iv_data   = rv_data
+          iv_offset = 24
+          iv_value  = 1 ).
         rv_data = zcl_sqlite_bytes=>write_u32(
-          iv_data   = rv_data iv_offset = 28 iv_value = 1 ).
+          iv_data   = rv_data
+          iv_offset = 28
+          iv_value  = 1 ).
         rv_data = zcl_sqlite_bytes=>write_u32(
-          iv_data   = rv_data iv_offset = 40 iv_value = 1 ).
+          iv_data   = rv_data
+          iv_offset = 40
+          iv_value  = 1 ).
         rv_data = zcl_sqlite_bytes=>write_u32(
-          iv_data   = rv_data iv_offset = 56
+          iv_data   = rv_data
+          iv_offset = 56
           iv_value  = c_encoding_utf8 ).
         rv_data = zcl_sqlite_bytes=>write_u32(
-          iv_data   = rv_data iv_offset = 92 iv_value = 1 ).
+          iv_data   = rv_data
+          iv_offset = 92
+          iv_value  = 1 ).
         rv_data = zcl_sqlite_bytes=>write_u32(
           iv_data   = rv_data
           iv_offset = 96
@@ -126,7 +146,8 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
     ENDIF.
 
     TRY.
-        lv_page_size = zcl_sqlite_bytes=>read_u16( iv_data = iv_data iv_offset = 16 ).
+        lv_page_size = zcl_sqlite_bytes=>read_u16( iv_data   = iv_data
+                                                   iv_offset = 16 ).
         IF lv_page_size = 1.
           rs_header-page_size = 65536.
         ELSE.
@@ -134,45 +155,65 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
         ENDIF.
 
         rs_header-write_version =
-          zcl_sqlite_bytes=>read_u8( iv_data = iv_data iv_offset = 18 ).
+          zcl_sqlite_bytes=>read_u8( iv_data   = iv_data
+                                     iv_offset = 18 ).
         rs_header-read_version =
-          zcl_sqlite_bytes=>read_u8( iv_data = iv_data iv_offset = 19 ).
+          zcl_sqlite_bytes=>read_u8( iv_data   = iv_data
+                                     iv_offset = 19 ).
         rs_header-reserved_bytes =
-          zcl_sqlite_bytes=>read_u8( iv_data = iv_data iv_offset = 20 ).
+          zcl_sqlite_bytes=>read_u8( iv_data   = iv_data
+                                     iv_offset = 20 ).
         rs_header-max_payload_fraction =
-          zcl_sqlite_bytes=>read_u8( iv_data = iv_data iv_offset = 21 ).
+          zcl_sqlite_bytes=>read_u8( iv_data   = iv_data
+                                     iv_offset = 21 ).
         rs_header-min_payload_fraction =
-          zcl_sqlite_bytes=>read_u8( iv_data = iv_data iv_offset = 22 ).
+          zcl_sqlite_bytes=>read_u8( iv_data   = iv_data
+                                     iv_offset = 22 ).
         rs_header-leaf_payload_fraction =
-          zcl_sqlite_bytes=>read_u8( iv_data = iv_data iv_offset = 23 ).
+          zcl_sqlite_bytes=>read_u8( iv_data   = iv_data
+                                     iv_offset = 23 ).
         rs_header-change_counter =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 24 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 24 ).
         rs_header-database_size =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 28 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 28 ).
         rs_header-freelist_trunk =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 32 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 32 ).
         rs_header-freelist_pages =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 36 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 36 ).
         rs_header-schema_cookie =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 40 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 40 ).
         rs_header-schema_format =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 44 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 44 ).
         rs_header-default_cache_size =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 48 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 48 ).
         rs_header-largest_root_page =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 52 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 52 ).
         rs_header-text_encoding =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 56 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 56 ).
         rs_header-user_version =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 60 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 60 ).
         rs_header-incremental_vacuum =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 64 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 64 ).
         rs_header-application_id =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 68 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 68 ).
         rs_header-version_valid_for =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 92 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 92 ).
         rs_header-sqlite_version =
-          zcl_sqlite_bytes=>read_u32( iv_data = iv_data iv_offset = 96 ).
+          zcl_sqlite_bytes=>read_u32( iv_data   = iv_data
+                                      iv_offset = 96 ).
       CATCH cx_sy_range_out_of_bounds.
         fail( iv_code    = zcx_sqlite_error=>sqlite_notadb
               iv_message = 'SQLite header is shorter than 100 bytes' ).

@@ -36,58 +36,87 @@ CLASS ltcl_vfs_table IMPLEMENTATION.
     lo_table = NEW zcl_sqlite_vfs_table( iv_prefix = c_prefix ).
     lo_vfs = lo_table.
 
-    lv_data = repeat( val = '00112233445566778899AABBCCDDEEFF' occ = 300 ).
-    lo_table->import( iv_name = 'imported.db' iv_data = lv_data ).
+    lv_data = repeat( val = '00112233445566778899AABBCCDDEEFF'
+                      occ = 300 ).
+    lo_table->import( iv_name = 'imported.db'
+                      iv_data = lv_data ).
     cl_abap_unit_assert=>assert_true(
-      act = lo_vfs->exists( 'imported.db' ) msg = 'import creates the file' ).
+      act = lo_vfs->exists( 'imported.db' )
+      msg = 'import creates the file' ).
 
     lt_names = lo_vfs->list( ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( lt_names ) exp = 1 msg = 'imported file is listed' ).
+      act = lines( lt_names )
+      exp = 1
+      msg = 'imported file is listed' ).
     READ TABLE lt_names INTO lv_name INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lv_name exp = 'imported.db' msg = 'listed file name' ).
+      act = lv_name
+      exp = 'imported.db'
+      msg = 'listed file name' ).
 
     lv_export = lo_table->export( 'imported.db' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lv_export exp = lv_data msg = 'export is byte identical' ).
+      act = lv_export
+      exp = lv_data
+      msg = 'export is byte identical' ).
 
-    lo_vfs->rename( iv_name = 'imported.db' iv_new_name = 'renamed.db' ).
+    lo_vfs->rename( iv_name     = 'imported.db'
+                    iv_new_name = 'renamed.db' ).
     cl_abap_unit_assert=>assert_false(
-      act = lo_vfs->exists( 'imported.db' ) msg = 'renamed file is gone' ).
+      act = lo_vfs->exists( 'imported.db' )
+      msg = 'renamed file is gone' ).
     cl_abap_unit_assert=>assert_true(
-      act = lo_vfs->exists( 'renamed.db' ) msg = 'renamed file exists' ).
+      act = lo_vfs->exists( 'renamed.db' )
+      msg = 'renamed file exists' ).
     lv_export = lo_table->export( 'renamed.db' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lv_export exp = lv_data msg = 'rename keeps the bytes' ).
+      act = lv_export
+      exp = lv_data
+      msg = 'rename keeps the bytes' ).
 
     lo_vfs->delete( 'renamed.db' ).
     cl_abap_unit_assert=>assert_false(
-      act = lo_vfs->exists( 'renamed.db' ) msg = 'deleted file is gone' ).
+      act = lo_vfs->exists( 'renamed.db' )
+      msg = 'deleted file is gone' ).
 
 * importing a shorter file must not leave blocks from the old content
-    lv_data = repeat( val = '00112233445566778899AABBCCDDEEFF' occ = 300 ).
-    lo_table->import( iv_name = 'replace.db' iv_data = lv_data ).
-    lv_data = repeat( val = '00112233445566778899AABBCCDDEEFF' occ = 10 ).
-    lo_table->import( iv_name = 'replace.db' iv_data = lv_data ).
+    lv_data = repeat( val = '00112233445566778899AABBCCDDEEFF'
+                      occ = 300 ).
+    lo_table->import( iv_name = 'replace.db'
+                      iv_data = lv_data ).
+    lv_data = repeat( val = '00112233445566778899AABBCCDDEEFF'
+                      occ = 10 ).
+    lo_table->import( iv_name = 'replace.db'
+                      iv_data = lv_data ).
     lo_file = lo_vfs->open( 'replace.db' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_file->size( ) exp = 160 msg = 'reimport replaces the size' ).
+      act = lo_file->size( )
+      exp = 160
+      msg = 'reimport replaces the size' ).
     lv_export = lo_table->export( 'replace.db' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lv_export exp = lv_data msg = 'reimport replaces the bytes' ).
+      act = lv_export
+      exp = lv_data
+      msg = 'reimport replaces the bytes' ).
     lo_vfs->delete( 'replace.db' ).
 
 * an empty file is still a file
-    lo_table->import( iv_name = 'empty.db' iv_data = lv_empty ).
+    lo_table->import( iv_name = 'empty.db'
+                      iv_data = lv_empty ).
     cl_abap_unit_assert=>assert_true(
-      act = lo_vfs->exists( 'empty.db' ) msg = 'empty import creates the file' ).
+      act = lo_vfs->exists( 'empty.db' )
+      msg = 'empty import creates the file' ).
     lo_file = lo_vfs->open( 'empty.db' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_file->size( ) exp = 0 msg = 'empty import has size zero' ).
+      act = lo_file->size( )
+      exp = 0
+      msg = 'empty import has size zero' ).
     lv_export = lo_table->export( 'empty.db' ).
     cl_abap_unit_assert=>assert_equals(
-      act = lv_export exp = lv_empty msg = 'empty export is empty' ).
+      act = lv_export
+      exp = lv_empty
+      msg = 'empty export is empty' ).
     lo_vfs->delete( 'empty.db' ).
 
     TRY.

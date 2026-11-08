@@ -75,38 +75,64 @@ ENDCLASS.
 CLASS ltcl_parser IMPLEMENTATION.
 
   METHOD literals.
-    assert_parse( iv_sql = 'NULL' iv_expected = 'NULL' ).
-    assert_parse( iv_sql = '0' iv_expected = 'INTEGER(0)' ).
-    assert_parse( iv_sql = '0x1F' iv_expected = 'INTEGER(0x1F)' ).
-    assert_parse( iv_sql = '1.5' iv_expected = 'REAL(1.5)' ).
-    assert_parse( iv_sql = '1e5' iv_expected = 'REAL(1e5)' ).
-    assert_parse( iv_sql = |''| iv_expected = |STRING('')| ).
-    assert_parse( iv_sql = |'it''s'| iv_expected = |STRING('it''s')| ).
-    assert_parse( iv_sql = |X'1f'| iv_expected = |BLOB(X'1F')| ).
-    assert_parse( iv_sql = 'CURRENT_DATE' iv_expected = 'CURRENT_DATE' ).
-    assert_parse( iv_sql = 'CURRENT_TIME' iv_expected = 'CURRENT_TIME' ).
-    assert_parse( iv_sql = 'CURRENT_TIMESTAMP' iv_expected = 'CURRENT_TIMESTAMP' ).
-    assert_parse( iv_sql = '*' iv_expected = 'STAR' ).
+    assert_parse( iv_sql      = 'NULL'
+                  iv_expected = 'NULL' ).
+    assert_parse( iv_sql      = '0'
+                  iv_expected = 'INTEGER(0)' ).
+    assert_parse( iv_sql      = '0x1F'
+                  iv_expected = 'INTEGER(0x1F)' ).
+    assert_parse( iv_sql      = '1.5'
+                  iv_expected = 'REAL(1.5)' ).
+    assert_parse( iv_sql      = '1e5'
+                  iv_expected = 'REAL(1e5)' ).
+    assert_parse( iv_sql      = |''|
+                  iv_expected = |STRING('')| ).
+    assert_parse( iv_sql      = |'it''s'|
+                  iv_expected = |STRING('it''s')| ).
+    assert_parse( iv_sql      = |X'1f'|
+                  iv_expected = |BLOB(X'1F')| ).
+    assert_parse( iv_sql      = 'CURRENT_DATE'
+                  iv_expected = 'CURRENT_DATE' ).
+    assert_parse( iv_sql      = 'CURRENT_TIME'
+                  iv_expected = 'CURRENT_TIME' ).
+    assert_parse( iv_sql      = 'CURRENT_TIMESTAMP'
+                  iv_expected = 'CURRENT_TIMESTAMP' ).
+    assert_parse( iv_sql      = '*'
+                  iv_expected = 'STAR' ).
   ENDMETHOD.
 
   METHOD names_and_parameters.
-    assert_parse( iv_sql = 'a' iv_expected = 'COLUMN(a)' ).
-    assert_parse( iv_sql = 'a.b' iv_expected = 'COLUMN(a.b)' ).
-    assert_parse( iv_sql = 'main.t.c' iv_expected = 'COLUMN(main.t.c)' ).
-    assert_parse( iv_sql = '"weird name"' iv_expected = 'COLUMN(weird name)' ).
-    assert_parse( iv_sql = 't.*' iv_expected = 'COLUMN(t.*)' ).
-    assert_parse( iv_sql = '?' iv_expected = 'PARAM(?)' ).
-    assert_parse( iv_sql = '?12' iv_expected = 'PARAM(?12)' ).
-    assert_parse( iv_sql = ':name' iv_expected = 'PARAM(:name)' ).
-    assert_parse( iv_sql = '@name' iv_expected = 'PARAM(@name)' ).
-    assert_parse( iv_sql = '$name' iv_expected = 'PARAM($name)' ).
+    assert_parse( iv_sql      = 'a'
+                  iv_expected = 'COLUMN(a)' ).
+    assert_parse( iv_sql      = 'a.b'
+                  iv_expected = 'COLUMN(a.b)' ).
+    assert_parse( iv_sql      = 'main.t.c'
+                  iv_expected = 'COLUMN(main.t.c)' ).
+    assert_parse( iv_sql      = '"weird name"'
+                  iv_expected = 'COLUMN(weird name)' ).
+    assert_parse( iv_sql      = 't.*'
+                  iv_expected = 'COLUMN(t.*)' ).
+    assert_parse( iv_sql      = '?'
+                  iv_expected = 'PARAM(?)' ).
+    assert_parse( iv_sql      = '?12'
+                  iv_expected = 'PARAM(?12)' ).
+    assert_parse( iv_sql      = ':name'
+                  iv_expected = 'PARAM(:name)' ).
+    assert_parse( iv_sql      = '@name'
+                  iv_expected = 'PARAM(@name)' ).
+    assert_parse( iv_sql      = '$name'
+                  iv_expected = 'PARAM($name)' ).
   ENDMETHOD.
 
   METHOD unary_and_precedence.
-    assert_parse( iv_sql = '-1' iv_expected = 'UNARY(-, INTEGER(1))' ).
-    assert_parse( iv_sql = '+1' iv_expected = 'UNARY(+, INTEGER(1))' ).
-    assert_parse( iv_sql = '~1' iv_expected = 'UNARY(~, INTEGER(1))' ).
-    assert_parse( iv_sql = 'NOT a' iv_expected = 'UNARY(NOT, COLUMN(a))' ).
+    assert_parse( iv_sql      = '-1'
+                  iv_expected = 'UNARY(-, INTEGER(1))' ).
+    assert_parse( iv_sql      = '+1'
+                  iv_expected = 'UNARY(+, INTEGER(1))' ).
+    assert_parse( iv_sql      = '~1'
+                  iv_expected = 'UNARY(~, INTEGER(1))' ).
+    assert_parse( iv_sql      = 'NOT a'
+                  iv_expected = 'UNARY(NOT, COLUMN(a))' ).
     assert_parse(
       iv_sql      = '1 + 2 * 3'
       iv_expected = 'BINARY(+, INTEGER(1), BINARY(*, INTEGER(2), INTEGER(3)))' ).
@@ -191,7 +217,8 @@ CLASS ltcl_parser IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD functions.
-    assert_parse( iv_sql = 'random()' iv_expected = 'FUNCTION(random)' ).
+    assert_parse( iv_sql      = 'random()'
+                  iv_expected = 'FUNCTION(random)' ).
     assert_parse(
       iv_sql      = 'count(*)'
       iv_expected = 'FUNCTION(count, STAR)' ).

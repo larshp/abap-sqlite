@@ -40,7 +40,8 @@ CLASS ltcl_record IMPLEMENTATION.
     DATA lv_record TYPE xstring.
 
     lt_records = read_records( ).
-    cl_abap_unit_assert=>assert_equals( act = lines( lt_records ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = lines( lt_records )
+                                        exp = 2 ).
 
     READ TABLE lt_records INTO lv_record INDEX 1.
     TRY.
@@ -65,7 +66,8 @@ CLASS ltcl_record IMPLEMENTATION.
       ( kind = zcl_sqlite_value=>c_blob blob_value = '010203' )
       ( kind = zcl_sqlite_value=>c_text text_value = 'abc' )
       ( kind = zcl_sqlite_value=>c_text text_value = 'hello' ) ).
-    assert_values( it_values = lt_values it_expected = lt_expected ).
+    assert_values( it_values   = lt_values
+                   it_expected = lt_expected ).
 
     READ TABLE lt_records INTO lv_record INDEX 2.
     TRY.
@@ -90,7 +92,8 @@ CLASS ltcl_record IMPLEMENTATION.
       ( kind = zcl_sqlite_value=>c_blob blob_value = '040506' )
       ( kind = zcl_sqlite_value=>c_text text_value = 'xyz' )
       ( kind = zcl_sqlite_value=>c_text text_value = 'world' ) ).
-    assert_values( it_values = lt_values it_expected = lt_expected ).
+    assert_values( it_values   = lt_values
+                   it_expected = lt_expected ).
   ENDMETHOD.
 
   METHOD reserved_serial_type.
@@ -99,7 +102,8 @@ CLASS ltcl_record IMPLEMENTATION.
         cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_corrupt ).
     ENDTRY.
   ENDMETHOD.
 
@@ -109,7 +113,8 @@ CLASS ltcl_record IMPLEMENTATION.
         cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_corrupt ).
     ENDTRY.
   ENDMETHOD.
 
@@ -119,7 +124,8 @@ CLASS ltcl_record IMPLEMENTATION.
         cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
-          act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_corrupt ).
     ENDTRY.
   ENDMETHOD.
 
@@ -139,7 +145,8 @@ CLASS ltcl_record IMPLEMENTATION.
     TRY.
         ls_raw = lo_pager->get_page( 2 ).
         ls_page = zcl_sqlite_page=>parse(
-          iv_data = ls_raw-data iv_offset = ls_raw-btree_offset ).
+          iv_data   = ls_raw-data
+          iv_offset = ls_raw-btree_offset ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( |record page parse failed: { lo_error->message }| ).
     ENDTRY.
@@ -147,11 +154,14 @@ CLASS ltcl_record IMPLEMENTATION.
     LOOP AT ls_page-cell_offsets INTO lv_cell_offset.
       TRY.
           lv_payload_length_i8 = zcl_sqlite_bytes=>read_varint(
-            iv_data = ls_raw-data iv_offset = lv_cell_offset ).
+            iv_data   = ls_raw-data
+            iv_offset = lv_cell_offset ).
           lv_rowid_offset = lv_cell_offset + zcl_sqlite_bytes=>varint_length(
-            iv_data = ls_raw-data iv_offset = lv_cell_offset ).
+            iv_data   = ls_raw-data
+            iv_offset = lv_cell_offset ).
           lv_rowid_length = zcl_sqlite_bytes=>varint_length(
-            iv_data = ls_raw-data iv_offset = lv_rowid_offset ).
+            iv_data   = ls_raw-data
+            iv_offset = lv_rowid_offset ).
           lv_payload_offset = lv_rowid_offset + lv_rowid_length.
 
           IF lv_payload_length_i8 > xstrlen( ls_raw-data ) - lv_payload_offset.
@@ -172,38 +182,46 @@ CLASS ltcl_record IMPLEMENTATION.
     DATA lv_index TYPE i.
 
     cl_abap_unit_assert=>assert_equals(
-      act = lines( it_values ) exp = lines( it_expected ) ).
+      act = lines( it_values )
+      exp = lines( it_expected ) ).
 
     LOOP AT it_expected INTO ls_expected.
       lv_index = lv_index + 1.
       READ TABLE it_values INTO lo_value INDEX lv_index.
       cl_abap_unit_assert=>assert_equals(
-        act = sy-subrc exp = 0
+        act = sy-subrc
+        exp = 0
         msg = |value { lv_index } is missing| ).
       cl_abap_unit_assert=>assert_equals(
-        act = lo_value->value_type( ) exp = ls_expected-kind
+        act = lo_value->value_type( )
+        exp = ls_expected-kind
         msg = |value { lv_index } type| ).
 
       CASE ls_expected-kind.
         WHEN zcl_sqlite_value=>c_null.
           cl_abap_unit_assert=>assert_equals(
-            act = lo_value->is_null( ) exp = abap_true
+            act = lo_value->is_null( )
+            exp = abap_true
             msg = |value { lv_index } null| ).
         WHEN zcl_sqlite_value=>c_integer.
           cl_abap_unit_assert=>assert_equals(
-            act = lo_value->as_integer( ) exp = ls_expected-int_value
+            act = lo_value->as_integer( )
+            exp = ls_expected-int_value
             msg = |value { lv_index } integer| ).
         WHEN zcl_sqlite_value=>c_real.
           cl_abap_unit_assert=>assert_equals(
-            act = lo_value->as_real( ) exp = ls_expected-real_value
+            act = lo_value->as_real( )
+            exp = ls_expected-real_value
             msg = |value { lv_index } real| ).
         WHEN zcl_sqlite_value=>c_text.
           cl_abap_unit_assert=>assert_equals(
-            act = lo_value->as_text( ) exp = ls_expected-text_value
+            act = lo_value->as_text( )
+            exp = ls_expected-text_value
             msg = |value { lv_index } text| ).
         WHEN zcl_sqlite_value=>c_blob.
           cl_abap_unit_assert=>assert_equals(
-            act = lo_value->as_blob( ) exp = ls_expected-blob_value
+            act = lo_value->as_blob( )
+            exp = ls_expected-blob_value
             msg = |value { lv_index } blob| ).
       ENDCASE.
     ENDLOOP.

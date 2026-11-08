@@ -843,7 +843,8 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
 
   METHOD is_sqlite_internal.
     IF strlen( iv_name ) >= 7
-        AND to_lower( substring( val = iv_name len = 7 ) ) = 'sqlite_'.
+        AND to_lower( substring( val = iv_name
+                                 len = 7 ) ) = 'sqlite_'.
       rv_result = abap_true.
     ENDIF.
   ENDMETHOD.

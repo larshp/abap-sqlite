@@ -79,15 +79,20 @@ CLASS zcl_sqlite_page IMPLEMENTATION.
 
     TRY.
         lv_type = zcl_sqlite_bytes=>read_u8(
-          iv_data = iv_data iv_offset = iv_offset ).
+          iv_data   = iv_data
+          iv_offset = iv_offset ).
         rs_page-first_freeblock = zcl_sqlite_bytes=>read_u16(
-          iv_data = iv_data iv_offset = iv_offset + 1 ).
+          iv_data   = iv_data
+          iv_offset = iv_offset + 1 ).
         rs_page-cell_count = zcl_sqlite_bytes=>read_u16(
-          iv_data = iv_data iv_offset = iv_offset + 3 ).
+          iv_data   = iv_data
+          iv_offset = iv_offset + 3 ).
         lv_cell_start = zcl_sqlite_bytes=>read_u16(
-          iv_data = iv_data iv_offset = iv_offset + 5 ).
+          iv_data   = iv_data
+          iv_offset = iv_offset + 5 ).
         rs_page-fragmented_free_bytes = zcl_sqlite_bytes=>read_u8(
-          iv_data = iv_data iv_offset = iv_offset + 7 ).
+          iv_data   = iv_data
+          iv_offset = iv_offset + 7 ).
       CATCH cx_sy_range_out_of_bounds.
         fail( 'b-tree page header is truncated' ).
     ENDTRY.
@@ -107,7 +112,8 @@ CLASS zcl_sqlite_page IMPLEMENTATION.
       ENDIF.
       TRY.
           lv_rightmost = zcl_sqlite_bytes=>read_u32(
-            iv_data = iv_data iv_offset = iv_offset + 8 ).
+            iv_data   = iv_data
+            iv_offset = iv_offset + 8 ).
         CATCH cx_sy_range_out_of_bounds.
           fail( 'b-tree page header is truncated' ).
       ENDTRY.
@@ -170,9 +176,11 @@ CLASS zcl_sqlite_page IMPLEMENTATION.
 
       TRY.
           lv_next = zcl_sqlite_bytes=>read_u16(
-            iv_data = iv_data iv_offset = lv_free ).
+            iv_data   = iv_data
+            iv_offset = lv_free ).
           lv_size = zcl_sqlite_bytes=>read_u16(
-            iv_data = iv_data iv_offset = lv_free + 2 ).
+            iv_data   = iv_data
+            iv_offset = lv_free + 2 ).
         CATCH cx_sy_range_out_of_bounds.
           fail( 'b-tree freeblock is truncated' ).
       ENDTRY.

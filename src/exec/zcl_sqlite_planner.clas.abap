@@ -411,15 +411,20 @@ CLASS zcl_sqlite_planner IMPLEMENTATION.
     lv_index = strlen( lv_text ).
     WHILE lv_index > 0.
       lv_index = lv_index - 1.
-      IF substring( val = lv_text off = lv_index len = 1 ) = '.'.
+      IF substring( val = lv_text
+                    off = lv_index
+                    len = 1 ) = '.'.
         lv_dot = lv_index.
         EXIT.
       ENDIF.
     ENDWHILE.
 
     IF lv_dot > 0.
-      lv_qualifier = substring( val = lv_text off = 0 len = lv_dot ).
-      lv_column = substring( val = lv_text off = lv_dot + 1 ).
+      lv_qualifier = substring( val = lv_text
+                                off = 0
+                                len = lv_dot ).
+      lv_column = substring( val = lv_text
+                             off = lv_dot + 1 ).
     ELSE.
       lv_column = lv_text.
     ENDIF.
@@ -986,7 +991,9 @@ CLASS zcl_sqlite_planner IMPLEMENTATION.
     rv_text = |'|.
     lv_index = 0.
     WHILE lv_index < strlen( iv_text ).
-      lv_char = substring( val = iv_text off = lv_index len = 1 ).
+      lv_char = substring( val = iv_text
+                           off = lv_index
+                           len = 1 ).
       IF lv_char = |'|.
         rv_text = rv_text && |''|.
       ELSE.

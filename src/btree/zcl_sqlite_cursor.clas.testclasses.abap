@@ -56,25 +56,31 @@ CLASS ltcl_cursor IMPLEMENTATION.
       lv_rowid = lv_count.
 
       cl_abap_unit_assert=>assert_equals(
-        act = lo_cursor->rowid( ) exp = lv_rowid
+        act = lo_cursor->rowid( )
+        exp = lv_rowid
         msg = |row { lv_count } rowid| ).
       cl_abap_unit_assert=>assert_equals(
-        act = lo_cursor->is_valid( ) exp = abap_true
+        act = lo_cursor->is_valid( )
+        exp = abap_true
         msg = |row { lv_count } validity| ).
 
       lt_values = lo_cursor->values( ).
       cl_abap_unit_assert=>assert_equals(
-        act = lines( lt_values ) exp = 1
+        act = lines( lt_values )
+        exp = 1
         msg = |row { lv_count } value count| ).
       READ TABLE lt_values INTO lo_value INDEX 1.
       cl_abap_unit_assert=>assert_equals(
-        act = sy-subrc exp = 0
+        act = sy-subrc
+        exp = 0
         msg = |row { lv_count } value is missing| ).
       cl_abap_unit_assert=>assert_equals(
-        act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_text
+        act = lo_value->value_type( )
+        exp = zcl_sqlite_value=>c_text
         msg = |row { lv_count } value type| ).
       cl_abap_unit_assert=>assert_equals(
-        act = lo_value->as_text( ) exp = expected_value( lv_count )
+        act = lo_value->as_text( )
+        exp = expected_value( lv_count )
         msg = |row { lv_count } value| ).
 
       IF lv_count > 10000.
@@ -84,15 +90,20 @@ CLASS ltcl_cursor IMPLEMENTATION.
       lv_found = lo_cursor->next( ).
     ENDWHILE.
 
-    cl_abap_unit_assert=>assert_equals( act = lv_count exp = 10000 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_count
+                                        exp = 10000 ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->is_valid( ) exp = abap_false ).
+      act = lo_cursor->is_valid( )
+      exp = abap_false ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_false ).
+      act = lo_cursor->next( )
+      exp = abap_false ).
 
     lv_found = lo_cursor->first( ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
-    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( ) exp = 1 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( )
+                                        exp = 1 ).
   ENDMETHOD.
 
   METHOD seek_points.
@@ -106,53 +117,74 @@ CLASS ltcl_cursor IMPLEMENTATION.
       iv_root_page = c_ten_thousand_root ).
 
     lv_found = lo_cursor->seek( 5000 ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
-    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( ) exp = 5000 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( )
+                                        exp = 5000 ).
     lt_values = lo_cursor->values( ).
     READ TABLE lt_values INTO lo_value INDEX 1.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = 'row-05000' ).
+      act = lo_value->as_text( )
+      exp = 'row-05000' ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_true ).
-    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( ) exp = 5001 ).
+      act = lo_cursor->next( )
+      exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( )
+                                        exp = 5001 ).
 
     lv_found = lo_cursor->seek( 0 ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
-    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( ) exp = 1 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( )
+                                        exp = 1 ).
 
     lv_found = lo_cursor->seek( 10000 ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
-    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( ) exp = 10000 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( )
+                                        exp = 10000 ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_false ).
+      act = lo_cursor->next( )
+      exp = abap_false ).
 
     lv_found = lo_cursor->seek( 10001 ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_false ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_false ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->is_valid( ) exp = abap_false ).
+      act = lo_cursor->is_valid( )
+      exp = abap_false ).
 
     lv_found = lo_cursor->seek( 9999 ).
-    cl_abap_unit_assert=>assert_equals( act = lv_found exp = abap_true ).
-    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( ) exp = 9999 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( )
+                                        exp = 9999 ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_true ).
-    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( ) exp = 10000 ).
+      act = lo_cursor->next( )
+      exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = lo_cursor->rowid( )
+                                        exp = 10000 ).
   ENDMETHOD.
 
   METHOD empty_tree.
     DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
 
-    lo_cursor = open_cursor( iv_name = c_empty iv_root_page = 1 ).
+    lo_cursor = open_cursor( iv_name      = c_empty
+                             iv_root_page = 1 ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->first( ) exp = abap_false ).
+      act = lo_cursor->first( )
+      exp = abap_false ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->is_valid( ) exp = abap_false ).
+      act = lo_cursor->is_valid( )
+      exp = abap_false ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->seek( 1 ) exp = abap_false ).
+      act = lo_cursor->seek( 1 )
+      exp = abap_false ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_false ).
+      act = lo_cursor->next( )
+      exp = abap_false ).
   ENDMETHOD.
 
   METHOD overflow_payloads.
@@ -160,16 +192,19 @@ CLASS ltcl_cursor IMPLEMENTATION.
     DATA lv_blob_near TYPE xstring.
     DATA lv_blob_multi TYPE xstring.
 
-    lv_blob_near = repeat( val = 'AB' occ = 4100 ).
+    lv_blob_near = repeat( val = 'AB'
+                           occ = 4100 ).
     lv_blob_multi = repeat(
-      val = '00112233445566778899AABBCCDDEEFF' occ = 750 ).
+      val = '00112233445566778899AABBCCDDEEFF'
+      occ = 750 ).
 
     lo_cursor = open_cursor(
       iv_name      = c_overflow
       iv_root_page = c_overflow_root ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->first( ) exp = abap_true ).
+      act = lo_cursor->first( )
+      exp = abap_true ).
     assert_text_row(
       io_cursor   = lo_cursor
       iv_rowid    = 1
@@ -177,7 +212,8 @@ CLASS ltcl_cursor IMPLEMENTATION.
       iv_expected = repeat( val = 'T' occ = 4100 ) ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_true ).
+      act = lo_cursor->next( )
+      exp = abap_true ).
     assert_blob_row(
       io_cursor   = lo_cursor
       iv_rowid    = 2
@@ -185,7 +221,8 @@ CLASS ltcl_cursor IMPLEMENTATION.
       iv_expected = lv_blob_near ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_true ).
+      act = lo_cursor->next( )
+      exp = abap_true ).
     assert_text_row(
       io_cursor   = lo_cursor
       iv_rowid    = 3
@@ -193,7 +230,8 @@ CLASS ltcl_cursor IMPLEMENTATION.
       iv_expected = repeat( val = '0123456789' occ = 1200 ) ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_true ).
+      act = lo_cursor->next( )
+      exp = abap_true ).
     assert_blob_row(
       io_cursor   = lo_cursor
       iv_rowid    = 4
@@ -201,9 +239,11 @@ CLASS ltcl_cursor IMPLEMENTATION.
       iv_expected = lv_blob_multi ).
 
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->next( ) exp = abap_false ).
+      act = lo_cursor->next( )
+      exp = abap_false ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_cursor->is_valid( ) exp = abap_false ).
+      act = lo_cursor->is_valid( )
+      exp = abap_false ).
   ENDMETHOD.
 
   METHOD open_cursor.
@@ -243,23 +283,30 @@ CLASS ltcl_cursor IMPLEMENTATION.
     DATA lo_value TYPE REF TO zcl_sqlite_value.
 
     cl_abap_unit_assert=>assert_equals(
-      act = io_cursor->rowid( ) exp = iv_rowid ).
+      act = io_cursor->rowid( )
+      exp = iv_rowid ).
     cl_abap_unit_assert=>assert_equals(
-      act = io_cursor->is_valid( ) exp = abap_true ).
+      act = io_cursor->is_valid( )
+      exp = abap_true ).
 
     lt_values = io_cursor->values( ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( lt_values ) exp = 2 ).
+      act = lines( lt_values )
+      exp = 2 ).
     READ TABLE lt_values INTO lo_name INDEX 1.
     READ TABLE lt_values INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_name->value_type( ) exp = zcl_sqlite_value=>c_text ).
+      act = lo_name->value_type( )
+      exp = zcl_sqlite_value=>c_text ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_name->as_text( ) exp = iv_name ).
+      act = lo_name->as_text( )
+      exp = iv_name ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_text ).
+      act = lo_value->value_type( )
+      exp = zcl_sqlite_value=>c_text ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_text( ) exp = iv_expected ).
+      act = lo_value->as_text( )
+      exp = iv_expected ).
   ENDMETHOD.
 
   METHOD assert_blob_row.
@@ -268,23 +315,30 @@ CLASS ltcl_cursor IMPLEMENTATION.
     DATA lo_value TYPE REF TO zcl_sqlite_value.
 
     cl_abap_unit_assert=>assert_equals(
-      act = io_cursor->rowid( ) exp = iv_rowid ).
+      act = io_cursor->rowid( )
+      exp = iv_rowid ).
     cl_abap_unit_assert=>assert_equals(
-      act = io_cursor->is_valid( ) exp = abap_true ).
+      act = io_cursor->is_valid( )
+      exp = abap_true ).
 
     lt_values = io_cursor->values( ).
     cl_abap_unit_assert=>assert_equals(
-      act = lines( lt_values ) exp = 2 ).
+      act = lines( lt_values )
+      exp = 2 ).
     READ TABLE lt_values INTO lo_name INDEX 1.
     READ TABLE lt_values INTO lo_value INDEX 2.
     cl_abap_unit_assert=>assert_equals(
-      act = lo_name->value_type( ) exp = zcl_sqlite_value=>c_text ).
+      act = lo_name->value_type( )
+      exp = zcl_sqlite_value=>c_text ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_name->as_text( ) exp = iv_name ).
+      act = lo_name->as_text( )
+      exp = iv_name ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->value_type( ) exp = zcl_sqlite_value=>c_blob ).
+      act = lo_value->value_type( )
+      exp = zcl_sqlite_value=>c_blob ).
     cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_blob( ) exp = iv_expected ).
+      act = lo_value->as_blob( )
+      exp = iv_expected ).
   ENDMETHOD.
 
 ENDCLASS.
