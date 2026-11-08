@@ -888,7 +888,8 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD page_value.
-    rv_value = |page-{ padding( iv_value = iv_size iv_width = 5 ) }-{ padding( iv_value = iv_id iv_width = 3 ) }-{ repeat( val = 'x' occ = 20 ) }|.
+    rv_value = |page-{ padding( iv_value = iv_size iv_width = 5 ) }-| &&
+      |{ padding( iv_value = iv_id iv_width = 3 ) }-{ repeat( val = 'x' occ = 20 ) }|.
   ENDMETHOD.
 
   METHOD bulk_value.

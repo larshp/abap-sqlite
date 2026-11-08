@@ -37,6 +37,9 @@ CLASS zcl_sqlite_parser DEFINITION
       RETURNING VALUE(rt_texts) TYPE zcl_sqlite_ast_node=>ty_names
       RAISING   zcx_sqlite_error.
 
+    METHODS constructor
+      IMPORTING iv_sql TYPE string.
+
   PRIVATE SECTION.
     CLASS-METHODS parse_script_statement
       IMPORTING iv_sql              TYPE string
@@ -67,9 +70,6 @@ CLASS zcl_sqlite_parser DEFINITION
 
     DATA mt_tokens TYPE zcl_sqlite_tokenizer=>ty_tokens.
     DATA mv_index TYPE i.
-
-    METHODS constructor
-      IMPORTING iv_sql TYPE string.
 
     METHODS parse_expression_internal
       IMPORTING iv_min_precedence TYPE i
@@ -608,7 +608,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
         OR is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
       ro_statement = parse_select_statement( ).
     ELSE.
-      fail( 'expected CREATE, DROP, INSERT, UPDATE, DELETE, BEGIN, COMMIT, END, ROLLBACK, PRAGMA, EXPLAIN, SELECT, VALUES or WITH' ).
+      fail( |expected CREATE, DROP, INSERT, UPDATE, DELETE, BEGIN, COMMIT, END, ROLLBACK, | &&
+            |PRAGMA, EXPLAIN, SELECT, VALUES or WITH| ).
     ENDIF.
   ENDMETHOD.
 

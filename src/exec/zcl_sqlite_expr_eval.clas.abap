@@ -595,12 +595,12 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       IMPORTING iv_value        TYPE int8
       RETURNING VALUE(rv_value) TYPE int8.
 
-    CLASS-METHODS shift_left
+    CLASS-METHODS bit_shift_left
       IMPORTING iv_value        TYPE int8
                 iv_shift        TYPE int8
       RETURNING VALUE(rv_value) TYPE int8.
 
-    CLASS-METHODS shift_right
+    CLASS-METHODS bit_shift_right
       IMPORTING iv_value        TYPE int8
                 iv_shift        TYPE int8
       RETURNING VALUE(rv_value) TYPE int8.
@@ -745,19 +745,28 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         lv_text = sy-datum.
         CONDENSE lv_text.
         ro_value = zcl_sqlite_value=>text(
-          |{ substring( val = lv_text len = 4 ) }-{ substring( val = lv_text off = 4 len = 2 ) }-{ substring( val = lv_text off = 6 len = 2 ) }| ).
+          |{ substring( val = lv_text len = 4 ) }-| &&
+          |{ substring( val = lv_text off = 4 len = 2 ) }-| &&
+          |{ substring( val = lv_text off = 6 len = 2 ) }| ).
       WHEN 'CURRENT_TIME'.
         lv_text = sy-uzeit.
         CONDENSE lv_text.
         ro_value = zcl_sqlite_value=>text(
-          |{ substring( val = lv_text len = 2 ) }:{ substring( val = lv_text off = 2 len = 2 ) }:{ substring( val = lv_text off = 4 len = 2 ) }| ).
+          |{ substring( val = lv_text len = 2 ) }:| &&
+          |{ substring( val = lv_text off = 2 len = 2 ) }:| &&
+          |{ substring( val = lv_text off = 4 len = 2 ) }| ).
       WHEN 'CURRENT_TIMESTAMP'.
         lv_text = sy-datum.
         CONDENSE lv_text.
         lv_hour = sy-uzeit.
         CONDENSE lv_hour.
         ro_value = zcl_sqlite_value=>text(
-          |{ substring( val = lv_text len = 4 ) }-{ substring( val = lv_text off = 4 len = 2 ) }-{ substring( val = lv_text off = 6 len = 2 ) } { substring( val = lv_hour len = 2 ) }:{ substring( val = lv_hour off = 2 len = 2 ) }:{ substring( val = lv_hour off = 4 len = 2 ) }| ).
+          |{ substring( val = lv_text len = 4 ) }-| &&
+          |{ substring( val = lv_text off = 4 len = 2 ) }-| &&
+          |{ substring( val = lv_text off = 6 len = 2 ) } | &&
+          |{ substring( val = lv_hour len = 2 ) }:| &&
+          |{ substring( val = lv_hour off = 2 len = 2 ) }:| &&
+          |{ substring( val = lv_hour off = 4 len = 2 ) }| ).
       WHEN OTHERS.
         raise_error( |unsupported literal { lv_kind }| ).
     ENDCASE.
@@ -1158,9 +1167,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           ELSE.
             lv_shift = 0 - lv_right.
           ENDIF.
-          ro_value = zcl_sqlite_value=>integer( shift_right( iv_value = lv_left iv_shift = lv_shift ) ).
+          ro_value = zcl_sqlite_value=>integer( bit_shift_right( iv_value = lv_left iv_shift = lv_shift ) ).
         ELSE.
-          ro_value = zcl_sqlite_value=>integer( shift_left( iv_value = lv_left iv_shift = lv_right ) ).
+          ro_value = zcl_sqlite_value=>integer( bit_shift_left( iv_value = lv_left iv_shift = lv_right ) ).
         ENDIF.
       WHEN '>>'.
         IF lv_right < 0.
@@ -1169,9 +1178,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           ELSE.
             lv_shift = 0 - lv_right.
           ENDIF.
-          ro_value = zcl_sqlite_value=>integer( shift_left( iv_value = lv_left iv_shift = lv_shift ) ).
+          ro_value = zcl_sqlite_value=>integer( bit_shift_left( iv_value = lv_left iv_shift = lv_shift ) ).
         ELSE.
-          ro_value = zcl_sqlite_value=>integer( shift_right( iv_value = lv_left iv_shift = lv_right ) ).
+          ro_value = zcl_sqlite_value=>integer( bit_shift_right( iv_value = lv_left iv_shift = lv_right ) ).
         ENDIF.
       WHEN OTHERS.
         raise_error( |unsupported bitwise operator { iv_operator }| ).
@@ -3859,7 +3868,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     rv_value = bytes_to_int8( lv_data ).
   ENDMETHOD.
 
-  METHOD shift_left.
+  METHOD bit_shift_left.
     DATA lv_data TYPE xstring.
     DATA lv_out TYPE xstring.
     DATA lv_index TYPE i.
@@ -3894,7 +3903,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     rv_value = bytes_to_int8( lv_data ).
   ENDMETHOD.
 
-  METHOD shift_right.
+  METHOD bit_shift_right.
     DATA lv_data TYPE xstring.
     DATA lv_out TYPE xstring.
     DATA lv_index TYPE i.

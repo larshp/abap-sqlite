@@ -39,6 +39,11 @@ CLASS zcl_sqlite_database DEFINITION
       RETURNING VALUE(rv_plan) TYPE string
       RAISING   zcx_sqlite_error.
 
+    METHODS constructor
+      IMPORTING io_file   TYPE REF TO zif_sqlite_file
+                io_pager  TYPE REF TO zcl_sqlite_pager
+                io_schema TYPE REF TO zcl_sqlite_schema.
+
   PRIVATE SECTION.
     TYPES ty_from_columns TYPE zcl_sqlite_join=>ty_columns.
 
@@ -55,11 +60,6 @@ CLASS zcl_sqlite_database DEFINITION
     DATA mo_file   TYPE REF TO zif_sqlite_file.
     DATA mo_pager  TYPE REF TO zcl_sqlite_pager.
     DATA mo_schema TYPE REF TO zcl_sqlite_schema.
-
-    METHODS constructor
-      IMPORTING io_file   TYPE REF TO zif_sqlite_file
-                io_pager  TYPE REF TO zcl_sqlite_pager
-                io_schema TYPE REF TO zcl_sqlite_schema.
 
     CLASS-METHODS empty_page
       RETURNING VALUE(rv_page) TYPE xstring

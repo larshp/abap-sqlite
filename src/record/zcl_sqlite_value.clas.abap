@@ -49,6 +49,8 @@ CLASS zcl_sqlite_value DEFINITION
     METHODS as_blob
       RETURNING VALUE(rv_blob) TYPE xstring.
 
+    METHODS constructor.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
     DATA mv_type TYPE i.
@@ -56,8 +58,6 @@ CLASS zcl_sqlite_value DEFINITION
     DATA mv_real TYPE f.
     DATA mv_text TYPE string.
     DATA mv_blob TYPE xstring.
-
-    METHODS constructor.
 ENDCLASS.
 
 

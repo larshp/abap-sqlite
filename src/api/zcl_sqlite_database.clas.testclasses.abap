@@ -335,7 +335,8 @@ CLASS ltcl_database IMPLEMENTATION.
 
     lo_database = zcl_sqlite_database=>open( 'fixtures/aggregates.db' ).
     rs_result = lo_database->query(
-      'SELECT count(*), count(val), sum(val), total(val), avg(val), min(val), max(val), group_concat(label) FROM agg WHERE id > 99' ).
+      |SELECT count(*), count(val), sum(val), total(val), avg(val), min(val), max(val), | &&
+      |group_concat(label) FROM agg WHERE id > 99| ).
 
     cl_abap_unit_assert=>assert_equals(
       act = lines( rs_result-rows ) exp = 1 msg = 'row count' ).

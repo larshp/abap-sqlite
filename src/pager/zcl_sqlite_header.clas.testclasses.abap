@@ -5,8 +5,6 @@ CLASS ltcl_header DEFINITION FINAL FOR TESTING
   PRIVATE SECTION.
     CONSTANTS c_empty TYPE string VALUE 'fixtures/empty.db'.
     CONSTANTS c_small TYPE string VALUE 'fixtures/small.db'.
-    CONSTANTS c_zero_tail TYPE xstring VALUE
-      '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'.
 
     METHODS empty_fixture FOR TESTING.
     METHODS small_fixture FOR TESTING.
@@ -210,9 +208,11 @@ CLASS ltcl_header IMPLEMENTATION.
 
   METHOD build_header.
     DATA lv_header TYPE xstring.
+    DATA lv_zeros TYPE xstring.
 
+    lv_zeros = repeat( val = '00' occ = 84 ).
     TRY.
-        lv_header = zcl_sqlite_header=>c_magic && c_zero_tail.
+        lv_header = zcl_sqlite_header=>c_magic && lv_zeros.
         lv_header = zcl_sqlite_bytes=>write_u16(
           iv_data = lv_header iv_offset = 16 iv_value = 1024 ).
         lv_header = zcl_sqlite_bytes=>write_u8(

@@ -299,7 +299,8 @@ CLASS ltcl_parser IMPLEMENTATION.
     APPEND |CREATE INDEX nulls_a ON nulls(a)| TO lt_sql.
     APPEND |CREATE INDEX nulls_ab ON nulls(a, b)| TO lt_sql.
     APPEND |CREATE TABLE payloads (name TEXT NOT NULL, value)| TO lt_sql.
-    APPEND |CREATE TABLE serial_types (c_null, c_int8, c_int16, c_int24, c_int32, c_int48, c_int64, c_real, c_zero, c_one, c_blob0, c_text0, c_blob3, c_text3, c_text)| TO lt_sql.
+    APPEND |CREATE TABLE serial_types (c_null, c_int8, c_int16, c_int24, c_int32, c_int48, c_int64, | &&
+      |c_real, c_zero, c_one, c_blob0, c_text0, c_blob3, c_text3, c_text)| TO lt_sql.
     APPEND |CREATE TABLE wr (k TEXT PRIMARY KEY, v TEXT, n INTEGER) WITHOUT ROWID| TO lt_sql.
     APPEND |CREATE INDEX wr_v ON wr(v)| TO lt_sql.
 
@@ -323,17 +324,29 @@ CLASS ltcl_parser IMPLEMENTATION.
       iv_sql      = |CREATE TABLE IF NOT EXISTS main.t (id INTEGER, name TEXT, PRIMARY KEY (id, name)) WITHOUT ROWID|
       iv_expected = |CREATE TABLE IF NOT EXISTS main.t (id INTEGER, name TEXT, PRIMARY KEY (id, name)) WITHOUT ROWID| ).
     assert_statement_parse(
-      iv_sql      = |CREATE TABLE t (a INTEGER, b TEXT, CONSTRAINT pk PRIMARY KEY (a, b) ON CONFLICT ABORT, CONSTRAINT uq UNIQUE (b COLLATE NOCASE DESC))|
-      iv_expected = |CREATE TABLE t (a INTEGER, b TEXT, CONSTRAINT pk PRIMARY KEY (a, b) ON CONFLICT ABORT, CONSTRAINT uq UNIQUE (b COLLATE NOCASE DESC))| ).
+      iv_sql      = |CREATE TABLE t (a INTEGER, b TEXT, CONSTRAINT pk PRIMARY KEY (a, b) ON CONFLICT ABORT, | &&
+                    |CONSTRAINT uq UNIQUE (b COLLATE NOCASE DESC))|
+      iv_expected = |CREATE TABLE t (a INTEGER, b TEXT, CONSTRAINT pk PRIMARY KEY (a, b) ON CONFLICT ABORT, | &&
+                    |CONSTRAINT uq UNIQUE (b COLLATE NOCASE DESC))| ).
     assert_statement_parse(
-      iv_sql      = |CREATE TABLE c (id INTEGER CONSTRAINT pk PRIMARY KEY DESC ON CONFLICT ROLLBACK AUTOINCREMENT, code TEXT COLLATE NOCASE, n INTEGER NOT NULL ON CONFLICT IGNORE, x INTEGER CHECK(x > 0), y TEXT DEFAULT 'a', z INTEGER DEFAULT (1 + 2))|
-      iv_expected = |CREATE TABLE c (id INTEGER CONSTRAINT pk PRIMARY KEY DESC ON CONFLICT ROLLBACK AUTOINCREMENT, code TEXT COLLATE NOCASE, n INTEGER NOT NULL ON CONFLICT IGNORE, x INTEGER CHECK(BINARY(>, COLUMN(x), INTEGER(0))), y TEXT DEFAULT(STRING('a')), z INTEGER DEFAULT(BINARY(+, INTEGER(1), INTEGER(2))))| ).
+      iv_sql      = |CREATE TABLE c (id INTEGER CONSTRAINT pk PRIMARY KEY DESC ON CONFLICT ROLLBACK AUTOINCREMENT, | &&
+                    |code TEXT COLLATE NOCASE, n INTEGER NOT NULL ON CONFLICT IGNORE, x INTEGER CHECK(x > 0), | &&
+                    |y TEXT DEFAULT 'a', z INTEGER DEFAULT (1 + 2))|
+      iv_expected = |CREATE TABLE c (id INTEGER CONSTRAINT pk PRIMARY KEY DESC ON CONFLICT ROLLBACK AUTOINCREMENT, | &&
+                    |code TEXT COLLATE NOCASE, n INTEGER NOT NULL ON CONFLICT IGNORE, | &&
+                    |x INTEGER CHECK(BINARY(>, COLUMN(x), INTEGER(0))), y TEXT DEFAULT(STRING('a')), | &&
+                    |z INTEGER DEFAULT(BINARY(+, INTEGER(1), INTEGER(2))))| ).
     assert_statement_parse(
-      iv_sql      = |CREATE TABLE child (id INTEGER, parent_id INTEGER, CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE SET NULL MATCH simple DEFERRABLE INITIALLY DEFERRED)|
-      iv_expected = |CREATE TABLE child (id INTEGER, parent_id INTEGER, CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent (id) ON DELETE CASCADE ON UPDATE SET NULL MATCH simple DEFERRABLE INITIALLY DEFERRED)| ).
+      iv_sql      = |CREATE TABLE child (id INTEGER, parent_id INTEGER, CONSTRAINT fk FOREIGN KEY (parent_id) | &&
+                    |REFERENCES parent(id) ON DELETE CASCADE ON UPDATE SET NULL MATCH simple | &&
+                    |DEFERRABLE INITIALLY DEFERRED)|
+      iv_expected = |CREATE TABLE child (id INTEGER, parent_id INTEGER, CONSTRAINT fk FOREIGN KEY (parent_id) | &&
+                    |REFERENCES parent (id) ON DELETE CASCADE ON UPDATE SET NULL MATCH simple | &&
+                    |DEFERRABLE INITIALLY DEFERRED)| ).
     assert_statement_parse(
       iv_sql      = |CREATE TABLE g (a INTEGER, b INTEGER GENERATED ALWAYS AS (a + 1) STORED, c AS (a * 2) VIRTUAL)|
-      iv_expected = |CREATE TABLE g (a INTEGER, b INTEGER GENERATED ALWAYS AS (BINARY(+, COLUMN(a), INTEGER(1))) STORED, c GENERATED ALWAYS AS (BINARY(*, COLUMN(a), INTEGER(2))) VIRTUAL)| ).
+      iv_expected = |CREATE TABLE g (a INTEGER, b INTEGER GENERATED ALWAYS AS (BINARY(+, COLUMN(a), INTEGER(1))) | &&
+                    |STORED, c GENERATED ALWAYS AS (BINARY(*, COLUMN(a), INTEGER(2))) VIRTUAL)| ).
     assert_statement_parse(
       iv_sql      = |CREATE TABLE types (a DECIMAL(10, 2), b DOUBLE PRECISION, c VARCHAR(10))|
       iv_expected = |CREATE TABLE types (a DECIMAL(10,2), b DOUBLE PRECISION, c VARCHAR(10))| ).
@@ -345,7 +358,8 @@ CLASS ltcl_parser IMPLEMENTATION.
   METHOD create_index_and_drop.
     assert_statement_parse(
       iv_sql      = |CREATE UNIQUE INDEX IF NOT EXISTS idx ON main.items (a COLLATE NOCASE DESC, b) WHERE a > 0|
-      iv_expected = |CREATE UNIQUE INDEX IF NOT EXISTS idx ON main.items (a COLLATE NOCASE DESC, b) WHERE BINARY(>, COLUMN(a), INTEGER(0))| ).
+      iv_expected = |CREATE UNIQUE INDEX IF NOT EXISTS idx ON main.items (a COLLATE NOCASE DESC, b) | &&
+                    |WHERE BINARY(>, COLUMN(a), INTEGER(0))| ).
     assert_statement_parse(
       iv_sql      = |CREATE INDEX idx ON t(a)|
       iv_expected = |CREATE INDEX idx ON t (a)| ).
@@ -389,7 +403,8 @@ CLASS ltcl_parser IMPLEMENTATION.
   METHOD select_core.
     assert_statement_parse(
       iv_sql      = |SELECT a, b + 1 FROM t WHERE c > 5|
-      iv_expected = |SELECT COLUMN(a), BINARY(+, COLUMN(b), INTEGER(1)) FROM t WHERE BINARY(>, COLUMN(c), INTEGER(5))| ).
+      iv_expected = |SELECT COLUMN(a), BINARY(+, COLUMN(b), INTEGER(1)) FROM t | &&
+                    |WHERE BINARY(>, COLUMN(c), INTEGER(5))| ).
     assert_statement_parse(
       iv_sql      = |SELECT DISTINCT t.*, * FROM main.t AS x|
       iv_expected = |SELECT DISTINCT COLUMN(t.*), STAR FROM main.t AS x| ).
@@ -398,7 +413,9 @@ CLASS ltcl_parser IMPLEMENTATION.
       iv_expected = |SELECT COLUMN(a) AS x, COLUMN(b) AS y FROM t| ).
     assert_statement_parse(
       iv_sql      = |SELECT count(*) AS n FROM t GROUP BY a, b HAVING count(*) > 1 ORDER BY n DESC, 1 LIMIT 10 OFFSET 2|
-      iv_expected = |SELECT FUNCTION(count, STAR) AS n FROM t GROUP BY COLUMN(a), COLUMN(b) HAVING BINARY(>, FUNCTION(count, STAR), INTEGER(1)) ORDER BY COLUMN(n) DESC, INTEGER(1) LIMIT INTEGER(10) OFFSET INTEGER(2)| ).
+      iv_expected = |SELECT FUNCTION(count, STAR) AS n FROM t GROUP BY COLUMN(a), COLUMN(b) HAVING BINARY(>, | &&
+                    |FUNCTION(count, STAR), INTEGER(1)) ORDER BY COLUMN(n) DESC, INTEGER(1) LIMIT INTEGER(10) | &&
+                    |OFFSET INTEGER(2)| ).
     assert_statement_parse(
       iv_sql      = |SELECT ALL a FROM t|
       iv_expected = |SELECT COLUMN(a) FROM t| ).
@@ -422,7 +439,8 @@ CLASS ltcl_parser IMPLEMENTATION.
   METHOD select_joins.
     assert_statement_parse(
       iv_sql      = |SELECT * FROM a INNER JOIN b ON a.id = b.id LEFT OUTER JOIN c USING (id, x) CROSS JOIN d|
-      iv_expected = |SELECT STAR FROM a INNER JOIN b ON BINARY(=, COLUMN(a.id), COLUMN(b.id)) LEFT JOIN c USING (id, x) CROSS JOIN d| ).
+      iv_expected = |SELECT STAR FROM a INNER JOIN b ON BINARY(=, COLUMN(a.id), COLUMN(b.id)) LEFT JOIN c USING | &&
+                    |(id, x) CROSS JOIN d| ).
     assert_statement_parse(
       iv_sql      = |SELECT * FROM a, b AS x, c y|
       iv_expected = |SELECT STAR FROM a, b AS x, c AS y| ).
@@ -501,10 +519,12 @@ CLASS ltcl_parser IMPLEMENTATION.
       iv_expected = |SELECT INTEGER(1) UNION SELECT INTEGER(2)| ).
     assert_statement_parse(
       iv_sql      = |SELECT 1 UNION ALL SELECT 2 INTERSECT SELECT 3 EXCEPT SELECT 4|
-      iv_expected = |SELECT INTEGER(1) UNION ALL SELECT INTEGER(2) INTERSECT SELECT INTEGER(3) EXCEPT SELECT INTEGER(4)| ).
+      iv_expected = |SELECT INTEGER(1) UNION ALL SELECT INTEGER(2) INTERSECT SELECT INTEGER(3) EXCEPT SELECT | &&
+                    |INTEGER(4)| ).
     assert_statement_parse(
       iv_sql      = |SELECT a FROM t UNION SELECT a FROM u ORDER BY a DESC LIMIT 5 OFFSET 2|
-      iv_expected = |SELECT COLUMN(a) FROM t UNION SELECT COLUMN(a) FROM u ORDER BY COLUMN(a) DESC LIMIT INTEGER(5) OFFSET INTEGER(2)| ).
+      iv_expected = |SELECT COLUMN(a) FROM t UNION SELECT COLUMN(a) FROM u ORDER BY COLUMN(a) DESC LIMIT | &&
+                    |INTEGER(5) OFFSET INTEGER(2)| ).
     assert_statement_parse(
       iv_sql      = |(SELECT 1 UNION SELECT 2) EXCEPT SELECT 3|
       iv_expected = |(SELECT INTEGER(1) UNION SELECT INTEGER(2)) EXCEPT SELECT INTEGER(3)| ).
@@ -531,7 +551,8 @@ CLASS ltcl_parser IMPLEMENTATION.
       iv_expected = |WITH cte (x, y) AS (SELECT INTEGER(1), INTEGER(2)) SELECT COLUMN(x) FROM cte| ).
     assert_statement_parse(
       iv_sql      = |WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM cnt WHERE x < 10) SELECT x FROM cnt|
-      iv_expected = |WITH RECURSIVE cnt (x) AS (SELECT INTEGER(1) UNION ALL SELECT BINARY(+, COLUMN(x), INTEGER(1)) FROM cnt WHERE BINARY(<, COLUMN(x), INTEGER(10))) SELECT COLUMN(x) FROM cnt| ).
+      iv_expected = |WITH RECURSIVE cnt (x) AS (SELECT INTEGER(1) UNION ALL SELECT BINARY(+, COLUMN(x), | &&
+                    |INTEGER(1)) FROM cnt WHERE BINARY(<, COLUMN(x), INTEGER(10))) SELECT COLUMN(x) FROM cnt| ).
     assert_statement_parse(
       iv_sql      = |WITH a AS (SELECT 1), b AS (SELECT 2) SELECT * FROM a, b|
       iv_expected = |WITH a AS (SELECT INTEGER(1)), b AS (SELECT INTEGER(2)) SELECT STAR FROM a, b| ).
@@ -555,7 +576,8 @@ CLASS ltcl_parser IMPLEMENTATION.
       iv_expected = |SELECT STAR FROM t WHERE IN(COLUMN(a), SELECT COLUMN(b) FROM u)| ).
     assert_statement_parse(
       iv_sql      = |SELECT * FROM t WHERE a NOT IN (SELECT b FROM u WHERE c = 1)|
-      iv_expected = |SELECT STAR FROM t WHERE NOT_IN(COLUMN(a), SELECT COLUMN(b) FROM u WHERE BINARY(=, COLUMN(c), INTEGER(1)))| ).
+      iv_expected = |SELECT STAR FROM t WHERE NOT_IN(COLUMN(a), SELECT COLUMN(b) FROM u WHERE BINARY(=, COLUMN(c), | &&
+                    |INTEGER(1)))| ).
     assert_statement_parse(
       iv_sql      = |SELECT * FROM t WHERE EXISTS (SELECT 1 FROM u)|
       iv_expected = |SELECT STAR FROM t WHERE EXISTS(SELECT INTEGER(1) FROM u)| ).
@@ -567,7 +589,8 @@ CLASS ltcl_parser IMPLEMENTATION.
       iv_expected = |SELECT STAR FROM (SELECT COLUMN(a) FROM t) AS x| ).
     assert_statement_parse(
       iv_sql      = |SELECT * FROM (SELECT a FROM t) x JOIN u ON x.a = u.a|
-      iv_expected = |SELECT STAR FROM (SELECT COLUMN(a) FROM t) AS x INNER JOIN u ON BINARY(=, COLUMN(x.a), COLUMN(u.a))| ).
+      iv_expected = |SELECT STAR FROM (SELECT COLUMN(a) FROM t) AS x INNER JOIN u ON BINARY(=, COLUMN(x.a), | &&
+                    |COLUMN(u.a))| ).
     assert_statement_parse(
       iv_sql      = |SELECT * FROM (SELECT 1 UNION SELECT 2) AS x|
       iv_expected = |SELECT STAR FROM (SELECT INTEGER(1) UNION SELECT INTEGER(2)) AS x| ).
@@ -582,7 +605,8 @@ CLASS ltcl_parser IMPLEMENTATION.
       iv_expected = |SELECT SUBQUERY(VALUES (INTEGER(1)))| ).
     assert_statement_parse(
       iv_sql      = |SELECT * FROM t WHERE a IN (WITH cte AS (SELECT b FROM u) SELECT b FROM cte)|
-      iv_expected = |SELECT STAR FROM t WHERE IN(COLUMN(a), WITH cte AS (SELECT COLUMN(b) FROM u) SELECT COLUMN(b) FROM cte)| ).
+      iv_expected = |SELECT STAR FROM t WHERE IN(COLUMN(a), WITH cte AS (SELECT COLUMN(b) FROM u) SELECT COLUMN(b) | &&
+                    |FROM cte)| ).
     assert_statement_parse(
       iv_sql      = |SELECT * FROM t WHERE EXISTS (SELECT 1 UNION SELECT 2)|
       iv_expected = |SELECT STAR FROM t WHERE EXISTS(SELECT INTEGER(1) UNION SELECT INTEGER(2))| ).
@@ -642,13 +666,15 @@ CLASS ltcl_parser IMPLEMENTATION.
   METHOD update_statements.
     assert_statement_parse(
       iv_sql      = |UPDATE t SET a = 1, b = b + 1 WHERE id = 2|
-      iv_expected = |UPDATE t SET a = INTEGER(1), b = BINARY(+, COLUMN(b), INTEGER(1)) WHERE BINARY(=, COLUMN(id), INTEGER(2))| ).
+      iv_expected = |UPDATE t SET a = INTEGER(1), b = BINARY(+, COLUMN(b), INTEGER(1)) WHERE BINARY(=, COLUMN(id), | &&
+                    |INTEGER(2))| ).
     assert_statement_parse(
       iv_sql      = |UPDATE OR REPLACE main.t AS x SET a = NULL|
       iv_expected = |UPDATE OR REPLACE main.t AS x SET a = NULL| ).
     assert_statement_parse(
       iv_sql      = |UPDATE t SET a = (SELECT max(x) FROM u) WHERE id IN (SELECT id FROM v)|
-      iv_expected = |UPDATE t SET a = SUBQUERY(SELECT FUNCTION(max, COLUMN(x)) FROM u) WHERE IN(COLUMN(id), SELECT COLUMN(id) FROM v)| ).
+      iv_expected = |UPDATE t SET a = SUBQUERY(SELECT FUNCTION(max, COLUMN(x)) FROM u) WHERE IN(COLUMN(id), SELECT | &&
+                    |COLUMN(id) FROM v)| ).
     assert_statement_parse(
       iv_sql      = |UPDATE t SET a = 1 FROM u WHERE t.id = u.id|
       iv_expected = |UPDATE t SET a = INTEGER(1) FROM u WHERE BINARY(=, COLUMN(t.id), COLUMN(u.id))| ).

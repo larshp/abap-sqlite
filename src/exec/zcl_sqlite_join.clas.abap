@@ -42,7 +42,7 @@ CLASS zcl_sqlite_join DEFINITION
     METHODS load_right
       RAISING zcx_sqlite_error.
 
-    METHODS matches
+    METHODS rows_match
       IMPORTING io_left         TYPE REF TO zcl_sqlite_row
                 io_right        TYPE REF TO zcl_sqlite_row
       RETURNING VALUE(rv_match) TYPE abap_bool
@@ -109,7 +109,7 @@ CLASS zcl_sqlite_join IMPLEMENTATION.
       WHILE mv_right_index <= lines( mt_right_rows ).
         READ TABLE mt_right_rows INTO lo_right INDEX mv_right_index.
         mv_right_index = mv_right_index + 1.
-        IF matches(
+        IF rows_match(
             io_left  = mv_left_row
             io_right = lo_right ) = abap_true.
           mv_matched = abap_true.
@@ -145,7 +145,7 @@ CLASS zcl_sqlite_join IMPLEMENTATION.
     ENDWHILE.
   ENDMETHOD.
 
-  METHOD matches.
+  METHOD rows_match.
     DATA lo_row   TYPE REF TO zcl_sqlite_row.
     DATA lo_value TYPE REF TO zcl_sqlite_value.
 
