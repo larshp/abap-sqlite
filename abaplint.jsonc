@@ -18,6 +18,8 @@
     "change_if_to_case": true,
     "expand_macros": true,
     "fully_type_itabs": true,
+    "xml_bom": true,
+    "no_macros": true,
     "strict_sql": false,
     "unnecessary_return": false,
     "add_test_attributes": true,
