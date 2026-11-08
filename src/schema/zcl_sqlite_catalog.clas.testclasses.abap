@@ -330,24 +330,16 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
   METHOD small_fixture.
     DATA lo_pager TYPE REF TO zcl_sqlite_pager.
     DATA lt_expected TYPE ty_expected_rows.
-    DATA ls_row TYPE ty_expected_row.
 
     lo_pager = open_pager( 'fixtures/small.db' ).
-* ANORMALY: nested inline table constructors are rejected by the parser,
-* see ANORMALIES.md
-    ls_row = VALUE #(
-      c1 = integer_value( 1 ) c2 = text_value( 'alpha' )
+    lt_expected = VALUE #(
+      ( c1 = integer_value( 1 ) c2 = text_value( 'alpha' )
 * ANORMALY: numeric literals are rejected as method arguments
-      c3 = real_value( '1.5' ) count = 3 ).
-    APPEND ls_row TO lt_expected.
-    ls_row = VALUE #(
-      c1 = integer_value( 2 ) c2 = text_value( 'beta' )
-      c3 = real_value( '2.25' ) count = 3 ).
-    APPEND ls_row TO lt_expected.
-    ls_row = VALUE #(
-      c1 = integer_value( 3 ) c2 = text_value( 'gamma' )
-      c3 = null_value( ) count = 3 ).
-    APPEND ls_row TO lt_expected.
+        c3 = real_value( '1.5' ) count = 3 )
+      ( c1 = integer_value( 2 ) c2 = text_value( 'beta' )
+        c3 = real_value( '2.25' ) count = 3 )
+      ( c1 = integer_value( 3 ) c2 = text_value( 'gamma' )
+        c3 = null_value( ) count = 3 ) ).
     assert_table(
       io_pager = lo_pager
       iv_name = 'fixtures/small.db'
@@ -549,71 +541,43 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     DATA lt_table TYPE ty_expected_rows.
     DATA lt_a TYPE ty_expected_rows.
     DATA lt_ab TYPE ty_expected_rows.
-    DATA ls_row TYPE ty_expected_row.
     DATA lv_empty_blob TYPE xstring.
 
     lo_pager = open_pager( 'fixtures/nulls.db' ).
     lv_empty_blob = ''.
 
-    ls_row = VALUE #(
-      c1 = integer_value( 1 ) c2 = text_value( 'a' )
-      c3 = integer_value( 1 )
+    lt_table = VALUE #(
+      ( c1 = integer_value( 1 ) c2 = text_value( 'a' )
+        c3 = integer_value( 1 )
 * ANORMALY: hex literals are rejected as method arguments
-      c4 = blob_value( '01' ) count = 4 ).
-    APPEND ls_row TO lt_table.
-    ls_row = VALUE #(
-      c1 = integer_value( 2 ) c2 = null_value( )
-      c3 = integer_value( 2 ) c4 = null_value( ) count = 4 ).
-    APPEND ls_row TO lt_table.
-    ls_row = VALUE #(
-      c1 = integer_value( 3 ) c2 = text_value( 'a' )
-      c3 = null_value( ) c4 = blob_value( lv_empty_blob ) count = 4 ).
-    APPEND ls_row TO lt_table.
-    ls_row = VALUE #(
-      c1 = integer_value( 4 ) c2 = null_value( )
-      c3 = null_value( ) c4 = blob_value( '03' ) count = 4 ).
-    APPEND ls_row TO lt_table.
-    ls_row = VALUE #(
-      c1 = integer_value( 5 ) c2 = text_value( 'b' )
-      c3 = integer_value( 2 ) c4 = null_value( ) count = 4 ).
-    APPEND ls_row TO lt_table.
+        c4 = blob_value( '01' ) count = 4 )
+      ( c1 = integer_value( 2 ) c2 = null_value( )
+        c3 = integer_value( 2 ) c4 = null_value( ) count = 4 )
+      ( c1 = integer_value( 3 ) c2 = text_value( 'a' )
+        c3 = null_value( ) c4 = blob_value( lv_empty_blob ) count = 4 )
+      ( c1 = integer_value( 4 ) c2 = null_value( )
+        c3 = null_value( ) c4 = blob_value( '03' ) count = 4 )
+      ( c1 = integer_value( 5 ) c2 = text_value( 'b' )
+        c3 = integer_value( 2 ) c4 = null_value( ) count = 4 ) ).
 
-    ls_row = VALUE #(
-      c1 = null_value( ) c2 = integer_value( 2 ) count = 2 ).
-    APPEND ls_row TO lt_a.
-    ls_row = VALUE #(
-      c1 = null_value( ) c2 = integer_value( 4 ) count = 2 ).
-    APPEND ls_row TO lt_a.
-    ls_row = VALUE #(
-      c1 = text_value( 'a' ) c2 = integer_value( 1 ) count = 2 ).
-    APPEND ls_row TO lt_a.
-    ls_row = VALUE #(
-      c1 = text_value( 'a' ) c2 = integer_value( 3 ) count = 2 ).
-    APPEND ls_row TO lt_a.
-    ls_row = VALUE #(
-      c1 = text_value( 'b' ) c2 = integer_value( 5 ) count = 2 ).
-    APPEND ls_row TO lt_a.
+    lt_a = VALUE #(
+      ( c1 = null_value( ) c2 = integer_value( 2 ) count = 2 )
+      ( c1 = null_value( ) c2 = integer_value( 4 ) count = 2 )
+      ( c1 = text_value( 'a' ) c2 = integer_value( 1 ) count = 2 )
+      ( c1 = text_value( 'a' ) c2 = integer_value( 3 ) count = 2 )
+      ( c1 = text_value( 'b' ) c2 = integer_value( 5 ) count = 2 ) ).
 
-    ls_row = VALUE #(
-      c1 = null_value( ) c2 = null_value( )
-      c3 = integer_value( 4 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
-    ls_row = VALUE #(
-      c1 = null_value( ) c2 = integer_value( 2 )
-      c3 = integer_value( 2 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
-    ls_row = VALUE #(
-      c1 = text_value( 'a' ) c2 = null_value( )
-      c3 = integer_value( 3 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
-    ls_row = VALUE #(
-      c1 = text_value( 'a' ) c2 = integer_value( 1 )
-      c3 = integer_value( 1 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
-    ls_row = VALUE #(
-      c1 = text_value( 'b' ) c2 = integer_value( 2 )
-      c3 = integer_value( 5 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
+    lt_ab = VALUE #(
+      ( c1 = null_value( ) c2 = null_value( )
+        c3 = integer_value( 4 ) count = 3 )
+      ( c1 = null_value( ) c2 = integer_value( 2 )
+        c3 = integer_value( 2 ) count = 3 )
+      ( c1 = text_value( 'a' ) c2 = null_value( )
+        c3 = integer_value( 3 ) count = 3 )
+      ( c1 = text_value( 'a' ) c2 = integer_value( 1 )
+        c3 = integer_value( 1 ) count = 3 )
+      ( c1 = text_value( 'b' ) c2 = integer_value( 2 )
+        c3 = integer_value( 5 ) count = 3 ) ).
 
     assert_table(
       io_pager = lo_pager
@@ -640,141 +604,74 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     DATA lt_ba TYPE ty_expected_rows.
     DATA lt_b TYPE ty_expected_rows.
     DATA lt_c TYPE ty_expected_rows.
-    DATA ls_row TYPE ty_expected_row.
 
     lo_pager = open_pager( 'fixtures/many_indexes.db' ).
 
-    ls_row = VALUE #(
-      c1 = integer_value( 1 ) c2 = text_value( 'a' )
-      c3 = integer_value( 1 ) c4 = text_value( 'c1' ) count = 4 ).
-    APPEND ls_row TO lt_table.
-    ls_row = VALUE #(
-      c1 = integer_value( 2 ) c2 = text_value( 'a' )
-      c3 = integer_value( 2 ) c4 = text_value( 'c2' ) count = 4 ).
-    APPEND ls_row TO lt_table.
-    ls_row = VALUE #(
-      c1 = integer_value( 3 ) c2 = text_value( 'b' )
-      c3 = integer_value( 1 ) c4 = text_value( 'c3' ) count = 4 ).
-    APPEND ls_row TO lt_table.
-    ls_row = VALUE #(
-      c1 = integer_value( 4 ) c2 = text_value( 'b' )
-      c3 = integer_value( 2 ) c4 = text_value( 'c4' ) count = 4 ).
-    APPEND ls_row TO lt_table.
-    ls_row = VALUE #(
-      c1 = integer_value( 5 ) c2 = text_value( 'a' )
-      c3 = integer_value( 1 ) c4 = text_value( 'c5' ) count = 4 ).
-    APPEND ls_row TO lt_table.
-    ls_row = VALUE #(
-      c1 = integer_value( 6 ) c2 = text_value( 'b' )
-      c3 = integer_value( 2 ) c4 = text_value( 'c6' ) count = 4 ).
-    APPEND ls_row TO lt_table.
+    lt_table = VALUE #(
+      ( c1 = integer_value( 1 ) c2 = text_value( 'a' )
+        c3 = integer_value( 1 ) c4 = text_value( 'c1' ) count = 4 )
+      ( c1 = integer_value( 2 ) c2 = text_value( 'a' )
+        c3 = integer_value( 2 ) c4 = text_value( 'c2' ) count = 4 )
+      ( c1 = integer_value( 3 ) c2 = text_value( 'b' )
+        c3 = integer_value( 1 ) c4 = text_value( 'c3' ) count = 4 )
+      ( c1 = integer_value( 4 ) c2 = text_value( 'b' )
+        c3 = integer_value( 2 ) c4 = text_value( 'c4' ) count = 4 )
+      ( c1 = integer_value( 5 ) c2 = text_value( 'a' )
+        c3 = integer_value( 1 ) c4 = text_value( 'c5' ) count = 4 )
+      ( c1 = integer_value( 6 ) c2 = text_value( 'b' )
+        c3 = integer_value( 2 ) c4 = text_value( 'c6' ) count = 4 ) ).
 
-    ls_row = VALUE #(
-      c1 = text_value( 'a' ) c2 = integer_value( 1 ) count = 2 ).
-    APPEND ls_row TO lt_a.
-    ls_row = VALUE #(
-      c1 = text_value( 'a' ) c2 = integer_value( 2 ) count = 2 ).
-    APPEND ls_row TO lt_a.
-    ls_row = VALUE #(
-      c1 = text_value( 'a' ) c2 = integer_value( 5 ) count = 2 ).
-    APPEND ls_row TO lt_a.
-    ls_row = VALUE #(
-      c1 = text_value( 'b' ) c2 = integer_value( 3 ) count = 2 ).
-    APPEND ls_row TO lt_a.
-    ls_row = VALUE #(
-      c1 = text_value( 'b' ) c2 = integer_value( 4 ) count = 2 ).
-    APPEND ls_row TO lt_a.
-    ls_row = VALUE #(
-      c1 = text_value( 'b' ) c2 = integer_value( 6 ) count = 2 ).
-    APPEND ls_row TO lt_a.
+    lt_a = VALUE #(
+      ( c1 = text_value( 'a' ) c2 = integer_value( 1 ) count = 2 )
+      ( c1 = text_value( 'a' ) c2 = integer_value( 2 ) count = 2 )
+      ( c1 = text_value( 'a' ) c2 = integer_value( 5 ) count = 2 )
+      ( c1 = text_value( 'b' ) c2 = integer_value( 3 ) count = 2 )
+      ( c1 = text_value( 'b' ) c2 = integer_value( 4 ) count = 2 )
+      ( c1 = text_value( 'b' ) c2 = integer_value( 6 ) count = 2 ) ).
 
-    ls_row = VALUE #(
-      c1 = text_value( 'a' ) c2 = integer_value( 1 )
-      c3 = integer_value( 1 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
-    ls_row = VALUE #(
-      c1 = text_value( 'a' ) c2 = integer_value( 1 )
-      c3 = integer_value( 5 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
-    ls_row = VALUE #(
-      c1 = text_value( 'a' ) c2 = integer_value( 2 )
-      c3 = integer_value( 2 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
-    ls_row = VALUE #(
-      c1 = text_value( 'b' ) c2 = integer_value( 1 )
-      c3 = integer_value( 3 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
-    ls_row = VALUE #(
-      c1 = text_value( 'b' ) c2 = integer_value( 2 )
-      c3 = integer_value( 4 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
-    ls_row = VALUE #(
-      c1 = text_value( 'b' ) c2 = integer_value( 2 )
-      c3 = integer_value( 6 ) count = 3 ).
-    APPEND ls_row TO lt_ab.
+    lt_ab = VALUE #(
+      ( c1 = text_value( 'a' ) c2 = integer_value( 1 )
+        c3 = integer_value( 1 ) count = 3 )
+      ( c1 = text_value( 'a' ) c2 = integer_value( 1 )
+        c3 = integer_value( 5 ) count = 3 )
+      ( c1 = text_value( 'a' ) c2 = integer_value( 2 )
+        c3 = integer_value( 2 ) count = 3 )
+      ( c1 = text_value( 'b' ) c2 = integer_value( 1 )
+        c3 = integer_value( 3 ) count = 3 )
+      ( c1 = text_value( 'b' ) c2 = integer_value( 2 )
+        c3 = integer_value( 4 ) count = 3 )
+      ( c1 = text_value( 'b' ) c2 = integer_value( 2 )
+        c3 = integer_value( 6 ) count = 3 ) ).
 
-    ls_row = VALUE #(
-      c1 = integer_value( 1 ) c2 = text_value( 'a' )
-      c3 = integer_value( 1 ) count = 3 ).
-    APPEND ls_row TO lt_ba.
-    ls_row = VALUE #(
-      c1 = integer_value( 1 ) c2 = text_value( 'a' )
-      c3 = integer_value( 5 ) count = 3 ).
-    APPEND ls_row TO lt_ba.
-    ls_row = VALUE #(
-      c1 = integer_value( 1 ) c2 = text_value( 'b' )
-      c3 = integer_value( 3 ) count = 3 ).
-    APPEND ls_row TO lt_ba.
-    ls_row = VALUE #(
-      c1 = integer_value( 2 ) c2 = text_value( 'a' )
-      c3 = integer_value( 2 ) count = 3 ).
-    APPEND ls_row TO lt_ba.
-    ls_row = VALUE #(
-      c1 = integer_value( 2 ) c2 = text_value( 'b' )
-      c3 = integer_value( 4 ) count = 3 ).
-    APPEND ls_row TO lt_ba.
-    ls_row = VALUE #(
-      c1 = integer_value( 2 ) c2 = text_value( 'b' )
-      c3 = integer_value( 6 ) count = 3 ).
-    APPEND ls_row TO lt_ba.
+    lt_ba = VALUE #(
+      ( c1 = integer_value( 1 ) c2 = text_value( 'a' )
+        c3 = integer_value( 1 ) count = 3 )
+      ( c1 = integer_value( 1 ) c2 = text_value( 'a' )
+        c3 = integer_value( 5 ) count = 3 )
+      ( c1 = integer_value( 1 ) c2 = text_value( 'b' )
+        c3 = integer_value( 3 ) count = 3 )
+      ( c1 = integer_value( 2 ) c2 = text_value( 'a' )
+        c3 = integer_value( 2 ) count = 3 )
+      ( c1 = integer_value( 2 ) c2 = text_value( 'b' )
+        c3 = integer_value( 4 ) count = 3 )
+      ( c1 = integer_value( 2 ) c2 = text_value( 'b' )
+        c3 = integer_value( 6 ) count = 3 ) ).
 
-    ls_row = VALUE #(
-      c1 = integer_value( 1 ) c2 = integer_value( 1 ) count = 2 ).
-    APPEND ls_row TO lt_b.
-    ls_row = VALUE #(
-      c1 = integer_value( 1 ) c2 = integer_value( 3 ) count = 2 ).
-    APPEND ls_row TO lt_b.
-    ls_row = VALUE #(
-      c1 = integer_value( 1 ) c2 = integer_value( 5 ) count = 2 ).
-    APPEND ls_row TO lt_b.
-    ls_row = VALUE #(
-      c1 = integer_value( 2 ) c2 = integer_value( 2 ) count = 2 ).
-    APPEND ls_row TO lt_b.
-    ls_row = VALUE #(
-      c1 = integer_value( 2 ) c2 = integer_value( 4 ) count = 2 ).
-    APPEND ls_row TO lt_b.
-    ls_row = VALUE #(
-      c1 = integer_value( 2 ) c2 = integer_value( 6 ) count = 2 ).
-    APPEND ls_row TO lt_b.
+    lt_b = VALUE #(
+      ( c1 = integer_value( 1 ) c2 = integer_value( 1 ) count = 2 )
+      ( c1 = integer_value( 1 ) c2 = integer_value( 3 ) count = 2 )
+      ( c1 = integer_value( 1 ) c2 = integer_value( 5 ) count = 2 )
+      ( c1 = integer_value( 2 ) c2 = integer_value( 2 ) count = 2 )
+      ( c1 = integer_value( 2 ) c2 = integer_value( 4 ) count = 2 )
+      ( c1 = integer_value( 2 ) c2 = integer_value( 6 ) count = 2 ) ).
 
-    ls_row = VALUE #(
-      c1 = text_value( 'c1' ) c2 = integer_value( 1 ) count = 2 ).
-    APPEND ls_row TO lt_c.
-    ls_row = VALUE #(
-      c1 = text_value( 'c2' ) c2 = integer_value( 2 ) count = 2 ).
-    APPEND ls_row TO lt_c.
-    ls_row = VALUE #(
-      c1 = text_value( 'c3' ) c2 = integer_value( 3 ) count = 2 ).
-    APPEND ls_row TO lt_c.
-    ls_row = VALUE #(
-      c1 = text_value( 'c4' ) c2 = integer_value( 4 ) count = 2 ).
-    APPEND ls_row TO lt_c.
-    ls_row = VALUE #(
-      c1 = text_value( 'c5' ) c2 = integer_value( 5 ) count = 2 ).
-    APPEND ls_row TO lt_c.
-    ls_row = VALUE #(
-      c1 = text_value( 'c6' ) c2 = integer_value( 6 ) count = 2 ).
-    APPEND ls_row TO lt_c.
+    lt_c = VALUE #(
+      ( c1 = text_value( 'c1' ) c2 = integer_value( 1 ) count = 2 )
+      ( c1 = text_value( 'c2' ) c2 = integer_value( 2 ) count = 2 )
+      ( c1 = text_value( 'c3' ) c2 = integer_value( 3 ) count = 2 )
+      ( c1 = text_value( 'c4' ) c2 = integer_value( 4 ) count = 2 )
+      ( c1 = text_value( 'c5' ) c2 = integer_value( 5 ) count = 2 )
+      ( c1 = text_value( 'c6' ) c2 = integer_value( 6 ) count = 2 ) ).
 
     assert_table(
       io_pager = lo_pager

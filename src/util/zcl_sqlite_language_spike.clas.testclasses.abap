@@ -158,14 +158,17 @@ CLASS ltcl_language IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD int8_to_hex.
-* ANORMALY: direct int8 to xstring assignment crashes in the transpiler, see
-* ANORMALIES.md. Going through a type x field of 8 bytes yields the fixed
-* 8-byte big endian representation the record format needs.
+* direct assignment gives the minimal big endian bytes, going through a type x
+* field of 8 bytes yields the fixed 8-byte representation the record format
+* needs.
     DATA lv_value TYPE int8.
     DATA lv_field TYPE x LENGTH 8.
     DATA lv_data TYPE xstring.
 
     lv_value = 255.
+    lv_data = lv_value.
+    cl_abap_unit_assert=>assert_equals( act = lv_data exp = 'FF' ).
+
     lv_field = lv_value.
     lv_data = lv_field.
     cl_abap_unit_assert=>assert_equals( act = lv_data exp = '00000000000000FF' ).

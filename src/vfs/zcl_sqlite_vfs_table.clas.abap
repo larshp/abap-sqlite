@@ -461,10 +461,10 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     ls_cache-blockno = iv_blockno.
     ls_cache-data = iv_data.
 
-* ANORMALY: MODIFY TABLE on a hashed table updates by full row content in the
-* transpiler, not by the table key, so replace the row explicitly.
-    DELETE mt_blocks WHERE name = iv_name AND blockno = iv_blockno.
-    INSERT ls_cache INTO TABLE mt_blocks.
+    MODIFY TABLE mt_blocks FROM ls_cache.
+    IF sy-subrc <> 0.
+      INSERT ls_cache INTO TABLE mt_blocks.
+    ENDIF.
   ENDMETHOD.
 
   METHOD patch_block.

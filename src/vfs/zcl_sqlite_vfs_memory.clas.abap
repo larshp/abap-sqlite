@@ -312,29 +312,22 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
     ls_block-blockno = iv_blockno.
     ls_block-data = iv_data.
 
-    READ TABLE mt_blocks TRANSPORTING NO FIELDS WITH KEY name = iv_name blockno = iv_blockno.
-    IF sy-subrc = 0.
-* ANORMALY: MODIFY TABLE on a hashed table updates by full row content in the
-* transpiler, not by the table key, so replace the row explicitly.
-      DELETE mt_blocks WHERE name = iv_name AND blockno = iv_blockno.
+    MODIFY TABLE mt_blocks FROM ls_block.
+    IF sy-subrc <> 0.
+      INSERT ls_block INTO TABLE mt_blocks.
     ENDIF.
-    INSERT ls_block INTO TABLE mt_blocks.
   ENDMETHOD.
 
   METHOD put_file.
     DATA ls_file TYPE ty_file.
-    DATA lv_found TYPE abap_bool.
 
     READ TABLE mt_files INTO ls_file WITH KEY name = iv_name.
-    lv_found = boolc( sy-subrc = 0 ).
     ls_file-name = iv_name.
     ls_file-size = iv_size.
-* ANORMALY: MODIFY TABLE on a hashed table updates by full row content in the
-* transpiler, not by the table key, so replace the row explicitly.
-    IF lv_found = abap_true.
-      DELETE mt_files WHERE name = iv_name.
+    MODIFY TABLE mt_files FROM ls_file.
+    IF sy-subrc <> 0.
+      INSERT ls_file INTO TABLE mt_files.
     ENDIF.
-    INSERT ls_file INTO TABLE mt_files.
   ENDMETHOD.
 
   METHOD patch_block.

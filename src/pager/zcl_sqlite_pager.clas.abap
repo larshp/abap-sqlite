@@ -530,9 +530,10 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD put_cache.
-* ANORMALY: hashed MODIFY TABLE updates by full row content, delete+insert
-    DELETE mt_cache WHERE number = is_entry-number.
-    INSERT is_entry INTO TABLE mt_cache.
+    MODIFY TABLE mt_cache FROM is_entry.
+    IF sy-subrc <> 0.
+      INSERT is_entry INTO TABLE mt_cache.
+    ENDIF.
   ENDMETHOD.
 
   METHOD evict_lru.
