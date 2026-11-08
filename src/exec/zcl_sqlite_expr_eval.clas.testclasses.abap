@@ -318,7 +318,7 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
   METHOD pattern_errors.
     TRY.
         zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT ''abc'' LIKE ''abc'' ESCAPE ''!!''' ).
-        cl_abap_unit_assert=>fail( msg = 'expected escape error' ).
+        cl_abap_unit_assert=>fail( 'expected escape error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_escape_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_escape_error->message
@@ -327,7 +327,7 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT ''a'' COLLATE FOO = ''A''' ).
-        cl_abap_unit_assert=>fail( msg = 'expected collation error' ).
+        cl_abap_unit_assert=>fail( 'expected collation error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_collation_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_collation_error->message
@@ -336,7 +336,7 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT ''a'' GLOB ''a'' ESCAPE ''!''' ).
-        cl_abap_unit_assert=>fail( msg = 'expected glob escape error' ).
+        cl_abap_unit_assert=>fail( 'expected glob escape error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_glob_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_glob_error->message
@@ -347,7 +347,7 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
   METHOD hex_error.
     TRY.
         zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT 0x10000000000000000' ).
-        cl_abap_unit_assert=>fail( msg = 'expected hex literal error' ).
+        cl_abap_unit_assert=>fail( 'expected hex literal error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->message exp = 'hex literal too big: 0x10000000000000000' ).
@@ -427,7 +427,7 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
   METHOD function_errors.
     TRY.
         zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT abs()' ).
-        cl_abap_unit_assert=>fail( msg = 'expected arity error' ).
+        cl_abap_unit_assert=>fail( 'expected arity error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->message
@@ -436,7 +436,7 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT abs(-9223372036854775808)' ).
-        cl_abap_unit_assert=>fail( msg = 'expected overflow error' ).
+        cl_abap_unit_assert=>fail( 'expected overflow error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_overflow).
         cl_abap_unit_assert=>assert_equals(
           act = lo_overflow->message exp = 'integer overflow' ).
@@ -444,7 +444,7 @@ CLASS ltcl_expr_eval IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_expr_eval=>evaluate_sql( 'SELECT replace()' ).
-        cl_abap_unit_assert=>fail( msg = 'expected replace arity error' ).
+        cl_abap_unit_assert=>fail( 'expected replace arity error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_replace).
         cl_abap_unit_assert=>assert_equals(
           act = lo_replace->message

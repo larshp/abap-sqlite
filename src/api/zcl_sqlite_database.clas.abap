@@ -421,7 +421,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       IF lo_expression IS INSTANCE OF zcl_sqlite_ast_literal.
         lo_literal ?= lo_expression.
         IF lo_literal->get_kind( ) = 'INTEGER'.
-          lo_value = zcl_sqlite_expr_eval=>evaluate( io_expression = lo_expression ).
+          lo_value = zcl_sqlite_expr_eval=>evaluate( lo_expression ).
           lv_literal_value = zcl_sqlite_expr_eval=>value_to_integer( lo_value ).
           IF lv_literal_value < 1 OR lv_literal_value > iv_visible_count.
             RAISE EXCEPTION TYPE zcx_sqlite_error

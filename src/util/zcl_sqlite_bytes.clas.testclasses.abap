@@ -254,21 +254,21 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_bytes=>read_u8( iv_data = lv_data iv_offset = 2 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
         zcl_sqlite_bytes=>read_u16( iv_data = lv_data iv_offset = 1 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
         zcl_sqlite_bytes=>read_i64( iv_data = lv_data iv_offset = -1 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
@@ -281,21 +281,21 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_bytes=>write_u32( iv_data = lv_data iv_offset = 0 iv_value = 1 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
         zcl_sqlite_bytes=>write_u8( iv_data = lv_data iv_offset = 2 iv_value = 1 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
         zcl_sqlite_bytes=>write_u16( iv_data = lv_data iv_offset = -1 iv_value = 1 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
@@ -308,14 +308,14 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_bytes=>write_u8( iv_data = lv_data iv_offset = 0 iv_value = 256 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
 
     TRY.
         zcl_sqlite_bytes=>write_u8( iv_data = lv_data iv_offset = 0 iv_value = -1 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -324,7 +324,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_bytes=>write_u16( iv_data = lv_data iv_offset = 0 iv_value = 65536 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -333,7 +333,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_bytes=>write_u24( iv_data = lv_data iv_offset = 0 iv_value = 16777216 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -342,14 +342,14 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_bytes=>write_u32( iv_data = lv_data iv_offset = 0 iv_value = 4294967296 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
 
     TRY.
         zcl_sqlite_bytes=>write_u32( iv_data = lv_data iv_offset = 0 iv_value = -1 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -358,7 +358,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_bytes=>write_u48( iv_data = lv_data iv_offset = 0 iv_value = 281474976710656 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -448,14 +448,14 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
         zcl_sqlite_bytes=>varint_length( iv_data = lv_data iv_offset = 0 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
@@ -464,7 +464,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_bytes=>read_varint( iv_data = lv_data iv_offset = 0 ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_range_out_of_bounds' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_range_out_of_bounds' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
@@ -581,7 +581,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
     ls_bits-sign = 2.
     TRY.
         zcl_sqlite_bytes=>write_f64( ls_bits ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -590,7 +590,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
     ls_bits-exponent = 2048.
     TRY.
         zcl_sqlite_bytes=>write_f64( ls_bits ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -598,7 +598,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
     ls_bits-exponent = -1.
     TRY.
         zcl_sqlite_bytes=>write_f64( ls_bits ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -607,7 +607,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
     ls_bits-mantissa = -1.
     TRY.
         zcl_sqlite_bytes=>write_f64( ls_bits ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -615,7 +615,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
     ls_bits-mantissa = 4503599627370496.
     TRY.
         zcl_sqlite_bytes=>write_f64( ls_bits ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -628,7 +628,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
     ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = '7FF0000000000000' iv_offset = 0 ).
     TRY.
         lv_value = zcl_sqlite_bytes=>f64_to_f( ls_bits ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.
@@ -636,7 +636,7 @@ CLASS ltcl_bytes IMPLEMENTATION.
     ls_bits = zcl_sqlite_bytes=>read_f64( iv_data = '7FF8000000000000' iv_offset = 0 ).
     TRY.
         lv_value = zcl_sqlite_bytes=>f64_to_f( ls_bits ).
-        cl_abap_unit_assert=>fail( msg = 'expected cx_sy_conversion_overflow' ).
+        cl_abap_unit_assert=>fail( 'expected cx_sy_conversion_overflow' ).
       CATCH cx_sy_conversion_overflow.
 * expected
     ENDTRY.

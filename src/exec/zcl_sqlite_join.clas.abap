@@ -208,7 +208,7 @@ CLASS zcl_sqlite_join IMPLEMENTATION.
     DATA lv_name   TYPE string.
 
     ro_row = NEW zcl_sqlite_row( ).
-    ro_row->copy_cells( io_row = io_left ).
+    ro_row->copy_cells( io_left ).
 
     IF io_right IS BOUND.
       ro_row->copy_cells(

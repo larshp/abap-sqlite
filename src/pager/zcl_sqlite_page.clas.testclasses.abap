@@ -106,7 +106,7 @@ CLASS ltcl_page IMPLEMENTATION.
         ls_page = zcl_sqlite_page=>parse(
           iv_data = ls_raw-data iv_offset = ls_raw-btree_offset ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |small page 2 parse failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |small page 2 parse failed: { lo_error->message }| ).
     ENDTRY.
 
     cl_abap_unit_assert=>assert_equals( act = ls_page-cell_count exp = 3 ).
@@ -149,9 +149,9 @@ CLASS ltcl_page IMPLEMENTATION.
         ls_page = zcl_sqlite_page=>parse(
           iv_data = lv_data iv_offset = ls_raw-btree_offset ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |freeblock page parse failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |freeblock page parse failed: { lo_error->message }| ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not build freeblock page' ).
+        cl_abap_unit_assert=>fail( 'could not build freeblock page' ).
     ENDTRY.
 
     cl_abap_unit_assert=>assert_equals(
@@ -185,19 +185,19 @@ CLASS ltcl_page IMPLEMENTATION.
           iv_data = ls_raw-data iv_offset = 100 iv_value = 99 ).
         zcl_sqlite_page=>parse(
           iv_data = lv_data iv_offset = ls_raw-btree_offset ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not modify fixture page' ).
+        cl_abap_unit_assert=>fail( 'could not modify fixture page' ).
     ENDTRY.
   ENDMETHOD.
 
   METHOD truncated_header.
     TRY.
-        zcl_sqlite_page=>parse( iv_data = '00' ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        zcl_sqlite_page=>parse( '00' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
@@ -225,7 +225,7 @@ CLASS ltcl_page IMPLEMENTATION.
             iv_data = ls_raw-data iv_offset = ls_raw-btree_offset ).
         CATCH zcx_sqlite_error INTO DATA(lo_error).
           cl_abap_unit_assert=>fail(
-            msg = |{ iv_name } page { ls_expect-number } parse failed: { lo_error->message }| ).
+            |{ iv_name } page { ls_expect-number } parse failed: { lo_error->message }| ).
       ENDTRY.
 
       cl_abap_unit_assert=>assert_equals(
@@ -283,7 +283,7 @@ CLASS ltcl_page IMPLEMENTATION.
     TRY.
         ro_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |pager construction failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |pager construction failed: { lo_error->message }| ).
     ENDTRY.
   ENDMETHOD.
 
@@ -295,7 +295,7 @@ CLASS ltcl_page IMPLEMENTATION.
     TRY.
         rs_page = lo_pager->get_page( iv_page ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |page { iv_page } fetch failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |page { iv_page } fetch failed: { lo_error->message }| ).
     ENDTRY.
   ENDMETHOD.
 

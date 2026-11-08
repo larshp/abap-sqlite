@@ -1475,7 +1475,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
             io_value  = lt_values[ 1 ]
             io_digits = lt_values[ 2 ] ).
         ELSE.
-          ro_value = function_round( io_value = lt_values[ 1 ] ).
+          ro_value = function_round( lt_values[ 1 ] ).
         ENDIF.
       WHEN 'HEX'.
         require_arity( iv_name = lv_display iv_count = lv_count iv_min = 1 iv_max = 1 ).
@@ -2148,9 +2148,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     lv_scale = power_of_ten( iv_digits ).
     lv_scaled = iv_value * lv_scale.
     IF lv_scaled >= 0.
-      lv_scaled = floor( val = lv_scaled + c_half ).
+      lv_scaled = floor( lv_scaled + c_half ).
     ELSE.
-      lv_scaled = 0 - floor( val = 0 - lv_scaled + c_half ).
+      lv_scaled = 0 - floor( 0 - lv_scaled + c_half ).
     ENDIF.
     rv_value = lv_scaled / lv_scale.
   ENDMETHOD.
@@ -2999,7 +2999,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    lv_floor_real = floor( val = iv_real ).
+    lv_floor_real = floor( iv_real ).
     lv_floor_integer = lv_floor_real.
     IF iv_real = lv_floor_real.
       IF iv_integer < lv_floor_integer.
@@ -3637,7 +3637,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_scaled_real = lv_work * c_ten_pow_14.
     ENDIF.
 
-    lv_scaled = floor( val = lv_scaled_real + c_half ).
+    lv_scaled = floor( lv_scaled_real + c_half ).
     IF lv_scaled >= c_scaled_limit.
       lv_scaled = lv_scaled DIV 10.
       lv_exp = lv_exp + 1.
@@ -3834,9 +3834,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
   METHOD truncate_real.
     IF iv_value >= 0.
-      rv_value = floor( val = iv_value ).
+      rv_value = floor( iv_value ).
     ELSE.
-      rv_value = 0 - floor( val = 0 - iv_value ).
+      rv_value = 0 - floor( 0 - iv_value ).
     ENDIF.
   ENDMETHOD.
 

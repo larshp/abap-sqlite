@@ -63,7 +63,7 @@ CLASS ltcl_pager IMPLEMENTATION.
     lv_page_size = lo_pager->page_size( ).
 
     cl_abap_unit_assert=>assert_equals( act = lv_page_size exp = 4096 ).
-    cl_abap_unit_assert=>assert_true( act = boolc( lo_pager->page_count( ) >= 3 ) ).
+    cl_abap_unit_assert=>assert_true( boolc( lo_pager->page_count( ) >= 3 ) ).
 
     TRY.
         ls_page = lo_pager->get_page( 1 ).
@@ -87,7 +87,7 @@ CLASS ltcl_pager IMPLEMENTATION.
         lv_page = lv_all+lv_offset(lv_page_size).
         cl_abap_unit_assert=>assert_equals( act = ls_page-data exp = lv_page ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |page fetch failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |page fetch failed: { lo_error->message }| ).
     ENDTRY.
   ENDMETHOD.
 
@@ -105,7 +105,7 @@ CLASS ltcl_pager IMPLEMENTATION.
         lo_pager->get_page( 2 ).
         lo_pager->get_page( 1 ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |page fetch failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |page fetch failed: { lo_error->message }| ).
     ENDTRY.
 
     ls_stats = lo_pager->stats( ).
@@ -122,7 +122,7 @@ CLASS ltcl_pager IMPLEMENTATION.
 
     TRY.
         lo_pager->get_page( 0 ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
@@ -160,7 +160,7 @@ CLASS ltcl_pager IMPLEMENTATION.
         cl_abap_unit_assert=>assert_equals(
           act = lo_pager->dirty_page_count( ) exp = 0 ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |write failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |write failed: { lo_error->message }| ).
     ENDTRY.
 
     lv_file = file_data( ).
@@ -194,7 +194,7 @@ CLASS ltcl_pager IMPLEMENTATION.
         cl_abap_unit_assert=>assert_equals(
           act = lo_pager->get_page( 2 )-data exp = lv_original ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |rollback failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |rollback failed: { lo_error->message }| ).
     ENDTRY.
 
     lv_file = file_data( ).
@@ -235,7 +235,7 @@ CLASS ltcl_pager IMPLEMENTATION.
 
         lo_pager->commit( ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |dirty cache test failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |dirty cache test failed: { lo_error->message }| ).
     ENDTRY.
 
     lv_file = file_data( ).
@@ -266,14 +266,14 @@ CLASS ltcl_pager IMPLEMENTATION.
         lo_pager->commit( ).
         ls_pager = lo_pager->header( ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |header commit failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |header commit failed: { lo_error->message }| ).
     ENDTRY.
 
     lv_file = file_data( ).
     TRY.
         ls_after = zcl_sqlite_header=>parse( lv_file ).
       CATCH zcx_sqlite_error INTO DATA(lo_parse_error).
-        cl_abap_unit_assert=>fail( msg = |header parse failed: { lo_parse_error->message }| ).
+        cl_abap_unit_assert=>fail( |header parse failed: { lo_parse_error->message }| ).
     ENDTRY.
 
     cl_abap_unit_assert=>assert_equals(
@@ -307,7 +307,7 @@ CLASS ltcl_pager IMPLEMENTATION.
         ls_before = zcl_sqlite_header=>parse( lv_before ).
         ls_after = zcl_sqlite_header=>parse( file_data( ) ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |empty commit failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |empty commit failed: { lo_error->message }| ).
     ENDTRY.
 
     lv_after = file_data( ).
@@ -326,13 +326,13 @@ CLASS ltcl_pager IMPLEMENTATION.
     TRY.
         lv_page = lo_pager->get_page( 2 )-data.
       CATCH zcx_sqlite_error INTO DATA(lo_read_error).
-        cl_abap_unit_assert=>fail( msg = |page read failed: { lo_read_error->message }| ).
+        cl_abap_unit_assert=>fail( |page read failed: { lo_read_error->message }| ).
     ENDTRY.
     lv_short = lv_page+0(10).
 
     TRY.
         lo_pager->put_page( iv_page = 0 iv_data = lv_page ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
@@ -340,7 +340,7 @@ CLASS ltcl_pager IMPLEMENTATION.
 
     TRY.
         lo_pager->put_page( iv_page = 2 iv_data = lv_short ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_size_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_size_error->code exp = zcx_sqlite_error=>sqlite_misuse ).
@@ -397,7 +397,7 @@ CLASS ltcl_pager IMPLEMENTATION.
 
         TRY.
             lo_pager->free_page( lv_page1 ).
-            cl_abap_unit_assert=>fail( msg = 'double free must fail' ).
+            cl_abap_unit_assert=>fail( 'double free must fail' ).
           CATCH zcx_sqlite_error INTO DATA(lo_error).
             cl_abap_unit_assert=>assert_equals(
               act = lo_error->code
@@ -407,7 +407,7 @@ CLASS ltcl_pager IMPLEMENTATION.
 
         lo_pager->commit( ).
       CATCH zcx_sqlite_error INTO DATA(lo_commit_error).
-        cl_abap_unit_assert=>fail( msg = |freelist write failed: { lo_commit_error->message }| ).
+        cl_abap_unit_assert=>fail( |freelist write failed: { lo_commit_error->message }| ).
     ENDTRY.
 
     lv_file = file_data( ).
@@ -451,7 +451,7 @@ CLASS ltcl_pager IMPLEMENTATION.
           act = lo_pager->freelist_count( ) exp = 1 msg = 'new trunk count' ).
         lo_pager->commit( ).
       CATCH zcx_sqlite_error INTO DATA(lo_reuse_error).
-        cl_abap_unit_assert=>fail( msg = |freelist reuse failed: { lo_reuse_error->message }| ).
+        cl_abap_unit_assert=>fail( |freelist reuse failed: { lo_reuse_error->message }| ).
     ENDTRY.
 
     lv_file = file_data( ).
@@ -495,7 +495,7 @@ CLASS ltcl_pager IMPLEMENTATION.
 
         lo_pager->commit( ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |freelist rollback failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |freelist rollback failed: { lo_error->message }| ).
     ENDTRY.
 
     lv_file_after = file_data( ).
@@ -515,7 +515,7 @@ CLASS ltcl_pager IMPLEMENTATION.
           io_file       = lo_file
           iv_cache_size = iv_cache_size ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |pager construction failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |pager construction failed: { lo_error->message }| ).
     ENDTRY.
   ENDMETHOD.
 
@@ -528,7 +528,7 @@ CLASS ltcl_pager IMPLEMENTATION.
     TRY.
         lo_file->write( iv_offset = 0 iv_data = fixture( ) ).
       CATCH cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not seed writable pager' ).
+        cl_abap_unit_assert=>fail( 'could not seed writable pager' ).
     ENDTRY.
 
     TRY.
@@ -536,7 +536,7 @@ CLASS ltcl_pager IMPLEMENTATION.
           io_file       = lo_file
           iv_cache_size = iv_cache_size ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |pager construction failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |pager construction failed: { lo_error->message }| ).
     ENDTRY.
   ENDMETHOD.
 
@@ -550,7 +550,7 @@ CLASS ltcl_pager IMPLEMENTATION.
     TRY.
         ls_read = lo_file->read( iv_offset = 0 iv_amount = lv_size ).
       CATCH cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not read writable pager file' ).
+        cl_abap_unit_assert=>fail( 'could not read writable pager file' ).
     ENDTRY.
     rv_data = ls_read-data.
   ENDMETHOD.
@@ -568,7 +568,7 @@ CLASS ltcl_pager IMPLEMENTATION.
           iv_data   = iv_data
           iv_offset = iv_offset ).
       CATCH cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not read freelist page' ).
+        cl_abap_unit_assert=>fail( 'could not read freelist page' ).
     ENDTRY.
   ENDMETHOD.
 
@@ -579,7 +579,7 @@ CLASS ltcl_pager IMPLEMENTATION.
           iv_offset = iv_offset
           iv_value  = iv_value ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not change page byte' ).
+        cl_abap_unit_assert=>fail( 'could not change page byte' ).
     ENDTRY.
   ENDMETHOD.
 

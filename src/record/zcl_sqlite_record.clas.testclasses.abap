@@ -46,7 +46,7 @@ CLASS ltcl_record IMPLEMENTATION.
     TRY.
         lt_values = zcl_sqlite_record=>decode( lv_record ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |first record decode failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |first record decode failed: { lo_error->message }| ).
     ENDTRY.
 
     lt_expected = VALUE #(
@@ -71,7 +71,7 @@ CLASS ltcl_record IMPLEMENTATION.
     TRY.
         lt_values = zcl_sqlite_record=>decode( lv_record ).
       CATCH zcx_sqlite_error INTO lo_error.
-        cl_abap_unit_assert=>fail( msg = |second record decode failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |second record decode failed: { lo_error->message }| ).
     ENDTRY.
 
     lt_expected = VALUE #(
@@ -96,7 +96,7 @@ CLASS ltcl_record IMPLEMENTATION.
   METHOD reserved_serial_type.
     TRY.
         zcl_sqlite_record=>decode( '020A' ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
@@ -106,7 +106,7 @@ CLASS ltcl_record IMPLEMENTATION.
   METHOD truncated_record.
     TRY.
         zcl_sqlite_record=>decode( '0201' ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
@@ -116,7 +116,7 @@ CLASS ltcl_record IMPLEMENTATION.
   METHOD bad_header.
     TRY.
         zcl_sqlite_record=>decode( '05' ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
@@ -141,7 +141,7 @@ CLASS ltcl_record IMPLEMENTATION.
         ls_page = zcl_sqlite_page=>parse(
           iv_data = ls_raw-data iv_offset = ls_raw-btree_offset ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |record page parse failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |record page parse failed: { lo_error->message }| ).
     ENDTRY.
 
     LOOP AT ls_page-cell_offsets INTO lv_cell_offset.
@@ -155,12 +155,12 @@ CLASS ltcl_record IMPLEMENTATION.
           lv_payload_offset = lv_rowid_offset + lv_rowid_length.
 
           IF lv_payload_length_i8 > xstrlen( ls_raw-data ) - lv_payload_offset.
-            cl_abap_unit_assert=>fail( msg = 'fixture record is truncated' ).
+            cl_abap_unit_assert=>fail( 'fixture record is truncated' ).
           ENDIF.
           lv_payload_length = lv_payload_length_i8.
           lv_record = ls_raw-data+lv_payload_offset(lv_payload_length).
         CATCH cx_sy_range_out_of_bounds.
-          cl_abap_unit_assert=>fail( msg = 'fixture cell is truncated' ).
+          cl_abap_unit_assert=>fail( 'fixture cell is truncated' ).
       ENDTRY.
       APPEND lv_record TO rt_records.
     ENDLOOP.
@@ -219,7 +219,7 @@ CLASS ltcl_record IMPLEMENTATION.
     TRY.
         ro_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |pager construction failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |pager construction failed: { lo_error->message }| ).
     ENDTRY.
   ENDMETHOD.
 

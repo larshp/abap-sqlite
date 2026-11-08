@@ -191,8 +191,8 @@ CLASS ltcl_language IMPLEMENTATION.
     DATA lv_text TYPE string.
 
     TRY.
-        lo_out = cl_abap_conv_codepage=>create_out( codepage = 'UTF-8' ).
-        lo_in = cl_abap_conv_codepage=>create_in( codepage = 'UTF-8' ).
+        lo_out = cl_abap_conv_codepage=>create_out( 'UTF-8' ).
+        lo_in = cl_abap_conv_codepage=>create_in( 'UTF-8' ).
 
         lv_bytes = lo_out->convert( 'Hello' ).
         cl_abap_unit_assert=>assert_equals( act = lv_bytes exp = '48656C6C6F' ).
@@ -219,7 +219,7 @@ CLASS ltcl_language IMPLEMENTATION.
         lv_bytes = lo_out->convert( '' ).
         cl_abap_unit_assert=>assert_equals( act = xstrlen( lv_bytes ) exp = 0 ).
       CATCH cx_root INTO DATA(lx_error).
-        cl_abap_unit_assert=>fail( msg = lx_error->get_text( ) ).
+        cl_abap_unit_assert=>fail( lx_error->get_text( ) ).
     ENDTRY.
   ENDMETHOD.
 

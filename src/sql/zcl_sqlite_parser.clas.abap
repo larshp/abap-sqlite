@@ -2303,8 +2303,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
               iv_kind  = ls_token-value
               iv_value = '' ).
           WHEN OTHERS.
-            IF token_at( iv_ahead = 1 )-kind = zcl_sqlite_tokenizer=>c_lparen.
-              ro_node = parse_name_or_function( iv_keep_case = abap_true ).
+            IF token_at( 1 )-kind = zcl_sqlite_tokenizer=>c_lparen.
+              ro_node = parse_name_or_function( abap_true ).
             ELSE.
               fail( 'syntax error' ).
             ENDIF.

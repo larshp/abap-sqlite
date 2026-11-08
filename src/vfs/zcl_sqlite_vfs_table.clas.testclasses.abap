@@ -92,7 +92,7 @@ CLASS ltcl_vfs_table IMPLEMENTATION.
 
     TRY.
         lv_export = lo_table->export( 'missing.db' ).
-        cl_abap_unit_assert=>fail( msg = 'export of a missing file must fail' ).
+        cl_abap_unit_assert=>fail( 'export of a missing file must fail' ).
       CATCH cx_sy_file_access_error.
 * expected
     ENDTRY.

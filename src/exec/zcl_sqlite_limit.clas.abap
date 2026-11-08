@@ -103,7 +103,7 @@ CLASS zcl_sqlite_limit IMPLEMENTATION.
     DATA lv_floor TYPE f.
     DATA lv_text  TYPE string.
 
-    lo_value = zcl_sqlite_expr_eval=>evaluate( io_expression = io_expression ).
+    lo_value = zcl_sqlite_expr_eval=>evaluate( io_expression ).
     IF lo_value->is_null( ) = abap_true.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING iv_message = 'datatype mismatch'.
@@ -114,7 +114,7 @@ CLASS zcl_sqlite_limit IMPLEMENTATION.
         rv_value = lo_value->as_integer( ).
       WHEN zcl_sqlite_value=>c_real.
         lv_real = lo_value->as_real( ).
-        lv_floor = floor( val = lv_real ).
+        lv_floor = floor( lv_real ).
         IF lv_real <> lv_floor.
           RAISE EXCEPTION TYPE zcx_sqlite_error
             EXPORTING iv_message = 'datatype mismatch'.

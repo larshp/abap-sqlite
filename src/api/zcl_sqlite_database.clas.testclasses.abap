@@ -662,7 +662,7 @@ CLASS ltcl_database IMPLEMENTATION.
 
     TRY.
         lo_database = zcl_sqlite_database=>create( lv_name ).
-        cl_abap_unit_assert=>fail( msg = 'creating an existing database must fail' ).
+        cl_abap_unit_assert=>fail( 'creating an existing database must fail' ).
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code
@@ -790,7 +790,7 @@ CLASS ltcl_query_harness IMPLEMENTATION.
     ENDLOOP.
 
     IF mv_failures IS NOT INITIAL.
-      cl_abap_unit_assert=>fail( msg = mv_failures ).
+      cl_abap_unit_assert=>fail( mv_failures ).
     ENDIF.
   ENDMETHOD.
 

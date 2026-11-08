@@ -52,7 +52,7 @@ CLASS zcl_sqlite_vfs_contract IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD create_vfs.
-    cl_abap_unit_assert=>fail( msg = 'create_vfs must be redefined' ).
+    cl_abap_unit_assert=>fail( 'create_vfs must be redefined' ).
   ENDMETHOD.
 
   METHOD check_open.
@@ -165,7 +165,7 @@ CLASS zcl_sqlite_vfs_contract IMPLEMENTATION.
 
     TRY.
         lo_vfs->rename( iv_name = 'missing' iv_new_name = 'other' ).
-        cl_abap_unit_assert=>fail( msg = 'rename of a missing file must fail' ).
+        cl_abap_unit_assert=>fail( 'rename of a missing file must fail' ).
       CATCH cx_sy_file_access_error.
 * expected
     ENDTRY.
@@ -173,7 +173,7 @@ CLASS zcl_sqlite_vfs_contract IMPLEMENTATION.
     lo_vfs->open( 'target' ).
     TRY.
         lo_vfs->rename( iv_name = 'new' iv_new_name = 'target' ).
-        cl_abap_unit_assert=>fail( msg = 'rename to an existing file must fail' ).
+        cl_abap_unit_assert=>fail( 'rename to an existing file must fail' ).
       CATCH cx_sy_file_access_error.
 * expected
     ENDTRY.
@@ -286,7 +286,7 @@ CLASS zcl_sqlite_vfs_contract IMPLEMENTATION.
       io_file = lo_file iv_offset = 4048 iv_amount = 64
       iv_data = lv_part iv_short = abap_false iv_msg = 'read across a block boundary' ).
 
-    lo_file->truncate( iv_size = 4100 ).
+    lo_file->truncate( 4100 ).
     cl_abap_unit_assert=>assert_equals(
       act = lo_file->size( ) exp = 4100 msg = 'large truncate size' ).
     lv_zeros = repeat( val = '00' occ = 12 ).
@@ -296,7 +296,7 @@ CLASS zcl_sqlite_vfs_contract IMPLEMENTATION.
       iv_data = lv_part
       iv_short = abap_true iv_msg = 'truncate inside the second block' ).
 
-    lo_file->truncate( iv_size = 4112 ).
+    lo_file->truncate( 4112 ).
     cl_abap_unit_assert=>assert_equals(
       act = lo_file->size( ) exp = 4112 msg = 'large grow size' ).
     check_read_result(
@@ -312,28 +312,28 @@ CLASS zcl_sqlite_vfs_contract IMPLEMENTATION.
     lo_file = lo_vfs->open( 'truncate' ).
     lo_file->write( iv_offset = 0 iv_data = '010203040506' ).
 
-    lo_file->truncate( iv_size = 3 ).
+    lo_file->truncate( 3 ).
     cl_abap_unit_assert=>assert_equals(
       act = lo_file->size( ) exp = 3 msg = 'shrink size' ).
     check_read_result(
       io_file = lo_file iv_offset = 0 iv_amount = 4
       iv_data = '01020300' iv_short = abap_true iv_msg = 'shrink keeps the prefix' ).
 
-    lo_file->truncate( iv_size = 5 ).
+    lo_file->truncate( 5 ).
     cl_abap_unit_assert=>assert_equals(
       act = lo_file->size( ) exp = 5 msg = 'grow size' ).
     check_read_result(
       io_file = lo_file iv_offset = 0 iv_amount = 5
       iv_data = '0102030000' iv_short = abap_false iv_msg = 'grow zero fills' ).
 
-    lo_file->truncate( iv_size = 0 ).
+    lo_file->truncate( 0 ).
     cl_abap_unit_assert=>assert_equals(
       act = lo_file->size( ) exp = 0 msg = 'truncate to empty' ).
     check_read_result(
       io_file = lo_file iv_offset = 0 iv_amount = 2
       iv_data = '0000' iv_short = abap_true iv_msg = 'truncated file reads as zeros' ).
 
-    lo_file->truncate( iv_size = 2 ).
+    lo_file->truncate( 2 ).
     cl_abap_unit_assert=>assert_equals(
       act = lo_file->size( ) exp = 2 msg = 'grow an empty file' ).
     check_read_result(
@@ -379,28 +379,28 @@ CLASS zcl_sqlite_vfs_contract IMPLEMENTATION.
 
     TRY.
         ls_result = lo_file->read( iv_offset = -1 iv_amount = 1 ).
-        cl_abap_unit_assert=>fail( msg = 'negative read offset must fail' ).
+        cl_abap_unit_assert=>fail( 'negative read offset must fail' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
         ls_result = lo_file->read( iv_offset = 0 iv_amount = -1 ).
-        cl_abap_unit_assert=>fail( msg = 'negative read amount must fail' ).
+        cl_abap_unit_assert=>fail( 'negative read amount must fail' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
         lo_file->write( iv_offset = -1 iv_data = '00' ).
-        cl_abap_unit_assert=>fail( msg = 'negative write offset must fail' ).
+        cl_abap_unit_assert=>fail( 'negative write offset must fail' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.
 
     TRY.
-        lo_file->truncate( iv_size = -1 ).
-        cl_abap_unit_assert=>fail( msg = 'negative truncate size must fail' ).
+        lo_file->truncate( -1 ).
+        cl_abap_unit_assert=>fail( 'negative truncate size must fail' ).
       CATCH cx_sy_range_out_of_bounds.
 * expected
     ENDTRY.

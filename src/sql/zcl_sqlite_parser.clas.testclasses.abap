@@ -277,7 +277,8 @@ CLASS ltcl_parser IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD fixture_ddl.
-    DATA lt_sql TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
+    TYPES temp1 TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
+    DATA lt_sql TYPE temp1.
     DATA lv_sql TYPE string.
     DATA lv_dump TYPE string.
 
@@ -306,7 +307,7 @@ CLASS ltcl_parser IMPLEMENTATION.
       TRY.
           lv_dump = zcl_sqlite_parser=>dump_statement( lv_sql ).
         CATCH zcx_sqlite_error INTO DATA(lo_error).
-          cl_abap_unit_assert=>fail( msg = |fixture DDL did not parse: { lv_sql }: { lo_error->get_text( ) }| ).
+          cl_abap_unit_assert=>fail( |fixture DDL did not parse: { lv_sql }: { lo_error->get_text( ) }| ).
       ENDTRY.
       cl_abap_unit_assert=>assert_true(
         act = boolc( lv_dump IS NOT INITIAL )
@@ -893,7 +894,7 @@ CLASS ltcl_parser IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_parser=>dump_script( |SELECT 1; BOGUS;| ).
-        cl_abap_unit_assert=>fail( msg = |expected a script error| ).
+        cl_abap_unit_assert=>fail( |expected a script error| ).
       CATCH zcx_sqlite_error.
     ENDTRY.
   ENDMETHOD.
@@ -1008,7 +1009,7 @@ CLASS ltcl_parser IMPLEMENTATION.
     lv_sql = |SELECT 1,| && cl_abap_char_utilities=>newline && |2 3|.
     TRY.
         zcl_sqlite_parser=>dump_statement( lv_sql ).
-        cl_abap_unit_assert=>fail( msg = |expected a syntax error for { lv_sql }| ).
+        cl_abap_unit_assert=>fail( |expected a syntax error for { lv_sql }| ).
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->message
@@ -1031,7 +1032,7 @@ CLASS ltcl_parser IMPLEMENTATION.
     lv_sql = |SELECT 1;| && cl_abap_char_utilities=>newline && |BOGUS;|.
     TRY.
         zcl_sqlite_parser=>dump_script( lv_sql ).
-        cl_abap_unit_assert=>fail( msg = |expected a script syntax error for { lv_sql }| ).
+        cl_abap_unit_assert=>fail( |expected a script syntax error for { lv_sql }| ).
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->message
@@ -1054,7 +1055,7 @@ CLASS ltcl_parser IMPLEMENTATION.
     lv_sql = |SELECT 1; -- comment| && cl_abap_char_utilities=>newline && |BOGUS;|.
     TRY.
         zcl_sqlite_parser=>dump_script( lv_sql ).
-        cl_abap_unit_assert=>fail( msg = |expected a script syntax error for { lv_sql }| ).
+        cl_abap_unit_assert=>fail( |expected a script syntax error for { lv_sql }| ).
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->position
@@ -1084,7 +1085,7 @@ CLASS ltcl_parser IMPLEMENTATION.
   METHOD assert_error.
     TRY.
         zcl_sqlite_parser=>dump_expression( iv_sql ).
-        cl_abap_unit_assert=>fail( msg = |expected a syntax error for { iv_sql }| ).
+        cl_abap_unit_assert=>fail( |expected a syntax error for { iv_sql }| ).
       CATCH zcx_sqlite_error.
     ENDTRY.
   ENDMETHOD.
@@ -1102,7 +1103,7 @@ CLASS ltcl_parser IMPLEMENTATION.
   METHOD assert_statement_error.
     TRY.
         zcl_sqlite_parser=>dump_statement( iv_sql ).
-        cl_abap_unit_assert=>fail( msg = |expected a statement error for { iv_sql }| ).
+        cl_abap_unit_assert=>fail( |expected a statement error for { iv_sql }| ).
       CATCH zcx_sqlite_error.
     ENDTRY.
   ENDMETHOD.
@@ -1112,7 +1113,7 @@ CLASS ltcl_parser IMPLEMENTATION.
 
     TRY.
         zcl_sqlite_parser=>dump_statement( iv_sql ).
-        cl_abap_unit_assert=>fail( msg = |expected a statement error for { iv_sql }| ).
+        cl_abap_unit_assert=>fail( |expected a statement error for { iv_sql }| ).
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code

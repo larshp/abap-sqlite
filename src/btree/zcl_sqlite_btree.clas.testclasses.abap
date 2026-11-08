@@ -69,7 +69,7 @@ CLASS ltcl_btree IMPLEMENTATION.
     TRY.
         zcl_sqlite_btree=>local_payload_size(
           iv_payload_size = 10 iv_usable_size = 479 ).
-        cl_abap_unit_assert=>fail( msg = 'small usable size was accepted' ).
+        cl_abap_unit_assert=>fail( 'small usable size was accepted' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).

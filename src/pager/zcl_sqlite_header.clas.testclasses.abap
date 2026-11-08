@@ -49,7 +49,7 @@ CLASS ltcl_header IMPLEMENTATION.
     TRY.
         ls_header = zcl_sqlite_header=>parse( fixture( iv_name ) ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |{ iv_name } parse failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |{ iv_name } parse failed: { lo_error->message }| ).
     ENDTRY.
 
 * the expectations are the PRAGMA values written to the fixture JSON
@@ -97,7 +97,7 @@ CLASS ltcl_header IMPLEMENTATION.
     TRY.
         ls_header = zcl_sqlite_header=>parse( build_header( ) ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |synthetic header parse failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |synthetic header parse failed: { lo_error->message }| ).
     ENDTRY.
 
     cl_abap_unit_assert=>assert_equals( act = ls_header-page_size exp = 1024 ).
@@ -134,16 +134,16 @@ CLASS ltcl_header IMPLEMENTATION.
         cl_abap_unit_assert=>assert_equals(
           act = ls_header-page_size exp = 65536 ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |parse failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |parse failed: { lo_error->message }| ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not build header' ).
+        cl_abap_unit_assert=>fail( 'could not build header' ).
     ENDTRY.
   ENDMETHOD.
 
   METHOD short_header.
     TRY.
         zcl_sqlite_header=>parse( zcl_sqlite_header=>c_magic ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_notadb ).
@@ -158,12 +158,12 @@ CLASS ltcl_header IMPLEMENTATION.
         lv_data = zcl_sqlite_bytes=>write_u8(
           iv_data = lv_data iv_offset = 0 iv_value = 0 ).
         zcl_sqlite_header=>parse( lv_data ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_notadb ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not modify fixture' ).
+        cl_abap_unit_assert=>fail( 'could not modify fixture' ).
     ENDTRY.
   ENDMETHOD.
 
@@ -175,12 +175,12 @@ CLASS ltcl_header IMPLEMENTATION.
         lv_data = zcl_sqlite_bytes=>write_u16(
           iv_data = lv_data iv_offset = 16 iv_value = 1000 ).
         zcl_sqlite_header=>parse( lv_data ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_notadb ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not modify fixture' ).
+        cl_abap_unit_assert=>fail( 'could not modify fixture' ).
     ENDTRY.
   ENDMETHOD.
 
@@ -192,12 +192,12 @@ CLASS ltcl_header IMPLEMENTATION.
         lv_data = zcl_sqlite_bytes=>write_u32(
           iv_data = lv_data iv_offset = 56 iv_value = 4 ).
         zcl_sqlite_header=>parse( lv_data ).
-        cl_abap_unit_assert=>fail( msg = 'expected zcx_sqlite_error' ).
+        cl_abap_unit_assert=>fail( 'expected zcx_sqlite_error' ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code exp = zcx_sqlite_error=>sqlite_corrupt ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not modify fixture' ).
+        cl_abap_unit_assert=>fail( 'could not modify fixture' ).
     ENDTRY.
   ENDMETHOD.
 
@@ -256,7 +256,7 @@ CLASS ltcl_header IMPLEMENTATION.
         lv_header = zcl_sqlite_bytes=>write_u32(
           iv_data = lv_header iv_offset = 96 iv_value = 3054000 ).
       CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
-        cl_abap_unit_assert=>fail( msg = 'could not build header' ).
+        cl_abap_unit_assert=>fail( 'could not build header' ).
     ENDTRY.
     rv_data = lv_header.
   ENDMETHOD.

@@ -730,7 +730,7 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     WHILE lv_found = abap_true.
       lv_count = lv_count + 1.
       IF lv_count > lines( it_expected ).
-        cl_abap_unit_assert=>fail( msg = |{ iv_name } returned too many table rows| ).
+        cl_abap_unit_assert=>fail( |{ iv_name } returned too many table rows| ).
       ENDIF.
       READ TABLE it_expected INTO ls_expected INDEX lv_count.
       lt_raw = lo_cursor->values( ).
@@ -770,7 +770,7 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
     WHILE lv_found = abap_true.
       lv_count = lv_count + 1.
       IF lv_count > lines( it_expected ).
-        cl_abap_unit_assert=>fail( msg = |{ iv_name } returned too many index entries| ).
+        cl_abap_unit_assert=>fail( |{ iv_name } returned too many index entries| ).
       ENDIF.
       READ TABLE it_expected INTO ls_expected INDEX lv_count.
       assert_row(
@@ -859,7 +859,7 @@ CLASS ltcl_fixture_breadth IMPLEMENTATION.
           act = io_value->is_null( ) exp = abap_true
           msg = |{ iv_context } is null| ).
       WHEN OTHERS.
-        cl_abap_unit_assert=>fail( msg = |{ iv_context } expectation kind is invalid| ).
+        cl_abap_unit_assert=>fail( |{ iv_context } expectation kind is invalid| ).
     ENDCASE.
   ENDMETHOD.
 

@@ -50,7 +50,7 @@
     "local_variable_names": false,
     "main_file_contents": true,
     "max_one_method_parameter_per_line": true,
-    "method_length": true,
+    "method_length": false,
     "method_parameter_names": false,
     "mix_returning": true,
     "use_new": true,

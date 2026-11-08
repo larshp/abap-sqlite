@@ -44,7 +44,7 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
         iv_key    = expected_key( lv_count ) ).
 
       IF lv_count > 100.
-        cl_abap_unit_assert=>fail( msg = 'index cursor did not stop' ).
+        cl_abap_unit_assert=>fail( 'index cursor did not stop' ).
       ENDIF.
       lv_found = lo_cursor->next( ).
     ENDWHILE.
@@ -155,7 +155,7 @@ CLASS ltcl_index_cursor IMPLEMENTATION.
           io_pager     = lo_pager
           iv_root_page = c_root_page ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |index cursor construction failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |index cursor construction failed: { lo_error->message }| ).
     ENDTRY.
   ENDMETHOD.
 

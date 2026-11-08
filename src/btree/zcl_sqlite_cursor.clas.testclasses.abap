@@ -78,7 +78,7 @@ CLASS ltcl_cursor IMPLEMENTATION.
         msg = |row { lv_count } value| ).
 
       IF lv_count > 10000.
-        cl_abap_unit_assert=>fail( msg = 'cursor did not stop at the end' ).
+        cl_abap_unit_assert=>fail( 'cursor did not stop at the end' ).
       ENDIF.
 
       lv_found = lo_cursor->next( ).
@@ -220,7 +220,7 @@ CLASS ltcl_cursor IMPLEMENTATION.
           io_pager     = lo_pager
           iv_root_page = iv_root_page ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>fail( msg = |cursor construction failed: { lo_error->message }| ).
+        cl_abap_unit_assert=>fail( |cursor construction failed: { lo_error->message }| ).
     ENDTRY.
   ENDMETHOD.
 
