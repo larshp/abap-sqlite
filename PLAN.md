@@ -496,8 +496,8 @@ queries) still matches sql.js.
 
 #### M5.4 Record encoding and leaf insert
 
-- [ ] `ZCL_SQLITE_RECORD` encode (smallest serial type per value)
-- [ ] Table b-tree insert into a leaf with free space (cell placement, freeblocks)
+- [x] `ZCL_SQLITE_RECORD` encode (smallest serial type per value)
+- [x] Table b-tree insert into a leaf with free space (cell placement, freeblocks)
 
 **Done when:** rows inserted through the b-tree API into a fixture table read back correctly in
 sql.js.

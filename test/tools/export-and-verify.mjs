@@ -110,6 +110,37 @@ async function verifyEmpty(SQL, tempDir) {
   );
 }
 
+async function verifyInsert(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.insert_rows({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "insert.db");
+
+  try {
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.equal(scalar(exported.db, "PRAGMA page_count"), 2, "insert should not grow the file");
+    assert.equal(scalar(exported.db, "PRAGMA freelist_count"), 0, "freelist_count mismatch");
+    assert.deepEqual(
+      rows(exported.db, "SELECT id, name, price FROM items ORDER BY id"),
+      [
+        [0, "zero", 0],
+        [1, "alpha", 1.5],
+        [2, "beta", 2.25],
+        [3, "gamma", null],
+        [4, "delta", 4.5],
+        [5, "epsilon", null],
+        [7, "x".repeat(2000), 7.5],
+        [10, "ten", -1.25],
+      ],
+      "inserted rows differ",
+    );
+  } finally {
+    exported.db.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, 5 rows inserted)`,
+  );
+}
+
 async function verifyFreelist(SQL, tempDir) {
   const fileName = (await zcl_sqlite_scenario.freelist_cycle({rv_name: 1})).get();
   const exported = await openExported(SQL, tempDir, fileName, "freelist.db");
@@ -132,6 +163,7 @@ const tempDir = await mkdtemp(path.join(os.tmpdir(), "abap-sqlite-"));
 
 try {
   await verifyEmpty(SQL, tempDir);
+  await verifyInsert(SQL, tempDir);
   await verifyFreelist(SQL, tempDir);
 } finally {
   await rm(tempDir, {recursive: true, force: true});

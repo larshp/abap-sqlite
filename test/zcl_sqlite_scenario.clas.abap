@@ -9,6 +9,7 @@ CLASS zcl_sqlite_scenario DEFINITION
   PUBLIC SECTION.
     CONSTANTS c_empty_database TYPE string VALUE 'compat/empty.db'.
     CONSTANTS c_freelist_database TYPE string VALUE 'compat/freelist.db'.
+    CONSTANTS c_insert_database TYPE string VALUE 'compat/insert.db'.
 
     CLASS-METHODS create_empty
       RETURNING VALUE(rv_name) TYPE string
@@ -16,6 +17,25 @@ CLASS zcl_sqlite_scenario DEFINITION
 
     CLASS-METHODS freelist_cycle
       RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS insert_rows
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+  PRIVATE SECTION.
+    CLASS-METHODS make_freeblock
+      IMPORTING io_pager         TYPE REF TO zcl_sqlite_pager
+                iv_page          TYPE i
+                iv_size          TYPE i
+      RETURNING VALUE(rv_offset) TYPE i
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS set_u16
+      IMPORTING iv_data        TYPE xstring
+                iv_offset      TYPE i
+                iv_value       TYPE int8
+      RETURNING VALUE(rv_data) TYPE xstring
       RAISING   zcx_sqlite_error.
 
 ENDCLASS.
@@ -76,6 +96,133 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
 
     lo_file->close( ).
     rv_name = c_freelist_database.
+  ENDMETHOD.
+
+  METHOD insert_rows.
+    DATA lo_vfs TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_file TYPE REF TO zif_sqlite_file.
+    DATA lo_pager TYPE REF TO zcl_sqlite_pager.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lv_fixture TYPE xstring.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lv_long_name TYPE string.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( c_insert_database ).
+    TRY.
+        lv_fixture = lo_vfs->export( 'fixtures/small.db' ).
+      CATCH cx_sy_file_access_error.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_notadb
+            iv_message = 'small.db fixture is missing'.
+    ENDTRY.
+    lo_vfs->import( iv_name = c_insert_database
+                    iv_data = lv_fixture ).
+
+    lo_file = lo_vfs->zif_sqlite_vfs~open( c_insert_database ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+
+* carve a freeblock out of the gap so the first insert reuses it
+    make_freeblock( io_pager = lo_pager
+                    iv_page  = 2
+                    iv_size  = 100 ).
+
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = lo_pager
+      iv_root_page = 2 ).
+
+    APPEND zcl_sqlite_value=>integer( 4 ) TO lt_values.
+    APPEND zcl_sqlite_value=>text( 'delta' ) TO lt_values.
+    APPEND zcl_sqlite_value=>real( '4.5' ) TO lt_values.
+    lo_writer->insert_row(
+      iv_rowid   = 4
+      iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
+
+    CLEAR lt_values.
+    APPEND zcl_sqlite_value=>integer( 0 ) TO lt_values.
+    APPEND zcl_sqlite_value=>text( 'zero' ) TO lt_values.
+    APPEND zcl_sqlite_value=>real( '0' ) TO lt_values.
+    lo_writer->insert_row(
+      iv_rowid   = 0
+      iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
+
+    CLEAR lt_values.
+    lv_long_name = repeat( val = 'x'
+                           occ = 2000 ).
+    APPEND zcl_sqlite_value=>integer( 7 ) TO lt_values.
+    APPEND zcl_sqlite_value=>text( lv_long_name ) TO lt_values.
+    APPEND zcl_sqlite_value=>real( '7.5' ) TO lt_values.
+    lo_writer->insert_row(
+      iv_rowid   = 7
+      iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
+
+    CLEAR lt_values.
+    APPEND zcl_sqlite_value=>integer( 5 ) TO lt_values.
+    APPEND zcl_sqlite_value=>text( 'epsilon' ) TO lt_values.
+    APPEND zcl_sqlite_value=>null( ) TO lt_values.
+    lo_writer->insert_row(
+      iv_rowid   = 5
+      iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
+
+    CLEAR lt_values.
+    APPEND zcl_sqlite_value=>integer( 10 ) TO lt_values.
+    APPEND zcl_sqlite_value=>text( 'ten' ) TO lt_values.
+    APPEND zcl_sqlite_value=>real( '-1.25' ) TO lt_values.
+    lo_writer->insert_row(
+      iv_rowid   = 10
+      iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
+
+    lo_pager->commit( ).
+    lo_file->close( ).
+    rv_name = c_insert_database.
+  ENDMETHOD.
+
+  METHOD make_freeblock.
+    DATA ls_raw TYPE zcl_sqlite_pager=>ty_page.
+    DATA ls_page TYPE zcl_sqlite_page=>ty_page.
+    DATA lv_data TYPE xstring.
+
+    ls_raw = io_pager->get_page( iv_page ).
+    ls_page = zcl_sqlite_page=>parse(
+      iv_data   = ls_raw-data
+      iv_offset = ls_raw-btree_offset ).
+    rv_offset = ls_page-cell_content_offset - iv_size.
+
+    lv_data = ls_raw-data.
+    lv_data = set_u16(
+      iv_data   = lv_data
+      iv_offset = ls_page-cell_pointer_offset - 7
+      iv_value  = CONV int8( rv_offset ) ).
+    lv_data = set_u16(
+      iv_data   = lv_data
+      iv_offset = ls_page-cell_pointer_offset - 3
+      iv_value  = CONV int8( rv_offset ) ).
+    lv_data = set_u16(
+      iv_data   = lv_data
+      iv_offset = rv_offset
+      iv_value  = 0 ).
+    lv_data = set_u16(
+      iv_data   = lv_data
+      iv_offset = rv_offset + 2
+      iv_value  = CONV int8( iv_size ) ).
+
+    io_pager->put_page( iv_page = iv_page
+                        iv_data = lv_data ).
+  ENDMETHOD.
+
+  METHOD set_u16.
+    TRY.
+        rv_data = zcl_sqlite_bytes=>write_u16(
+          iv_data   = iv_data
+          iv_offset = iv_offset
+          iv_value  = iv_value ).
+      CATCH cx_sy_range_out_of_bounds cx_sy_conversion_overflow.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_internal
+            iv_message = 'scenario page could not be prepared'.
+    ENDTRY.
   ENDMETHOD.
 
 ENDCLASS.
