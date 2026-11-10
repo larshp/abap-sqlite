@@ -11,6 +11,9 @@ CLASS zcl_sqlite_ast_values_row DEFINITION
     METHODS constructor
       IMPORTING it_values TYPE zcl_sqlite_ast_node=>ty_nodes.
 
+    METHODS get_values
+      RETURNING VALUE(rt_values) TYPE zcl_sqlite_ast_node=>ty_nodes.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -27,6 +30,10 @@ CLASS zcl_sqlite_ast_values_row IMPLEMENTATION.
 
   METHOD dump.
     rv_text = |(| && dump_nodes( mt_values ) && |)|.
+  ENDMETHOD.
+
+  METHOD get_values.
+    rt_values = mt_values.
   ENDMETHOD.
 
 ENDCLASS.

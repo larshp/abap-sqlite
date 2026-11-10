@@ -53,6 +53,20 @@ function snapshot(db) {
   };
 }
 
+function typedRows(db, tableName, columns) {
+  const expressions = [
+    "rowid",
+    ...columns.flatMap((column) => [
+      `typeof(${quoteIdentifier(column)})`,
+      `quote(${quoteIdentifier(column)})`,
+    ]),
+  ];
+  return rows(
+    db,
+    `SELECT ${expressions.join(", ")} FROM ${quoteIdentifier(tableName)} ORDER BY rowid`,
+  );
+}
+
 function blockBytes(value) {
   if (typeof value === "string") {
     assert.match(value, /^[0-9a-f]*$/i, "ZSQLITE_FILES block is not hex text");
@@ -183,6 +197,65 @@ async function verifyInsert(SQL, tempDir) {
   );
 }
 
+async function verifyInsertStatements(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.insert_statements({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "insert-statements.db");
+  const reference = new SQL.Database();
+  const statements = [
+    "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL DEFAULT 'anon', qty INTEGER DEFAULT 7, price REAL, note TEXT, bin BLOB)",
+    "INSERT INTO items (name, qty, price) VALUES ('alpha', 2, 3.5)",
+    "INSERT INTO items (id, name, price) VALUES (10, 'beta', 4)",
+    "INSERT INTO items DEFAULT VALUES",
+    "INSERT INTO items VALUES (NULL, 'gamma', '8', '2.5', 'x', x'0102'), (100, 'delta', 9, 0, NULL, NULL)",
+    "CREATE TABLE source (id INTEGER PRIMARY KEY, label TEXT, amount NUMERIC)",
+    "CREATE TABLE dest (id INTEGER PRIMARY KEY, label TEXT NOT NULL, amount REAL DEFAULT 1.0, status TEXT DEFAULT 'new')",
+    "INSERT INTO source VALUES (1, 'one', 10), (2, 'two', 2.5), (3, 'three', '4')",
+    "INSERT INTO dest (label, amount) SELECT label, amount FROM source ORDER BY id",
+    "INSERT INTO dest (label) SELECT 'four'",
+    "INSERT INTO dest SELECT 100, 'five', 5.5, 'old'",
+    "INSERT INTO dest (label, amount, status) SELECT label, amount, status FROM dest WHERE id = 100",
+    "INSERT INTO dest (label) VALUES ('six')",
+  ];
+
+  try {
+    for (const sql of statements) {
+      reference.run(sql);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.deepEqual(
+      rows(exported.db, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      rows(reference, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      "sqlite_schema rows differ",
+    );
+    assert.equal(scalar(exported.db, "SELECT COUNT(*) FROM items"), 5, "items row count mismatch");
+    assert.equal(scalar(exported.db, "SELECT COUNT(*) FROM source"), 3, "source row count mismatch");
+    assert.equal(scalar(exported.db, "SELECT COUNT(*) FROM dest"), 7, "dest row count mismatch");
+    assert.deepEqual(
+      typedRows(exported.db, "items", ["id", "name", "qty", "price", "note", "bin"]),
+      typedRows(reference, "items", ["id", "name", "qty", "price", "note", "bin"]),
+      "items typed rows differ",
+    );
+    assert.deepEqual(
+      typedRows(exported.db, "source", ["id", "label", "amount"]),
+      typedRows(reference, "source", ["id", "label", "amount"]),
+      "source typed rows differ",
+    );
+    assert.deepEqual(
+      typedRows(exported.db, "dest", ["id", "label", "amount", "status"]),
+      typedRows(reference, "dest", ["id", "label", "amount", "status"]),
+      "dest typed rows differ",
+    );
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, typed DML rows)`,
+  );
+}
+
 async function verifyFreelist(SQL, tempDir) {
   const fileName = (await zcl_sqlite_scenario.freelist_cycle({rv_name: 1})).get();
   const exported = await openExported(SQL, tempDir, fileName, "freelist.db");
@@ -295,6 +368,7 @@ try {
   await verifyCreateTable(SQL, tempDir);
   await verifyEmpty(SQL, tempDir);
   await verifyInsert(SQL, tempDir);
+  await verifyInsertStatements(SQL, tempDir);
   await verifyFreelist(SQL, tempDir);
   await verifyOverflow(SQL, tempDir);
   await verifySplit(SQL, tempDir);

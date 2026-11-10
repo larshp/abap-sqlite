@@ -22,6 +22,8 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS planner_execution FOR TESTING RAISING zcx_sqlite_error.
     METHODS create_empty_database FOR TESTING RAISING zcx_sqlite_error.
     METHODS create_table FOR TESTING RAISING zcx_sqlite_error.
+    METHODS insert_values FOR TESTING RAISING zcx_sqlite_error.
+    METHODS insert_select FOR TESTING RAISING zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -831,6 +833,402 @@ CLASS ltcl_database IMPLEMENTATION.
       exp = 3
       msg = 'no-op create table must not bump the schema cookie' ).
 
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD insert_values.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_name     TYPE string.
+
+    lv_name = 'test/m5_8_insert.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database->execute(
+      'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL DEFAULT ''anon'',' &&
+      ' qty INTEGER DEFAULT 7, price REAL, note TEXT, bin BLOB)' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 0
+      msg = 'create table changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 0
+      msg = 'initial last_insert_rowid' ).
+
+    lo_database->execute( 'INSERT INTO items (name, qty, price) VALUES (''alpha'', 2, 3.5)' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 1
+      msg = 'single insert changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 1
+      msg = 'single insert rowid' ).
+
+    rs_result = lo_database->query(
+      'SELECT id, name, typeof(qty), qty, typeof(price), quote(price), ' &&
+      'typeof(note), typeof(bin) FROM items' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'single insert row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 1
+      msg = 'assigned rowid' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'alpha'
+      msg = 'inserted name' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'integer'
+      msg = 'integer affinity' ).
+    READ TABLE ls_row INTO lo_value INDEX 4.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'inserted integer' ).
+    READ TABLE ls_row INTO lo_value INDEX 5.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'real'
+      msg = 'real affinity' ).
+    READ TABLE ls_row INTO lo_value INDEX 6.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = '3.5'
+      msg = 'real quote' ).
+    READ TABLE ls_row INTO lo_value INDEX 7.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'null'
+      msg = 'missing column is null' ).
+    READ TABLE ls_row INTO lo_value INDEX 8.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'null'
+      msg = 'missing blob is null' ).
+
+    lo_database->execute( 'INSERT INTO items (id, name, price) VALUES (10, ''beta'', 4)' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 10
+      msg = 'explicit rowid alias' ).
+    rs_result = lo_database->query(
+      'SELECT qty, typeof(price), quote(price), typeof(note) FROM items WHERE id = 10' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 7
+      msg = 'default applied' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'real'
+      msg = 'integer to real affinity' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = '4.0'
+      msg = 'integer stored as real' ).
+
+    lo_database->execute( 'INSERT INTO items DEFAULT VALUES' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 11
+      msg = 'default values rowid' ).
+    rs_result = lo_database->query(
+      'SELECT id, name, qty, typeof(price), quote(price) FROM items WHERE id = 11' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'anon'
+      msg = 'default text' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 7
+      msg = 'default integer' ).
+    READ TABLE ls_row INTO lo_value INDEX 4.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'null'
+      msg = 'default null' ).
+
+    lo_database->execute(
+      'INSERT INTO items VALUES (NULL, ''gamma'', ''8'', ''2.5'', ''x'', x''0102''), ' &&
+      '(100, ''delta'', 9, 0, NULL, NULL)' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 2
+      msg = 'multi-row insert changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 100
+      msg = 'multi-row insert last rowid' ).
+    rs_result = lo_database->query(
+      'SELECT id, typeof(qty), qty, typeof(price), quote(price), note, typeof(bin) ' &&
+      'FROM items WHERE id IN (12, 100) ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'multi-row insert row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 12
+      msg = 'rowid after explicit maximum' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'integer'
+      msg = 'numeric text affinity' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 8
+      msg = 'numeric text converted' ).
+    READ TABLE ls_row INTO lo_value INDEX 5.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = '2.5'
+      msg = 'numeric text to real' ).
+    READ TABLE ls_row INTO lo_value INDEX 6.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'x'
+      msg = 'text value' ).
+    READ TABLE ls_row INTO lo_value INDEX 7.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'blob'
+      msg = 'blob value' ).
+
+    READ TABLE rs_result-rows INTO ls_row INDEX 2.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 100
+      msg = 'explicit multi-row rowid' ).
+    READ TABLE ls_row INTO lo_value INDEX 5.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = '0.0'
+      msg = 'zero integer stored as real' ).
+    READ TABLE ls_row INTO lo_value INDEX 6.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'explicit null' ).
+    READ TABLE ls_row INTO lo_value INDEX 7.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'null'
+      msg = 'null blob' ).
+
+    rs_result = lo_database->query( 'SELECT count(*) FROM items' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 5
+      msg = 'inserted row count' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO items (bogus) VALUES (1)' ).
+        cl_abap_unit_assert=>fail( 'unknown column was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+    TRY.
+        lo_database->execute( 'INSERT INTO items (name) VALUES (NULL)' ).
+        cl_abap_unit_assert=>fail( 'not null violation was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    lo_database->close( ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    rs_result = lo_database->query( 'SELECT count(*) FROM items' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 5
+      msg = 'inserts survive reopen' ).
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD insert_select.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_name     TYPE string.
+
+    lv_name = 'test/m5_8_insert_select.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database->execute( 'CREATE TABLE source (id INTEGER PRIMARY KEY, label TEXT, amount NUMERIC)' ).
+    lo_database->execute(
+      'CREATE TABLE dest (id INTEGER PRIMARY KEY, label TEXT NOT NULL,' &&
+      ' amount REAL DEFAULT 1.0, status TEXT DEFAULT ''new'')' ).
+    lo_database->execute(
+      'INSERT INTO source VALUES (1, ''one'', 10), (2, ''two'', 2.5), ' &&
+      '(3, ''three'', ''4'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 3
+      msg = 'source insert changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 3
+      msg = 'source insert last rowid' ).
+
+    lo_database->execute( 'INSERT INTO dest (label, amount) SELECT label, amount FROM source ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 3
+      msg = 'insert select changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 3
+      msg = 'insert select last rowid' ).
+
+    rs_result = lo_database->query(
+      'SELECT id, label, typeof(amount), quote(amount), status FROM dest ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'insert select row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 1
+      msg = 'insert select first id' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'one'
+      msg = 'insert select first label' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'real'
+      msg = 'insert select real affinity' ).
+    READ TABLE ls_row INTO lo_value INDEX 4.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = '10.0'
+      msg = 'insert select real quote' ).
+    READ TABLE ls_row INTO lo_value INDEX 5.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'new'
+      msg = 'insert select default' ).
+
+    READ TABLE rs_result-rows INTO ls_row INDEX 3.
+    READ TABLE ls_row INTO lo_value INDEX 4.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = '4.0'
+      msg = 'numeric source to real destination' ).
+
+    lo_database->execute( 'INSERT INTO dest (label) SELECT ''four''' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 4
+      msg = 'insert select default rowid' ).
+    rs_result = lo_database->query( 'SELECT quote(amount), status FROM dest WHERE id = 4' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = '1.0'
+      msg = 'default real value' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'new'
+      msg = 'default text value' ).
+
+    lo_database->execute( 'INSERT INTO dest SELECT 100, ''five'', 5.5, ''old''' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 100
+      msg = 'insert select explicit rowid' ).
+
+    lo_database->execute(
+      'INSERT INTO dest (label, amount, status) ' &&
+      'SELECT label, amount, status FROM dest WHERE id = 100' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 101
+      msg = 'insert select from same table' ).
+
+    lo_database->execute( 'INSERT INTO dest (label) VALUES (''six'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 102
+      msg = 'auto rowid after select inserts' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 1
+      msg = 'last insert changes' ).
+
+    rs_result = lo_database->query( 'SELECT id, label, quote(amount), status FROM dest ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 7
+      msg = 'final destination row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 6.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 101
+      msg = 'same-table select copy rowid' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = '5.5'
+      msg = 'same-table select copy amount' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 7.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 102
+      msg = 'final auto rowid' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = '1.0'
+      msg = 'final default amount' ).
+
+    lo_database->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
 

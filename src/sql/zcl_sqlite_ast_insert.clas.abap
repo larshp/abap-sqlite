@@ -16,6 +16,24 @@ CLASS zcl_sqlite_ast_insert DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_conflict
+      RETURNING VALUE(rv_conflict) TYPE string.
+
+    METHODS get_table
+      RETURNING VALUE(rv_table) TYPE string.
+
+    METHODS get_columns
+      RETURNING VALUE(rt_columns) TYPE zcl_sqlite_ast_node=>ty_names.
+
+    METHODS get_values
+      RETURNING VALUE(ro_values) TYPE REF TO zcl_sqlite_ast_values.
+
+    METHODS get_select
+      RETURNING VALUE(ro_select) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS is_default_values
+      RETURNING VALUE(rv_default_values) TYPE abap_bool.
+
   PRIVATE SECTION.
     DATA mv_conflict       TYPE string.
     DATA mv_table          TYPE string.
@@ -55,6 +73,30 @@ CLASS zcl_sqlite_ast_insert IMPLEMENTATION.
     ELSEIF mo_select IS BOUND.
       rv_text = rv_text && | | && mo_select->dump( ).
     ENDIF.
+  ENDMETHOD.
+
+  METHOD get_conflict.
+    rv_conflict = mv_conflict.
+  ENDMETHOD.
+
+  METHOD get_table.
+    rv_table = mv_table.
+  ENDMETHOD.
+
+  METHOD get_columns.
+    rt_columns = mt_columns.
+  ENDMETHOD.
+
+  METHOD get_values.
+    ro_values = mo_values.
+  ENDMETHOD.
+
+  METHOD get_select.
+    ro_select = mo_select.
+  ENDMETHOD.
+
+  METHOD is_default_values.
+    rv_default_values = mv_default_values.
   ENDMETHOD.
 
 ENDCLASS.

@@ -11,6 +11,7 @@ CLASS zcl_sqlite_scenario DEFINITION
     CONSTANTS c_empty_database TYPE string VALUE 'compat/empty.db'.
     CONSTANTS c_freelist_database TYPE string VALUE 'compat/freelist.db'.
     CONSTANTS c_insert_database TYPE string VALUE 'compat/insert.db'.
+    CONSTANTS c_insert_statements_database TYPE string VALUE 'compat/insert-statements.db'.
     CONSTANTS c_overflow_database TYPE string VALUE 'compat/overflow-write.db'.
     CONSTANTS c_split_database TYPE string VALUE 'compat/split.db'.
 
@@ -27,6 +28,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS insert_rows
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS insert_statements
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -93,6 +98,43 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_database->close( ).
 
     rv_name = c_empty_database.
+  ENDMETHOD.
+
+  METHOD insert_statements.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_insert_statements_database ).
+
+    lo_database = zcl_sqlite_database=>create( c_insert_statements_database ).
+    lo_database->execute(
+      'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL DEFAULT ''anon'',' &&
+      ' qty INTEGER DEFAULT 7, price REAL, note TEXT, bin BLOB)' ).
+    lo_database->execute( 'INSERT INTO items (name, qty, price) VALUES (''alpha'', 2, 3.5)' ).
+    lo_database->execute( 'INSERT INTO items (id, name, price) VALUES (10, ''beta'', 4)' ).
+    lo_database->execute( 'INSERT INTO items DEFAULT VALUES' ).
+    lo_database->execute(
+      'INSERT INTO items VALUES (NULL, ''gamma'', ''8'', ''2.5'', ''x'', x''0102''), ' &&
+      '(100, ''delta'', 9, 0, NULL, NULL)' ).
+
+    lo_database->execute( 'CREATE TABLE source (id INTEGER PRIMARY KEY, label TEXT, amount NUMERIC)' ).
+    lo_database->execute(
+      'CREATE TABLE dest (id INTEGER PRIMARY KEY, label TEXT NOT NULL,' &&
+      ' amount REAL DEFAULT 1.0, status TEXT DEFAULT ''new'')' ).
+    lo_database->execute(
+      'INSERT INTO source VALUES (1, ''one'', 10), (2, ''two'', 2.5), ' &&
+      '(3, ''three'', ''4'')' ).
+    lo_database->execute( 'INSERT INTO dest (label, amount) SELECT label, amount FROM source ORDER BY id' ).
+    lo_database->execute( 'INSERT INTO dest (label) SELECT ''four''' ).
+    lo_database->execute( 'INSERT INTO dest SELECT 100, ''five'', 5.5, ''old''' ).
+    lo_database->execute(
+      'INSERT INTO dest (label, amount, status) ' &&
+      'SELECT label, amount, status FROM dest WHERE id = 100' ).
+    lo_database->execute( 'INSERT INTO dest (label) VALUES (''six'')' ).
+    lo_database->close( ).
+
+    rv_name = c_insert_statements_database.
   ENDMETHOD.
 
   METHOD freelist_cycle.

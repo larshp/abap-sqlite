@@ -61,6 +61,12 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
+    CLASS-METHODS apply_affinity
+      IMPORTING io_value        TYPE REF TO zcl_sqlite_value
+                iv_type         TYPE string
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
   PRIVATE SECTION.
     TYPES: BEGIN OF ty_integer_parse,
              value    TYPE int8,
@@ -434,6 +440,10 @@ CLASS zcl_sqlite_expr_eval DEFINITION
     CLASS-METHODS numeric_prefix_end
       IMPORTING iv_text       TYPE string
       RETURNING VALUE(rv_end) TYPE i.
+
+    CLASS-METHODS is_full_numeric_text
+      IMPORTING iv_text        TYPE string
+      RETURNING VALUE(rv_full) TYPE abap_bool.
 
     CLASS-METHODS integer_prefix_end
       IMPORTING iv_text       TYPE string
@@ -3306,6 +3316,79 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDCASE.
   ENDMETHOD.
 
+  METHOD apply_affinity.
+    DATA lv_affinity TYPE string.
+    DATA lv_text TYPE string.
+    DATA lv_real TYPE f.
+    DATA lv_trunc TYPE f.
+    DATA lv_integer TYPE int8.
+
+    IF io_value->is_null( ) = abap_true.
+      ro_value = io_value.
+      RETURN.
+    ENDIF.
+
+    lv_affinity = zcl_sqlite_schema=>affinity_of( iv_type ).
+    CASE lv_affinity.
+      WHEN zcl_sqlite_schema=>c_affinity_blob.
+        ro_value = io_value.
+      WHEN zcl_sqlite_schema=>c_affinity_text.
+        IF io_value->value_type( ) = zcl_sqlite_value=>c_integer
+            OR io_value->value_type( ) = zcl_sqlite_value=>c_real.
+          ro_value = cast_to_text( io_value ).
+        ELSE.
+          ro_value = io_value.
+        ENDIF.
+      WHEN zcl_sqlite_schema=>c_affinity_real.
+        CASE io_value->value_type( ).
+          WHEN zcl_sqlite_value=>c_integer.
+            ro_value = cast_to_real( io_value ).
+          WHEN zcl_sqlite_value=>c_text.
+            lv_text = io_value->as_text( ).
+            IF is_full_numeric_text( lv_text ) = abap_true.
+              ro_value = text_to_numeric( lv_text ).
+              IF ro_value->value_type( ) = zcl_sqlite_value=>c_integer.
+                ro_value = cast_to_real( ro_value ).
+              ENDIF.
+            ELSE.
+              ro_value = io_value.
+            ENDIF.
+          WHEN OTHERS.
+            ro_value = io_value.
+        ENDCASE.
+      WHEN zcl_sqlite_schema=>c_affinity_integer
+          OR zcl_sqlite_schema=>c_affinity_numeric.
+        CASE io_value->value_type( ).
+          WHEN zcl_sqlite_value=>c_integer.
+            ro_value = io_value.
+          WHEN zcl_sqlite_value=>c_real.
+            lv_real = io_value->as_real( ).
+            IF lv_real >= c_int_min_boundary
+                AND lv_real < c_int_boundary
+                AND lv_real = lv_real.
+              lv_trunc = truncate_real( lv_real ).
+              IF lv_real = lv_trunc.
+                lv_integer = lv_trunc.
+                ro_value = zcl_sqlite_value=>integer( lv_integer ).
+                RETURN.
+              ENDIF.
+            ENDIF.
+            ro_value = io_value.
+          WHEN zcl_sqlite_value=>c_text.
+            lv_text = io_value->as_text( ).
+            IF is_full_numeric_text( lv_text ) = abap_true.
+              ro_value = text_to_numeric( lv_text ).
+            ELSE.
+              ro_value = io_value.
+            ENDIF.
+          WHEN OTHERS.
+            ro_value = io_value.
+        ENDCASE.
+      WHEN OTHERS.
+        ro_value = io_value.
+    ENDCASE.
+  ENDMETHOD.
+
   METHOD cast_value.
     CASE zcl_sqlite_schema=>affinity_of( iv_type ).
       WHEN zcl_sqlite_schema=>c_affinity_integer.
@@ -3618,6 +3701,33 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       CATCH cx_sy_conversion_overflow.
         rv_value = c_max_real.
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD is_full_numeric_text.
+    DATA lv_end TYPE i.
+    DATA lv_length TYPE i.
+    DATA lv_pos TYPE i.
+    DATA lv_char TYPE string.
+
+    lv_end = numeric_prefix_end( iv_text ).
+    IF lv_end = 0.
+      RETURN.
+    ENDIF.
+
+    lv_length = strlen( iv_text ).
+    lv_pos = lv_end + 1.
+    WHILE lv_pos <= lv_length.
+      lv_char = substring(
+        val = iv_text
+        off = lv_pos - 1
+        len = 1 ).
+      IF is_space_char( lv_char ) = abap_false.
+        RETURN.
+      ENDIF.
+      lv_pos = lv_pos + 1.
+    ENDWHILE.
+
+    rv_full = abap_true.
   ENDMETHOD.
 
   METHOD numeric_prefix_end.

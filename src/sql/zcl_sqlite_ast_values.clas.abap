@@ -21,6 +21,9 @@ CLASS zcl_sqlite_ast_values DEFINITION
                 io_offset        TYPE REF TO zcl_sqlite_ast_node OPTIONAL
       RETURNING VALUE(ro_values) TYPE REF TO zcl_sqlite_ast_values.
 
+    METHODS get_rows
+      RETURNING VALUE(rt_rows) TYPE ty_rows.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -50,6 +53,10 @@ CLASS zcl_sqlite_ast_values IMPLEMENTATION.
       it_order_by = it_order_by
       io_limit    = io_limit
       io_offset   = io_offset ).
+  ENDMETHOD.
+
+  METHOD get_rows.
+    rt_rows = mt_rows.
   ENDMETHOD.
 
   METHOD dump.

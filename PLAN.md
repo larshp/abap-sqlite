@@ -523,7 +523,7 @@ sql.js.
 
 #### M5.8 INSERT
 
-- [ ] `INSERT … VALUES / SELECT / DEFAULT VALUES`: rowid assignment, `INTEGER PRIMARY KEY` alias,
+- [x] `INSERT … VALUES / SELECT / DEFAULT VALUES`: rowid assignment, `INTEGER PRIMARY KEY` alias,
       defaults, type affinity on store, `last_insert_rowid`, `changes`
 
 **Done when:** a DML corpus gives identical table contents in sql.js and abap-sqlite.
