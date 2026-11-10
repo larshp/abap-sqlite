@@ -158,6 +158,50 @@ async function verifyFreelist(SQL, tempDir) {
   );
 }
 
+async function verifySplit(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.split_rows({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "split.db");
+  const suffix = "x".repeat(100);
+
+  try {
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.equal(
+      scalar(exported.db, "SELECT rootpage FROM sqlite_schema WHERE name = 'items'"),
+      2,
+      "root page number changed",
+    );
+    assert.ok(scalar(exported.db, "PRAGMA page_count") > 100, "split tree should span many pages");
+    assert.equal(scalar(exported.db, "PRAGMA freelist_count"), 0, "freelist_count mismatch");
+    assert.equal(scalar(exported.db, "SELECT COUNT(*) FROM items"), 20003, "row count mismatch");
+    assert.equal(
+      scalar(exported.db, "SELECT COUNT(*) FROM items WHERE id BETWEEN 1000 AND 10999"),
+      10000,
+      "sequential rows are missing",
+    );
+    assert.equal(
+      scalar(exported.db, "SELECT COUNT(*) FROM items WHERE id BETWEEN 100000 AND 109999"),
+      10000,
+      "shuffled rows are missing",
+    );
+    assert.deepEqual(
+      rows(exported.db, "SELECT id, name FROM items WHERE id IN (1000, 10999, 100000, 109999) ORDER BY id"),
+      [
+        [1000, `seq-1000-${suffix}`],
+        [10999, `seq-10999-${suffix}`],
+        [100000, `rnd-100000-${suffix}`],
+        [109999, `rnd-109999-${suffix}`],
+      ],
+      "split rows differ",
+    );
+  } finally {
+    exported.db.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, 20k rows)`,
+  );
+}
+
 const SQL = await initSqlJs();
 const tempDir = await mkdtemp(path.join(os.tmpdir(), "abap-sqlite-"));
 
@@ -165,6 +209,7 @@ try {
   await verifyEmpty(SQL, tempDir);
   await verifyInsert(SQL, tempDir);
   await verifyFreelist(SQL, tempDir);
+  await verifySplit(SQL, tempDir);
 } finally {
   await rm(tempDir, {recursive: true, force: true});
 }

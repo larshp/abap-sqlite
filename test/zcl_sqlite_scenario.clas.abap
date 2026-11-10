@@ -10,6 +10,7 @@ CLASS zcl_sqlite_scenario DEFINITION
     CONSTANTS c_empty_database TYPE string VALUE 'compat/empty.db'.
     CONSTANTS c_freelist_database TYPE string VALUE 'compat/freelist.db'.
     CONSTANTS c_insert_database TYPE string VALUE 'compat/insert.db'.
+    CONSTANTS c_split_database TYPE string VALUE 'compat/split.db'.
 
     CLASS-METHODS create_empty
       RETURNING VALUE(rv_name) TYPE string
@@ -20,6 +21,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS insert_rows
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS split_rows
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -176,6 +181,72 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_pager->commit( ).
     lo_file->close( ).
     rv_name = c_insert_database.
+  ENDMETHOD.
+
+  METHOD split_rows.
+    DATA lo_vfs TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_file TYPE REF TO zif_sqlite_file.
+    DATA lo_pager TYPE REF TO zcl_sqlite_pager.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lv_fixture TYPE xstring.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lv_suffix TYPE string.
+    DATA lv_name TYPE string.
+    DATA lv_rowid TYPE int8.
+    DATA lv_index TYPE i.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( c_split_database ).
+    TRY.
+        lv_fixture = lo_vfs->export( 'fixtures/small.db' ).
+      CATCH cx_sy_file_access_error.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_notadb
+            iv_message = 'small.db fixture is missing'.
+    ENDTRY.
+    lo_vfs->import( iv_name = c_split_database
+                    iv_data = lv_fixture ).
+
+    lo_file = lo_vfs->zif_sqlite_vfs~open( c_split_database ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = lo_pager
+      iv_root_page = 2 ).
+    lv_suffix = repeat( val = 'x'
+                        occ = 100 ).
+
+* 10k ascending rowids
+    DO 10000 TIMES.
+      lv_index = sy-index.
+      lv_rowid = 999 + lv_index.
+      lv_name = |seq-{ lv_rowid }-{ lv_suffix }|.
+      CLEAR lt_values.
+      APPEND zcl_sqlite_value=>integer( lv_rowid ) TO lt_values.
+      APPEND zcl_sqlite_value=>text( lv_name ) TO lt_values.
+      APPEND zcl_sqlite_value=>real( '0.5' ) TO lt_values.
+      lo_writer->insert_row(
+        iv_rowid   = lv_rowid
+        iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
+    ENDDO.
+
+* 10k shuffled rowids, 7919 is coprime with 10000
+    DO 10000 TIMES.
+      lv_index = sy-index.
+      lv_rowid = 100000 + ( lv_index * 7919 ) MOD 10000.
+      lv_name = |rnd-{ lv_rowid }-{ lv_suffix }|.
+      CLEAR lt_values.
+      APPEND zcl_sqlite_value=>integer( lv_rowid ) TO lt_values.
+      APPEND zcl_sqlite_value=>text( lv_name ) TO lt_values.
+      APPEND zcl_sqlite_value=>real( '0.5' ) TO lt_values.
+      lo_writer->insert_row(
+        iv_rowid   = lv_rowid
+        iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
+    ENDDO.
+
+    lo_pager->commit( ).
+    lo_file->close( ).
+    rv_name = c_split_database.
   ENDMETHOD.
 
   METHOD make_freeblock.

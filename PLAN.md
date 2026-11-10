@@ -504,7 +504,7 @@ sql.js.
 
 #### M5.5 Page split
 
-- [ ] Leaf and interior splits, root split (the root page number must not change). Start with a
+- [x] Leaf and interior splits, root split (the root page number must not change). Start with a
       simple split. A `balance_nonroot` equivalent for better fill factors can come later.
 
 **Done when:** 10k sequential and random rowid inserts give a valid multi-level tree.

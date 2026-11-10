@@ -4,6 +4,7 @@ CLASS ltcl_btree_writer DEFINITION FINAL FOR TESTING
 
   PRIVATE SECTION.
     CONSTANTS c_small_source TYPE string VALUE 'fixtures/small.db'.
+    CONSTANTS c_page_512_source TYPE string VALUE 'fixtures/page_512.db'.
     CONSTANTS c_three_pages_source TYPE string VALUE 'fixtures/three_pages.db'.
 
     TYPES: BEGIN OF ty_database,
@@ -17,6 +18,8 @@ CLASS ltcl_btree_writer DEFINITION FINAL FOR TESTING
     METHODS payload_too_large FOR TESTING RAISING zcx_sqlite_error.
     METHODS freeblock_insert FOR TESTING RAISING zcx_sqlite_error.
     METHODS interior_insert FOR TESTING RAISING zcx_sqlite_error.
+    METHODS root_split FOR TESTING RAISING zcx_sqlite_error.
+    METHODS interior_split FOR TESTING RAISING zcx_sqlite_error.
 
     METHODS copy_and_open
       IMPORTING iv_source          TYPE string
@@ -61,6 +64,13 @@ CLASS ltcl_btree_writer DEFINITION FINAL FOR TESTING
                 iv_page          TYPE i
                 iv_size          TYPE i
       RETURNING VALUE(rv_offset) TYPE i
+      RAISING   zcx_sqlite_error.
+
+    METHODS tree_depth
+      IMPORTING io_pager        TYPE REF TO zcl_sqlite_pager
+                iv_page         TYPE i
+                iv_budget       TYPE i
+      RETURNING VALUE(rv_depth) TYPE i
       RAISING   zcx_sqlite_error.
 
     METHODS set_u16
@@ -341,6 +351,197 @@ CLASS ltcl_btree_writer IMPLEMENTATION.
       exp = 'value-201' ).
 
     close_database( ls_database ).
+  ENDMETHOD.
+
+  METHOD root_split.
+    DATA ls_database TYPE ty_database.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA ls_raw TYPE zcl_sqlite_pager=>ty_page.
+    DATA ls_page TYPE zcl_sqlite_page=>ty_page.
+    DATA lv_rowid TYPE int8.
+    DATA lv_name TYPE string.
+    DATA lv_suffix TYPE string.
+    DATA lv_count TYPE i.
+    DATA lv_depth TYPE i.
+    DATA lv_found TYPE abap_bool.
+
+    ls_database = copy_and_open(
+      iv_source = c_small_source
+      iv_target = 'writer/small-split.db' ).
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_suffix = repeat( val = 'x'
+                        occ = 100 ).
+
+    DO 300 TIMES.
+      lv_rowid = 1000 + sy-index.
+      lv_name = |split-{ lv_rowid }-{ lv_suffix }|.
+      lo_writer->insert_row(
+        iv_rowid   = lv_rowid
+        iv_payload = record( iv_id = lv_rowid iv_name = lv_name iv_price = '1.5' ) ).
+    ENDDO.
+
+    ls_database-pager->commit( ).
+    close_database( ls_database ).
+
+    ls_database = open_database( 'writer/small-split.db' ).
+    ls_raw = ls_database-pager->get_page( 2 ).
+    ls_page = zcl_sqlite_page=>parse(
+      iv_data   = ls_raw-data
+      iv_offset = ls_raw-btree_offset ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_page-page_type
+      exp = zcl_sqlite_page=>c_table_interior
+      msg = 'root page should become a table interior page' ).
+
+    lv_depth = tree_depth(
+      io_pager  = ls_database-pager
+      iv_page   = 2
+      iv_budget = ls_database-pager->page_count( ) ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_depth
+      exp = 2
+      msg = 'root split should produce a two-level tree' ).
+
+    lo_cursor = NEW zcl_sqlite_cursor(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_found = lo_cursor->first( ).
+    WHILE lv_found = abap_true.
+      lv_count = lv_count + 1.
+      lv_found = lo_cursor->next( ).
+    ENDWHILE.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 303 ).
+
+    lv_found = lo_cursor->seek( 1299 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->rowid( )
+      exp = 1299 ).
+    close_database( ls_database ).
+  ENDMETHOD.
+
+  METHOD interior_split.
+    DATA ls_database TYPE ty_database.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lv_rowid TYPE int8.
+    DATA lv_name TYPE string.
+    DATA lv_suffix TYPE string.
+    DATA lv_count TYPE i.
+    DATA lv_depth TYPE i.
+    DATA lv_found TYPE abap_bool.
+
+    ls_database = copy_and_open(
+      iv_source = c_page_512_source
+      iv_target = 'writer/page-512-split.db' ).
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_suffix = repeat( val = 'x'
+                        occ = 20 ).
+
+    DO 2000 TIMES.
+      lv_rowid = 5000 + sy-index.
+      lv_name = |row-{ lv_rowid }-{ lv_suffix }|.
+      lo_writer->insert_row(
+        iv_rowid   = lv_rowid
+        iv_payload = record_two_columns( iv_id = lv_rowid iv_name = lv_name ) ).
+    ENDDO.
+
+    ls_database-pager->commit( ).
+    close_database( ls_database ).
+
+    ls_database = open_database( 'writer/page-512-split.db' ).
+    lv_depth = tree_depth(
+      io_pager  = ls_database-pager
+      iv_page   = 2
+      iv_budget = ls_database-pager->page_count( ) ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_depth
+      exp = 3
+      msg = 'large insert should produce an interior split' ).
+
+    lo_cursor = NEW zcl_sqlite_cursor(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_found = lo_cursor->first( ).
+    WHILE lv_found = abap_true.
+      lv_count = lv_count + 1.
+      lv_found = lo_cursor->next( ).
+    ENDWHILE.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 2040 ).
+
+    lv_found = lo_cursor->seek( 6999 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->rowid( )
+      exp = 6999 ).
+    close_database( ls_database ).
+  ENDMETHOD.
+
+  METHOD tree_depth.
+    DATA ls_raw TYPE zcl_sqlite_pager=>ty_page.
+    DATA ls_page TYPE zcl_sqlite_page=>ty_page.
+    DATA lv_offset TYPE i.
+    DATA lv_child TYPE int8.
+    DATA lv_child_depth TYPE i.
+    DATA lv_budget TYPE i.
+    DATA lv_max TYPE i.
+
+    IF iv_budget <= 0.
+      RETURN.
+    ENDIF.
+
+    ls_raw = io_pager->get_page( iv_page ).
+    ls_page = zcl_sqlite_page=>parse(
+      iv_data   = ls_raw-data
+      iv_offset = ls_raw-btree_offset ).
+
+    CASE ls_page-page_type.
+      WHEN zcl_sqlite_page=>c_table_leaf.
+        rv_depth = 1.
+      WHEN zcl_sqlite_page=>c_table_interior.
+        lv_budget = iv_budget - 1.
+        LOOP AT ls_page-cell_offsets INTO lv_offset.
+          TRY.
+              lv_child = zcl_sqlite_bytes=>read_u32(
+                iv_data   = ls_raw-data
+                iv_offset = lv_offset ).
+            CATCH cx_sy_range_out_of_bounds.
+              RAISE EXCEPTION TYPE zcx_sqlite_error
+                EXPORTING
+                  iv_code    = zcx_sqlite_error=>sqlite_corrupt
+                  iv_message = 'test child pointer is truncated'.
+          ENDTRY.
+          lv_child_depth = tree_depth(
+            io_pager  = io_pager
+            iv_page   = CONV i( lv_child )
+            iv_budget = lv_budget ).
+          IF lv_child_depth > lv_max.
+            lv_max = lv_child_depth.
+          ENDIF.
+        ENDLOOP.
+
+        lv_child_depth = tree_depth(
+          io_pager  = io_pager
+          iv_page   = ls_page-rightmost_pointer
+          iv_budget = lv_budget ).
+        IF lv_child_depth > lv_max.
+          lv_max = lv_child_depth.
+        ENDIF.
+        rv_depth = lv_max + 1.
+      WHEN OTHERS.
+        cl_abap_unit_assert=>fail( 'unexpected b-tree page type' ).
+    ENDCASE.
   ENDMETHOD.
 
   METHOD copy_and_open.
