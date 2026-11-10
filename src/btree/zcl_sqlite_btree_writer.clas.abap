@@ -1,9 +1,10 @@
 * Writer for SQLite table b-trees, see
 * https://www.sqlite.org/fileformat.html#b_tree_pages
 *
-* Inserts descend to a leaf and split pages on the way back up. The root
-* page number never changes: when the root splits, its contents move to two
-* new child pages and the root becomes a table interior page.
+* Inserts descend to a leaf and split pages on the way back up. Large payloads
+* are stored in overflow page chains. The root page number never changes: when
+* the root splits, its contents move to two new child pages and the root
+* becomes a table interior page.
 CLASS zcl_sqlite_btree_writer DEFINITION
   PUBLIC
   FINAL
@@ -22,10 +23,16 @@ CLASS zcl_sqlite_btree_writer DEFINITION
 
   PROTECTED SECTION.
   PRIVATE SECTION.
-    CONSTANTS c_table_leaf_overhead     TYPE int8 VALUE 35.
     CONSTANTS c_max_fragmented          TYPE i VALUE 255.
     CONSTANTS c_leaf_header_size        TYPE i VALUE 8.
     CONSTANTS c_interior_header_size    TYPE i VALUE 12.
+
+    TYPES: BEGIN OF ty_overflow,
+             page  TYPE i,
+             chunk TYPE xstring,
+           END OF ty_overflow.
+    TYPES ty_overflows TYPE STANDARD TABLE OF ty_overflow WITH DEFAULT KEY.
+    TYPES ty_pages TYPE STANDARD TABLE OF i WITH DEFAULT KEY.
 
     TYPES: BEGIN OF ty_split,
              split        TYPE abap_bool,
@@ -87,9 +94,11 @@ CLASS zcl_sqlite_btree_writer DEFINITION
       RAISING   zcx_sqlite_error.
 
     METHODS build_cell
-      IMPORTING iv_rowid       TYPE int8
-                iv_payload     TYPE xstring
-      RETURNING VALUE(rv_cell) TYPE xstring.
+      IMPORTING iv_rowid   TYPE int8
+                iv_payload TYPE xstring
+      EXPORTING ev_cell    TYPE xstring
+                et_pages   TYPE ty_pages
+      RAISING   zcx_sqlite_error.
 
     METHODS insert_into_leaf
       IMPORTING iv_rowid       TYPE int8
@@ -227,22 +236,29 @@ CLASS zcl_sqlite_btree_writer IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD insert_row.
-    DATA lv_payload_length TYPE int8.
-    DATA lv_max_payload TYPE int8.
     DATA lv_cell TYPE xstring.
+    DATA lt_pages TYPE ty_pages.
+    DATA lv_page TYPE i.
 
-    lv_payload_length = xstrlen( iv_payload ).
-    lv_max_payload = mv_usable_size - c_table_leaf_overhead.
-    IF lv_payload_length > lv_max_payload.
-      fail( iv_code    = zcx_sqlite_error=>sqlite_toobig
-            iv_message = 'table leaf payload needs overflow pages' ).
-    ENDIF.
+    build_cell(
+      EXPORTING
+        iv_rowid   = iv_rowid
+        iv_payload = iv_payload
+      IMPORTING
+        ev_cell    = lv_cell
+        et_pages   = lt_pages ).
 
-    lv_cell = build_cell( iv_rowid   = iv_rowid
-                          iv_payload = iv_payload ).
-    insert_page( iv_page  = mv_root_page
-                 iv_rowid = iv_rowid
-                 iv_cell  = lv_cell ).
+    TRY.
+        insert_page( iv_page  = mv_root_page
+                     iv_rowid = iv_rowid
+                     iv_cell  = lv_cell ).
+      CATCH zcx_sqlite_error INTO DATA(lo_error).
+* the row was not written, release the overflow chain again
+        LOOP AT lt_pages INTO lv_page.
+          mo_pager->free_page( lv_page ).
+        ENDLOOP.
+        RAISE EXCEPTION lo_error.
+    ENDTRY.
   ENDMETHOD.
 
   METHOD insert_page.
@@ -550,14 +566,86 @@ CLASS zcl_sqlite_btree_writer IMPLEMENTATION.
 
   METHOD build_cell.
     DATA lv_payload_length TYPE int8.
+    DATA lv_local_size TYPE int8.
+    DATA lv_local_length TYPE i.
+    DATA lv_remaining TYPE int8.
+    DATA lv_offset TYPE i.
+    DATA lv_max_chunk TYPE int8.
+    DATA lv_chunk_size TYPE int8.
+    DATA lv_chunk_length TYPE i.
+    DATA lv_first_page TYPE i.
+    DATA lv_next_page TYPE i.
+    DATA lv_index TYPE i.
+    DATA lv_pointer TYPE xstring.
+    DATA lv_pointer_data TYPE xstring.
+    DATA lv_page_data TYPE xstring.
     DATA lv_payload_varint TYPE xstring.
     DATA lv_rowid_varint TYPE xstring.
+    DATA lt_overflows TYPE ty_overflows.
+    DATA ls_overflow TYPE ty_overflow.
+    DATA ls_next TYPE ty_overflow.
 
+    CLEAR et_pages.
     lv_payload_length = xstrlen( iv_payload ).
+    lv_local_size = zcl_sqlite_btree=>local_payload_size(
+      iv_payload_size = lv_payload_length
+      iv_usable_size  = mv_usable_size ).
+    lv_local_length = lv_local_size.
+
     lv_payload_varint = zcl_sqlite_bytes=>write_varint( lv_payload_length ).
     lv_rowid_varint = zcl_sqlite_bytes=>write_varint( iv_rowid ).
 
-    rv_cell = lv_payload_varint && lv_rowid_varint && iv_payload.
+    IF lv_payload_length <= lv_local_size.
+      ev_cell = lv_payload_varint && lv_rowid_varint && iv_payload.
+      RETURN.
+    ENDIF.
+
+* allocate one page per overflow chunk, then link the chunks
+    lv_max_chunk = mv_usable_size - 4.
+    lv_offset = lv_local_length.
+    lv_remaining = lv_payload_length - lv_local_size.
+    WHILE lv_remaining > 0.
+      IF lv_remaining < lv_max_chunk.
+        lv_chunk_size = lv_remaining.
+      ELSE.
+        lv_chunk_size = lv_max_chunk.
+      ENDIF.
+      lv_chunk_length = lv_chunk_size.
+      ls_overflow-page = mo_pager->allocate_page( ).
+      ls_overflow-chunk = iv_payload+lv_offset(lv_chunk_length).
+      APPEND ls_overflow TO lt_overflows.
+      APPEND ls_overflow-page TO et_pages.
+      lv_offset = lv_offset + lv_chunk_length.
+      lv_remaining = lv_remaining - lv_chunk_size.
+    ENDWHILE.
+
+    LOOP AT lt_overflows INTO ls_overflow.
+      lv_index = sy-tabix.
+      lv_next_page = 0.
+      IF lv_index < lines( lt_overflows ).
+        READ TABLE lt_overflows INTO ls_next INDEX lv_index + 1.
+        lv_next_page = ls_next-page.
+      ENDIF.
+
+      lv_page_data = zero_page( ).
+      lv_page_data = set_u32( iv_data   = lv_page_data
+                              iv_offset = 0
+                              iv_value  = CONV int8( lv_next_page ) ).
+      lv_page_data = splice( iv_data   = lv_page_data
+                             iv_offset = 4
+                             iv_value  = ls_overflow-chunk ).
+      mo_pager->put_page( iv_page = ls_overflow-page
+                          iv_data = lv_page_data ).
+    ENDLOOP.
+
+    READ TABLE lt_overflows INTO ls_overflow INDEX 1.
+    lv_first_page = ls_overflow-page.
+    lv_pointer_data = '00000000'.
+    lv_pointer = set_u32( iv_data   = lv_pointer_data
+                          iv_offset = 0
+                          iv_value  = CONV int8( lv_first_page ) ).
+    ev_cell = lv_payload_varint && lv_rowid_varint
+           && iv_payload+0(lv_local_length) && lv_pointer.
   ENDMETHOD.
 
   METHOD insert_into_leaf.
@@ -725,6 +813,7 @@ CLASS zcl_sqlite_btree_writer IMPLEMENTATION.
     DATA lv_payload_length_size TYPE i.
     DATA lv_rowid_offset TYPE i.
     DATA lv_rowid_size TYPE i.
+    DATA lv_local_size TYPE int8.
     DATA lv_cell_length TYPE i.
     DATA lv_rowid TYPE int8.
     DATA ls_cell TYPE ty_leaf_cell.
@@ -753,8 +842,14 @@ CLASS zcl_sqlite_btree_writer IMPLEMENTATION.
         fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
               iv_message = 'table leaf payload size is negative' ).
       ENDIF.
+      lv_local_size = zcl_sqlite_btree=>local_payload_size(
+        iv_payload_size = lv_payload_length
+        iv_usable_size  = mv_usable_size ).
       lv_cell_length = lv_payload_length_size + lv_rowid_size
-                     + CONV i( lv_payload_length ).
+                     + CONV i( lv_local_size ).
+      IF lv_payload_length > lv_local_size.
+        lv_cell_length = lv_cell_length + 4.
+      ENDIF.
       IF lv_cell_length < 1
           OR lv_offset + lv_cell_length > xstrlen( is_raw-data ).
         fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt

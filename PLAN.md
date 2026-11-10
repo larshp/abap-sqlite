@@ -511,7 +511,7 @@ sql.js.
 
 #### M5.6 Overflow writes
 
-- [ ] Write payloads that spill onto overflow page chains
+- [x] Write payloads that spill onto overflow page chains
 
 **Done when:** rows with large TEXT/BLOB values are verified in sql.js.
 

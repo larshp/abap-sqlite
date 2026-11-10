@@ -158,6 +158,50 @@ async function verifyFreelist(SQL, tempDir) {
   );
 }
 
+async function verifyOverflow(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.overflow_rows({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "overflow-write.db");
+
+  try {
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.equal(
+      scalar(exported.db, "SELECT rootpage FROM sqlite_schema WHERE name = 'payloads'"),
+      2,
+      "root page number changed",
+    );
+    assert.ok(scalar(exported.db, "PRAGMA page_count") > 11, "overflow rows should grow the file");
+    assert.equal(scalar(exported.db, "PRAGMA freelist_count"), 0, "freelist_count mismatch");
+    assert.equal(scalar(exported.db, "SELECT COUNT(*) FROM payloads"), 6, "row count mismatch");
+    assert.equal(
+      scalar(
+        exported.db,
+        "SELECT COUNT(*) FROM payloads WHERE name IN ('text_near', 'blob_near', 'text_multi', 'blob_multi')",
+      ),
+      4,
+      "existing overflow rows are missing",
+    );
+    assert.deepEqual(
+      rows(
+        exported.db,
+        `SELECT rowid, name, typeof(value), length(value),
+                hex(substr(value, 1, 8)), hex(substr(value, -8, 8))
+         FROM payloads WHERE rowid IN (100, 101) ORDER BY rowid`,
+      ),
+      [
+        [100, "large_text", "text", 10000, "5A5A5A5A5A5A5A5A", "5A5A5A5A5A5A5A5A"],
+        [101, "large_blob", "blob", 12000, "0011223344556677", "8899AABBCCDDEEFF"],
+      ],
+      "overflow rows differ",
+    );
+  } finally {
+    exported.db.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, overflow rows)`,
+  );
+}
+
 async function verifySplit(SQL, tempDir) {
   const fileName = (await zcl_sqlite_scenario.split_rows({rv_name: 1})).get();
   const exported = await openExported(SQL, tempDir, fileName, "split.db");
@@ -209,6 +253,7 @@ try {
   await verifyEmpty(SQL, tempDir);
   await verifyInsert(SQL, tempDir);
   await verifyFreelist(SQL, tempDir);
+  await verifyOverflow(SQL, tempDir);
   await verifySplit(SQL, tempDir);
 } finally {
   await rm(tempDir, {recursive: true, force: true});

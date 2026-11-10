@@ -10,6 +10,7 @@ CLASS zcl_sqlite_scenario DEFINITION
     CONSTANTS c_empty_database TYPE string VALUE 'compat/empty.db'.
     CONSTANTS c_freelist_database TYPE string VALUE 'compat/freelist.db'.
     CONSTANTS c_insert_database TYPE string VALUE 'compat/insert.db'.
+    CONSTANTS c_overflow_database TYPE string VALUE 'compat/overflow-write.db'.
     CONSTANTS c_split_database TYPE string VALUE 'compat/split.db'.
 
     CLASS-METHODS create_empty
@@ -21,6 +22,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS insert_rows
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS overflow_rows
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -181,6 +186,57 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_pager->commit( ).
     lo_file->close( ).
     rv_name = c_insert_database.
+  ENDMETHOD.
+
+  METHOD overflow_rows.
+    DATA lo_vfs TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_file TYPE REF TO zif_sqlite_file.
+    DATA lo_pager TYPE REF TO zcl_sqlite_pager.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lv_fixture TYPE xstring.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lv_text TYPE string.
+    DATA lv_blob TYPE xstring.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( c_overflow_database ).
+    TRY.
+        lv_fixture = lo_vfs->export( 'fixtures/overflow.db' ).
+      CATCH cx_sy_file_access_error.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_notadb
+            iv_message = 'overflow.db fixture is missing'.
+    ENDTRY.
+    lo_vfs->import( iv_name = c_overflow_database
+                    iv_data = lv_fixture ).
+
+    lo_file = lo_vfs->zif_sqlite_vfs~open( c_overflow_database ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = lo_pager
+      iv_root_page = 2 ).
+
+    lv_text = repeat( val = 'Z'
+                      occ = 10000 ).
+    APPEND zcl_sqlite_value=>text( 'large_text' ) TO lt_values.
+    APPEND zcl_sqlite_value=>text( lv_text ) TO lt_values.
+    lo_writer->insert_row(
+      iv_rowid   = 100
+      iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
+
+    CLEAR lt_values.
+    lv_blob = repeat( val = '00112233445566778899AABBCCDDEEFF'
+                      occ = 750 ).
+    APPEND zcl_sqlite_value=>text( 'large_blob' ) TO lt_values.
+    APPEND zcl_sqlite_value=>blob( lv_blob ) TO lt_values.
+    lo_writer->insert_row(
+      iv_rowid   = 101
+      iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
+
+    lo_pager->commit( ).
+    lo_file->close( ).
+    rv_name = c_overflow_database.
   ENDMETHOD.
 
   METHOD split_rows.

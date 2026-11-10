@@ -4,6 +4,7 @@ CLASS ltcl_btree_writer DEFINITION FINAL FOR TESTING
 
   PRIVATE SECTION.
     CONSTANTS c_small_source TYPE string VALUE 'fixtures/small.db'.
+    CONSTANTS c_overflow_source TYPE string VALUE 'fixtures/overflow.db'.
     CONSTANTS c_page_512_source TYPE string VALUE 'fixtures/page_512.db'.
     CONSTANTS c_three_pages_source TYPE string VALUE 'fixtures/three_pages.db'.
 
@@ -15,7 +16,8 @@ CLASS ltcl_btree_writer DEFINITION FINAL FOR TESTING
 
     METHODS insert_leaf FOR TESTING RAISING zcx_sqlite_error.
     METHODS duplicate_rowid FOR TESTING RAISING zcx_sqlite_error.
-    METHODS payload_too_large FOR TESTING RAISING zcx_sqlite_error.
+    METHODS overflow_insert FOR TESTING RAISING zcx_sqlite_error.
+    METHODS overflow_split FOR TESTING RAISING zcx_sqlite_error.
     METHODS freeblock_insert FOR TESTING RAISING zcx_sqlite_error.
     METHODS interior_insert FOR TESTING RAISING zcx_sqlite_error.
     METHODS root_split FOR TESTING RAISING zcx_sqlite_error.
@@ -194,30 +196,128 @@ CLASS ltcl_btree_writer IMPLEMENTATION.
     close_database( ls_database ).
   ENDMETHOD.
 
-  METHOD payload_too_large.
+  METHOD overflow_insert.
     DATA ls_database TYPE ty_database.
     DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
-    DATA lv_payload TYPE xstring.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+    DATA lv_text TYPE string.
+    DATA lv_expected TYPE string.
+    DATA lv_found TYPE abap_bool.
 
     ls_database = copy_and_open(
-      iv_source = c_small_source
-      iv_target = 'writer/small-toobig.db' ).
+      iv_source = c_overflow_source
+      iv_target = 'writer/overflow-insert.db' ).
     lo_writer = NEW zcl_sqlite_btree_writer(
       io_pager     = ls_database-pager
       iv_root_page = 2 ).
 
-    lv_payload = repeat( val = '00'
-                         occ = 4062 ).
-    TRY.
-        lo_writer->insert_row(
-          iv_rowid   = 100
-          iv_payload = lv_payload ).
-        cl_abap_unit_assert=>fail( 'overflow payload was accepted' ).
-      CATCH zcx_sqlite_error INTO DATA(lo_error).
-        cl_abap_unit_assert=>assert_equals(
-          act = lo_error->code
-          exp = zcx_sqlite_error=>sqlite_toobig ).
-    ENDTRY.
+    lv_expected = repeat( val = 'Z'
+                          occ = 10000 ).
+    lo_writer->insert_row(
+      iv_rowid   = 100
+      iv_payload = record_two_columns( iv_id   = 100
+                                       iv_name = lv_expected ) ).
+    ls_database-pager->commit( ).
+    close_database( ls_database ).
+
+    ls_database = open_database( 'writer/overflow-insert.db' ).
+    lo_cursor = NEW zcl_sqlite_cursor(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_found = lo_cursor->seek( 100 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
+
+    lt_values = lo_cursor->values( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lt_values )
+      exp = 2 ).
+    READ TABLE lt_values INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 100 ).
+    READ TABLE lt_values INTO lo_value INDEX 2.
+    lv_text = lo_value->as_text( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = strlen( lv_text )
+      exp = 10000 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = substring( val = lv_text
+                       off = 9999
+                       len = 1 )
+      exp = 'Z' ).
+
+    close_database( ls_database ).
+  ENDMETHOD.
+
+  METHOD overflow_split.
+    DATA ls_database TYPE ty_database.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+    DATA lv_rowid TYPE int8.
+    DATA lv_text TYPE string.
+    DATA lv_value TYPE string.
+    DATA lv_depth TYPE i.
+    DATA lv_count TYPE i.
+    DATA lv_found TYPE abap_bool.
+
+    ls_database = copy_and_open(
+      iv_source = c_small_source
+      iv_target = 'writer/small-overflow-split.db' ).
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_text = repeat( val = 'Q'
+                      occ = 5000 ).
+
+    DO 20 TIMES.
+      lv_rowid = 2000 + sy-index.
+      lo_writer->insert_row(
+        iv_rowid   = lv_rowid
+        iv_payload = record( iv_id    = lv_rowid
+                             iv_name  = lv_text
+                             iv_price = '1.5' ) ).
+    ENDDO.
+
+    ls_database-pager->commit( ).
+    close_database( ls_database ).
+
+    ls_database = open_database( 'writer/small-overflow-split.db' ).
+    lv_depth = tree_depth(
+      io_pager  = ls_database-pager
+      iv_page   = 2
+      iv_budget = ls_database-pager->page_count( ) ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_depth
+      exp = 2
+      msg = 'overflow inserts should split the root leaf' ).
+
+    lo_cursor = NEW zcl_sqlite_cursor(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_found = lo_cursor->first( ).
+    WHILE lv_found = abap_true.
+      lv_count = lv_count + 1.
+      lv_found = lo_cursor->next( ).
+    ENDWHILE.
+    cl_abap_unit_assert=>assert_equals( act = lv_count
+                                        exp = 23 ).
+
+    lv_found = lo_cursor->seek( 2020 ).
+    cl_abap_unit_assert=>assert_equals( act = lv_found
+                                        exp = abap_true ).
+    lt_values = lo_cursor->values( ).
+    READ TABLE lt_values INTO lo_value INDEX 2.
+    lv_value = lo_value->as_text( ).
+    cl_abap_unit_assert=>assert_equals( act = strlen( lv_value )
+                                        exp = 5000 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = substring( val = lv_value off = 4999 len = 1 )
+      exp = 'Q' ).
 
     close_database( ls_database ).
   ENDMETHOD.
