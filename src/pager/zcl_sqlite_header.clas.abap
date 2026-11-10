@@ -287,6 +287,10 @@ CLASS zcl_sqlite_header IMPLEMENTATION.
           iv_value  = is_header-freelist_pages ).
         rv_data = zcl_sqlite_bytes=>write_u32(
           iv_data   = rv_data
+          iv_offset = 40
+          iv_value  = is_header-schema_cookie ).
+        rv_data = zcl_sqlite_bytes=>write_u32(
+          iv_data   = rv_data
           iv_offset = 92
           iv_value  = is_header-version_valid_for ).
         rv_data = zcl_sqlite_bytes=>write_u32(

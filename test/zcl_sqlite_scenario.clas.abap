@@ -7,6 +7,7 @@ CLASS zcl_sqlite_scenario DEFINITION
   CREATE PUBLIC.
 
   PUBLIC SECTION.
+    CONSTANTS c_create_table_database TYPE string VALUE 'compat/create-table.db'.
     CONSTANTS c_empty_database TYPE string VALUE 'compat/empty.db'.
     CONSTANTS c_freelist_database TYPE string VALUE 'compat/freelist.db'.
     CONSTANTS c_insert_database TYPE string VALUE 'compat/insert.db'.
@@ -14,6 +15,10 @@ CLASS zcl_sqlite_scenario DEFINITION
     CONSTANTS c_split_database TYPE string VALUE 'compat/split.db'.
 
     CLASS-METHODS create_empty
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS create_table
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -52,6 +57,30 @@ ENDCLASS.
 
 
 CLASS zcl_sqlite_scenario IMPLEMENTATION.
+
+  METHOD create_table.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_create_table_database ).
+
+    lo_database = zcl_sqlite_database=>create( c_create_table_database ).
+    lo_database->execute( 'CREATE TABLE created (id INTEGER PRIMARY KEY, name TEXT NOT NULL, price REAL)' ).
+    lo_database->execute( 'CREATE TABLE IF NOT EXISTS created (id INTEGER)' ).
+    lo_database->execute( 'CREATE TABLE notes (body TEXT)' ).
+    rs_result = lo_database->query( 'SELECT id, name FROM created' ).
+    IF lines( rs_result-columns ) <> 2 OR lines( rs_result-rows ) <> 0.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'created table did not reload into the catalog'.
+    ENDIF.
+    lo_database->close( ).
+
+    rv_name = c_create_table_database.
+  ENDMETHOD.
 
   METHOD create_empty.
     DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.

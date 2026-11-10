@@ -21,6 +21,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS planner_access_paths FOR TESTING RAISING zcx_sqlite_error.
     METHODS planner_execution FOR TESTING RAISING zcx_sqlite_error.
     METHODS create_empty_database FOR TESTING RAISING zcx_sqlite_error.
+    METHODS create_table FOR TESTING RAISING zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -717,6 +718,120 @@ CLASS ltcl_database IMPLEMENTATION.
       exp = 2
       msg = 'rowid range row' ).
     lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD create_table.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_file     TYPE REF TO zif_sqlite_file.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_pager    TYPE REF TO zcl_sqlite_pager.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA ls_header   TYPE zcl_sqlite_header=>ty_header.
+    DATA lt_entries  TYPE zcl_sqlite_catalog=>ty_entries.
+    DATA ls_entry    TYPE zcl_sqlite_catalog=>ty_entry.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA lv_data     TYPE xstring.
+    DATA lv_name     TYPE string.
+    DATA lv_sql      TYPE string.
+
+    lv_name = 'test/m5_7_create_table.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lv_sql = 'CREATE TABLE created (id INTEGER PRIMARY KEY, name TEXT NOT NULL, price REAL)'.
+    lo_database->execute( lv_sql ).
+
+    rs_result = lo_database->query( 'SELECT id, name FROM created' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-columns )
+      exp = 2
+      msg = 'created table column count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 0
+      msg = 'created table is empty' ).
+
+    lo_database->execute( 'CREATE TABLE IF NOT EXISTS created (id INTEGER)' ).
+    lo_database->execute( 'CREATE TABLE notes (body TEXT)' ).
+    lo_database->close( ).
+
+    lv_data = lo_vfs->export( lv_name ).
+    ls_header = zcl_sqlite_header=>parse( lv_data ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-database_size
+      exp = 3
+      msg = 'created table page count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-freelist_pages
+      exp = 0
+      msg = 'created table freelist' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-schema_cookie
+      exp = 3
+      msg = 'schema cookie after two tables' ).
+
+    lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lt_entries = zcl_sqlite_catalog=>read( lo_pager ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lt_entries )
+      exp = 2
+      msg = 'sqlite_schema row count' ).
+
+    READ TABLE lt_entries INTO ls_entry INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_entry-type
+      exp = 'table' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_entry-name
+      exp = 'created' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_entry-tbl_name
+      exp = 'created' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_entry-rootpage
+      exp = 2 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_entry-sql
+      exp = lv_sql ).
+
+    READ TABLE lt_entries INTO ls_entry INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_entry-name
+      exp = 'notes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_entry-rootpage
+      exp = 3 ).
+    lo_file->close( ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    rs_result = lo_database->query( 'SELECT id FROM created' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-columns )
+      exp = 1
+      msg = 'created table survives reopen' ).
+
+    TRY.
+        lo_database->execute( lv_sql ).
+        cl_abap_unit_assert=>fail( 'duplicate table was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    lo_database->execute( 'CREATE TABLE IF NOT EXISTS created (id INTEGER)' ).
+    lo_database->close( ).
+
+    lv_data = lo_vfs->export( lv_name ).
+    ls_header = zcl_sqlite_header=>parse( lv_data ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_header-schema_cookie
+      exp = 3
+      msg = 'no-op create table must not bump the schema cookie' ).
+
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
 
   METHOD create_empty_database.

@@ -1,4 +1,4 @@
-* Raw reader for the sqlite_schema table, see
+* Raw reader and writer for the sqlite_schema table, see
 * https://www.sqlite.org/schematab.html
 *
 * The entries are returned in rowid order, which is the order SELECT * FROM
@@ -23,6 +23,12 @@ CLASS zcl_sqlite_catalog DEFINITION
     CLASS-METHODS read
       IMPORTING io_pager          TYPE REF TO zcl_sqlite_pager
       RETURNING VALUE(rt_entries) TYPE ty_entries
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS append
+      IMPORTING io_pager        TYPE REF TO zcl_sqlite_pager
+                is_entry        TYPE ty_entry
+      RETURNING VALUE(rv_rowid) TYPE int8
       RAISING   zcx_sqlite_error.
 
   PROTECTED SECTION.
@@ -92,6 +98,41 @@ CLASS zcl_sqlite_catalog IMPLEMENTATION.
       APPEND ls_entry TO rt_entries.
       lv_found = lo_cursor->next( ).
     ENDWHILE.
+  ENDMETHOD.
+
+  METHOD append.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lv_found TYPE abap_bool.
+
+    lo_cursor = NEW zcl_sqlite_cursor(
+      io_pager     = io_pager
+      iv_root_page = 1 ).
+
+    rv_rowid = 1.
+    lv_found = lo_cursor->first( ).
+    WHILE lv_found = abap_true.
+      rv_rowid = lo_cursor->rowid( ) + 1.
+      lv_found = lo_cursor->next( ).
+    ENDWHILE.
+
+    APPEND zcl_sqlite_value=>text( is_entry-type ) TO lt_values.
+    APPEND zcl_sqlite_value=>text( is_entry-name ) TO lt_values.
+    APPEND zcl_sqlite_value=>text( is_entry-tbl_name ) TO lt_values.
+    APPEND zcl_sqlite_value=>integer( is_entry-rootpage ) TO lt_values.
+    IF is_entry-sql_is_null = abap_true.
+      APPEND zcl_sqlite_value=>null( ) TO lt_values.
+    ELSE.
+      APPEND zcl_sqlite_value=>text( is_entry-sql ) TO lt_values.
+    ENDIF.
+
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = io_pager
+      iv_root_page = 1 ).
+    lo_writer->insert_row(
+      iv_rowid   = rv_rowid
+      iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
   ENDMETHOD.
 
   METHOD as_text.

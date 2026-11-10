@@ -59,6 +59,10 @@ CLASS zcl_sqlite_pager DEFINITION
     METHODS freelist_count
       RETURNING VALUE(rv_count) TYPE i.
 
+* increment the schema cookie that is persisted by the next commit
+    METHODS bump_schema_cookie
+      RETURNING VALUE(rv_cookie) TYPE int8.
+
     METHODS commit
       RAISING zcx_sqlite_error.
 
@@ -448,6 +452,16 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
 
   METHOD freelist_count.
     rv_count = mv_header-freelist_pages.
+  ENDMETHOD.
+
+  METHOD bump_schema_cookie.
+    ensure_snapshot( ).
+
+    rv_cookie = mv_header-schema_cookie + 1.
+    IF rv_cookie > c_max_change_counter.
+      rv_cookie = 1.
+    ENDIF.
+    mv_header-schema_cookie = rv_cookie.
   ENDMETHOD.
 
   METHOD commit.

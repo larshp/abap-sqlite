@@ -92,6 +92,48 @@ async function openExported(SQL, tempDir, fileName, localName) {
   return {...exported, db};
 }
 
+async function verifyCreateTable(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.create_table({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "create-table.db");
+
+  try {
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.equal(scalar(exported.db, "PRAGMA schema_version"), 3, "schema cookie mismatch");
+    assert.equal(scalar(exported.db, "PRAGMA page_count"), 3, "page_count mismatch");
+    assert.equal(scalar(exported.db, "PRAGMA freelist_count"), 0, "freelist_count mismatch");
+    assert.deepEqual(
+      rows(exported.db, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      [
+        [
+          "table",
+          "created",
+          "created",
+          2,
+          "CREATE TABLE created (id INTEGER PRIMARY KEY, name TEXT NOT NULL, price REAL)",
+        ],
+        ["table", "notes", "notes", 3, "CREATE TABLE notes (body TEXT)"],
+      ],
+      "sqlite_schema rows differ",
+    );
+    assert.deepEqual(
+      rows(exported.db, "PRAGMA table_info(created)"),
+      [
+        [0, "id", "INTEGER", 0, null, 1],
+        [1, "name", "TEXT", 1, null, 0],
+        [2, "price", "REAL", 0, null, 0],
+      ],
+      "created table columns differ",
+    );
+    assert.equal(scalar(exported.db, "SELECT COUNT(*) FROM created"), 0, "created table is not empty");
+  } finally {
+    exported.db.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, 2 tables created)`,
+  );
+}
+
 async function verifyEmpty(SQL, tempDir) {
   const fileName = (await zcl_sqlite_scenario.create_empty({rv_name: 1})).get();
   const exported = await openExported(SQL, tempDir, fileName, "empty.db");
@@ -250,6 +292,7 @@ const SQL = await initSqlJs();
 const tempDir = await mkdtemp(path.join(os.tmpdir(), "abap-sqlite-"));
 
 try {
+  await verifyCreateTable(SQL, tempDir);
   await verifyEmpty(SQL, tempDir);
   await verifyInsert(SQL, tempDir);
   await verifyFreelist(SQL, tempDir);

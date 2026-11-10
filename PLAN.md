@@ -517,7 +517,7 @@ sql.js.
 
 #### M5.7 CREATE TABLE
 
-- [ ] Allocate the root page, write the `sqlite_schema` row, bump the schema cookie (40), reload the catalog
+- [x] Allocate the root page, write the `sqlite_schema` row, bump the schema cookie (40), reload the catalog
 
 **Done when:** a table created in ABAP shows up correctly in sql.js.
 

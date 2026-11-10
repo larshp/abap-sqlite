@@ -27,6 +27,12 @@ CLASS zcl_sqlite_ast_create_table DEFINITION
     METHODS get_constraints
       RETURNING VALUE(rt_constraints) TYPE ty_constraints.
 
+    METHODS is_if_not_exists
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
+    METHODS is_temporary
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
     METHODS is_without_rowid
       RETURNING VALUE(rv_result) TYPE abap_bool.
 
@@ -69,6 +75,14 @@ CLASS zcl_sqlite_ast_create_table IMPLEMENTATION.
 
   METHOD get_constraints.
     rt_constraints = mt_constraints.
+  ENDMETHOD.
+
+  METHOD is_if_not_exists.
+    rv_result = mv_if_not_exists.
+  ENDMETHOD.
+
+  METHOD is_temporary.
+    rv_result = mv_temporary.
   ENDMETHOD.
 
   METHOD is_without_rowid.

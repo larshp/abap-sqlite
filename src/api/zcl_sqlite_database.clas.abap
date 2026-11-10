@@ -34,6 +34,11 @@ CLASS zcl_sqlite_database DEFINITION
       RETURNING VALUE(rs_result) TYPE ty_result
       RAISING   zcx_sqlite_error.
 
+* execute one non-query statement and commit it
+    METHODS execute
+      IMPORTING iv_sql TYPE string
+      RAISING   zcx_sqlite_error.
+
     METHODS plan_dump
       IMPORTING iv_sql         TYPE string
       RETURNING VALUE(rv_plan) TYPE string
@@ -64,6 +69,15 @@ CLASS zcl_sqlite_database DEFINITION
     CLASS-METHODS empty_page
       RETURNING VALUE(rv_page) TYPE xstring
       RAISING   zcx_sqlite_error.
+
+    METHODS execute_create_table
+      IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_create_table
+                iv_sql       TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS normalized_sql
+      IMPORTING iv_sql        TYPE string
+      RETURNING VALUE(rv_sql) TYPE string.
 
     METHODS build_from_list
       IMPORTING it_from        TYPE zcl_sqlite_ast_select=>ty_from
@@ -373,6 +387,109 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     LOOP AT lt_project_columns INTO ls_project_column FROM 1 TO lv_visible_count.
       APPEND ls_project_column-name TO rs_result-columns.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD execute.
+    DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_create_table TYPE REF TO zcl_sqlite_ast_create_table.
+
+    IF mo_pager IS NOT BOUND OR mo_schema IS NOT BOUND.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING iv_message = 'database is closed'.
+    ENDIF.
+
+    lo_statement = zcl_sqlite_parser=>parse_statement( iv_sql ).
+    IF lo_statement IS NOT INSTANCE OF zcl_sqlite_ast_create_table.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING iv_message = 'only CREATE TABLE statements are supported'.
+    ENDIF.
+    lo_create_table ?= lo_statement.
+
+    TRY.
+        execute_create_table(
+          io_statement = lo_create_table
+          iv_sql       = iv_sql ).
+        mo_pager->commit( ).
+        mo_schema = zcl_sqlite_schema=>read( mo_pager ).
+      CATCH zcx_sqlite_error INTO DATA(lo_error).
+        mo_pager->rollback( ).
+        RAISE EXCEPTION lo_error.
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD execute_create_table.
+    DATA ls_existing TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_entry TYPE zcl_sqlite_catalog=>ty_entry.
+    DATA lv_root_page TYPE i.
+    DATA lv_name TYPE string.
+
+    lv_name = io_statement->get_name( ).
+    IF io_statement->is_temporary( ) = abap_true.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'temporary tables are not supported'.
+    ENDIF.
+    IF io_statement->is_without_rowid( ) = abap_true.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'WITHOUT ROWID tables are not supported yet'.
+    ENDIF.
+
+    ls_existing = mo_schema->table( lv_name ).
+    IF ls_existing-name IS NOT INITIAL.
+      IF io_statement->is_if_not_exists( ) = abap_true.
+        RETURN.
+      ENDIF.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |table { lv_name } already exists|.
+    ENDIF.
+
+    lv_root_page = mo_pager->allocate_page( ).
+    mo_pager->put_page(
+      iv_page = lv_root_page
+      iv_data = zcl_sqlite_btree=>empty_table_leaf(
+        mo_pager->page_size( ) ) ).
+
+    ls_entry-type = 'table'.
+    ls_entry-name = lv_name.
+    ls_entry-tbl_name = lv_name.
+    ls_entry-rootpage = lv_root_page.
+    ls_entry-sql = normalized_sql( iv_sql ).
+    ls_entry-sql_is_null = abap_false.
+    zcl_sqlite_catalog=>append(
+      io_pager = mo_pager
+      is_entry = ls_entry ).
+
+    mo_pager->bump_schema_cookie( ).
+  ENDMETHOD.
+
+  METHOD normalized_sql.
+    DATA lv_length TYPE i.
+    DATA lv_char TYPE string.
+
+    rv_sql = iv_sql.
+    lv_length = strlen( rv_sql ).
+    WHILE lv_length > 0.
+      lv_char = substring(
+        val = rv_sql
+        off = lv_length - 1
+        len = 1 ).
+      IF lv_char <> ';' AND lv_char <> ' '.
+        EXIT.
+      ENDIF.
+      lv_length = lv_length - 1.
+    ENDWHILE.
+
+    IF lv_length < strlen( rv_sql ).
+      rv_sql = substring(
+        val = rv_sql
+        off = 0
+        len = lv_length ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD plan_dump.

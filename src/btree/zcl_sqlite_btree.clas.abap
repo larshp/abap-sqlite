@@ -26,6 +26,12 @@ CLASS zcl_sqlite_btree DEFINITION
       RETURNING VALUE(rv_payload) TYPE xstring
       RAISING   zcx_sqlite_error.
 
+* build an empty table leaf page, used when a CREATE TABLE root is allocated
+    CLASS-METHODS empty_table_leaf
+      IMPORTING iv_page_size   TYPE i
+      RETURNING VALUE(rv_data) TYPE xstring
+      RAISING   zcx_sqlite_error.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
     CLASS-METHODS fail
@@ -161,6 +167,37 @@ CLASS zcl_sqlite_btree IMPLEMENTATION.
       rv_payload = rv_payload && lv_chunk.
       lv_remaining = lv_remaining - lv_chunk_size.
     ENDWHILE.
+  ENDMETHOD.
+
+  METHOD empty_table_leaf.
+    DATA lv_content_start TYPE int8.
+    DATA lv_data TYPE xstring.
+
+    IF iv_page_size < 512 OR iv_page_size > c_max_usable_size.
+      fail( 'b-tree page size is outside 512..65536' ).
+    ENDIF.
+
+    lv_data = repeat( val = '00'
+                      occ = iv_page_size ).
+    lv_content_start = iv_page_size.
+    IF lv_content_start = 65536.
+      lv_content_start = 0.
+    ENDIF.
+
+    TRY.
+        lv_data = zcl_sqlite_bytes=>write_u8(
+          iv_data   = lv_data
+          iv_offset = 0
+          iv_value  = zcl_sqlite_page=>c_table_leaf ).
+        lv_data = zcl_sqlite_bytes=>write_u16(
+          iv_data   = lv_data
+          iv_offset = 5
+          iv_value  = lv_content_start ).
+      CATCH cx_sy_conversion_overflow cx_sy_range_out_of_bounds.
+        fail( 'empty table leaf page could not be built' ).
+    ENDTRY.
+
+    rv_data = lv_data.
   ENDMETHOD.
 
   METHOD fail.
