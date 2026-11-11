@@ -18,6 +18,24 @@ CLASS zcl_sqlite_ast_update DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_conflict
+      RETURNING VALUE(rv_conflict) TYPE string.
+
+    METHODS get_table
+      RETURNING VALUE(rv_table) TYPE string.
+
+    METHODS get_alias
+      RETURNING VALUE(rv_alias) TYPE string.
+
+    METHODS get_assignments
+      RETURNING VALUE(rt_assignments) TYPE ty_assignments.
+
+    METHODS get_from
+      RETURNING VALUE(rt_from) TYPE zcl_sqlite_ast_node=>ty_nodes.
+
+    METHODS get_where
+      RETURNING VALUE(ro_where) TYPE REF TO zcl_sqlite_ast_node.
+
   PRIVATE SECTION.
     DATA mv_conflict    TYPE string.
     DATA mv_table       TYPE string.
@@ -72,6 +90,30 @@ CLASS zcl_sqlite_ast_update IMPLEMENTATION.
       ENDIF.
       rv_text = rv_text && lo_assignment->dump( ).
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD get_conflict.
+    rv_conflict = mv_conflict.
+  ENDMETHOD.
+
+  METHOD get_table.
+    rv_table = mv_table.
+  ENDMETHOD.
+
+  METHOD get_alias.
+    rv_alias = mv_alias.
+  ENDMETHOD.
+
+  METHOD get_assignments.
+    rt_assignments = mt_assignments.
+  ENDMETHOD.
+
+  METHOD get_from.
+    rt_from = mt_from.
+  ENDMETHOD.
+
+  METHOD get_where.
+    ro_where = mo_where.
   ENDMETHOD.
 
 ENDCLASS.

@@ -25,6 +25,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS insert_values FOR TESTING RAISING zcx_sqlite_error.
     METHODS insert_select FOR TESTING RAISING zcx_sqlite_error.
     METHODS delete_rows FOR TESTING RAISING zcx_sqlite_error.
+    METHODS update_rows FOR TESTING RAISING zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -1492,6 +1493,380 @@ CLASS ltcl_database IMPLEMENTATION.
     ENDTRY.
 
     lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD update_rows.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_name     TYPE string.
+    DATA lv_suffix   TYPE string.
+    DATA lv_values   TYPE string.
+    DATA lv_text     TYPE string.
+    DATA lv_expected TYPE f.
+
+    lv_name = 'test/m5_10_update.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database->execute(
+      'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL,' &&
+      ' amount REAL, note TEXT, bin BLOB)' ).
+
+    lv_suffix = repeat( val = 'x'
+                        occ = 40 ).
+    DO 200 TIMES.
+      IF sy-index > 1.
+        lv_values = lv_values && ', '.
+      ENDIF.
+      lv_values = lv_values && |({ sy-index }, 'row-{ sy-index }-{ lv_suffix }', { sy-index })|.
+    ENDDO.
+    lo_database->execute( |INSERT INTO items (id, name, amount) VALUES { lv_values }| ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 200
+      msg = 'insert changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 200
+      msg = 'insert last rowid' ).
+
+    lo_database->execute(
+      'UPDATE items SET name = name || ''-u'', amount = amount * 2,' &&
+      ' note = ''n-'' || id WHERE id % 3 = 0' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 66
+      msg = 'modulo update changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 200
+      msg = 'update keeps last_insert_rowid' ).
+
+    rs_result = lo_database->query( 'SELECT name, amount, note FROM items WHERE id = 3' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = |row-3-{ lv_suffix }-u|
+      msg = 'updated name' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    lv_expected = '6'.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_real( )
+      exp = lv_expected
+      msg = 'updated amount' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'n-3'
+      msg = 'updated note' ).
+
+    rs_result = lo_database->query( 'SELECT note FROM items WHERE id = 4' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'unmatched note stays null' ).
+
+    lo_database->execute( 'UPDATE items AS x SET amount = amount + x.id WHERE x.id BETWEEN 10 AND 12' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 3
+      msg = 'aliased update changes' ).
+
+    lo_database->execute( 'UPDATE items SET note = ''first'', note = ''last'' WHERE id = 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 1
+      msg = 'duplicate assignment changes' ).
+
+    lo_database->execute( 'UPDATE items SET id = id + 1000 WHERE id BETWEEN 1 AND 20' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 20
+      msg = 'rowid alias update changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 200
+      msg = 'rowid update keeps last_insert_rowid' ).
+
+    rs_result = lo_database->query( 'SELECT count(*) FROM items WHERE id BETWEEN 1 AND 20' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 0
+      msg = 'old rowid aliases removed' ).
+    rs_result = lo_database->query( 'SELECT count(*) FROM items WHERE id BETWEEN 1001 AND 1020' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 20
+      msg = 'new rowid aliases present' ).
+
+    lo_database->execute( 'UPDATE items SET rowid = rowid + 2000 WHERE id BETWEEN 50 AND 60' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 11
+      msg = 'rowid update changes' ).
+    rs_result = lo_database->query( 'SELECT count(*) FROM items WHERE id BETWEEN 2050 AND 2060' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 11
+      msg = 'rowid update moved rows' ).
+
+    lo_database->execute( 'UPDATE items SET oid = oid + 3000 WHERE id BETWEEN 70 AND 75' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 6
+      msg = 'oid update changes' ).
+    rs_result = lo_database->query( 'SELECT count(*) FROM items WHERE id BETWEEN 3070 AND 3075' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 6
+      msg = 'oid update moved rows' ).
+
+    lo_database->execute( 'UPDATE items SET rowid = rowid WHERE id BETWEEN 100 AND 109' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 10
+      msg = 'same rowid update changes' ).
+    lo_database->execute( 'UPDATE items SET amount = amount WHERE id = 999999' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 0
+      msg = 'update without matches changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 200
+      msg = 'no-match update keeps last_insert_rowid' ).
+
+    lo_database->execute( 'UPDATE items SET amount = amount + 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 200
+      msg = 'update all changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 200
+      msg = 'update all keeps last_insert_rowid' ).
+
+    rs_result = lo_database->query( 'SELECT count(*) FROM items' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 200
+      msg = 'row count after updates' ).
+
+    rs_result = lo_database->query( 'SELECT amount FROM items WHERE id = 1010' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    lv_expected = '21'.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_real( )
+      exp = lv_expected
+      msg = 'aliased update amount' ).
+
+    rs_result = lo_database->query(
+      'SELECT id, amount, name, note FROM items WHERE id IN (1001, 1002, 1003) ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'moved row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = |row-1-{ lv_suffix }|
+      msg = 'moved row keeps name' ).
+    READ TABLE ls_row INTO lo_value INDEX 4.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'last'
+      msg = 'duplicate assignment last wins' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    lv_expected = '2'.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_real( )
+      exp = lv_expected
+      msg = 'moved row amount' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 3.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    lv_expected = '7'.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_real( )
+      exp = lv_expected
+      msg = 'rowid update amount' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = |row-3-{ lv_suffix }-u|
+      msg = 'rowid update name' ).
+
+    TRY.
+        lo_database->execute( 'UPDATE items SET name = NULL WHERE id = 1001' ).
+        cl_abap_unit_assert=>fail( 'NOT NULL update was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'UPDATE items SET id = 1.5 WHERE id = 1001' ).
+        cl_abap_unit_assert=>fail( 'non-integer rowid update was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'UPDATE items SET id = id + 1 WHERE id BETWEEN 110 AND 115' ).
+        cl_abap_unit_assert=>fail( 'rowid collision update was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint ).
+    ENDTRY.
+
+    rs_result = lo_database->query( 'SELECT count(*) FROM items WHERE id BETWEEN 110 AND 115' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 6
+      msg = 'collision rollback restored rows' ).
+
+    TRY.
+        lo_database->execute( 'UPDATE items SET missing = 1 WHERE id = 1' ).
+        cl_abap_unit_assert=>fail( 'unknown update column was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'UPDATE missing SET amount = 1' ).
+        cl_abap_unit_assert=>fail( 'update of unknown table was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'UPDATE items SET amount = 1 FROM payloads WHERE items.id = payloads.id' ).
+        cl_abap_unit_assert=>fail( 'UPDATE ... FROM was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    lo_database->execute( 'CREATE TABLE payloads (id INTEGER PRIMARY KEY, label TEXT, body TEXT)' ).
+    lv_text = repeat( val = 'A'
+                      occ = 100 ).
+    lv_values = |(1, 'small', '{ lv_text }')|.
+    lv_text = repeat( val = 'B'
+                      occ = 8000 ).
+    lv_values = lv_values && |, (2, 'large', '{ lv_text }')|.
+    lv_text = repeat( val = 'C'
+                      occ = 12000 ).
+    lv_values = lv_values && |, (3, 'huge', '{ lv_text }')|.
+    lo_database->execute( |INSERT INTO payloads VALUES { lv_values }| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 3
+      msg = 'payload insert rowid' ).
+
+    lv_text = repeat( val = 'D'
+                      occ = 12000 ).
+    lo_database->execute( |UPDATE payloads SET body = '{ lv_text }' WHERE id = 1| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 1
+      msg = 'overflow growth changes' ).
+    lo_database->execute( 'UPDATE payloads SET body = ''tiny'' WHERE id = 2' ).
+    lv_text = repeat( val = 'E'
+                      occ = 6000 ).
+    lo_database->execute( |UPDATE payloads SET body = '{ lv_text }' WHERE id = 3| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 3
+      msg = 'overflow update keeps last_insert_rowid' ).
+
+    rs_result = lo_database->query( 'SELECT id, length(body), substr(body, 1, 1) FROM payloads ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'payload row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 12000
+      msg = 'grown payload length' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'D'
+      msg = 'grown payload content' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 2.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 4
+      msg = 'shrunk payload length' ).
+    READ TABLE ls_row INTO lo_value INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 't'
+      msg = 'shrunk payload content' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 3.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 6000
+      msg = 'overflow shrink length' ).
+
+    lo_database->close( ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    rs_result = lo_database->query( 'SELECT count(*) FROM items' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 200
+      msg = 'updates survive reopen' ).
+    lo_database->close( ).
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/without_rowid.db' ).
+    TRY.
+        lo_database->execute( |UPDATE wr SET n = 1 WHERE k = 'key-001'| ).
+        cl_abap_unit_assert=>fail( 'WITHOUT ROWID update was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+    lo_database->close( ).
+
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
 

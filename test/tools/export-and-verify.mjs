@@ -426,6 +426,87 @@ async function verifyDelete(SQL, tempDir) {
   );
 }
 
+async function verifyUpdate(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.update_rows({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "update.db");
+  const reference = new SQL.Database();
+  const suffix = "x".repeat(40);
+  const statements = [
+    "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, amount REAL, note TEXT, bin BLOB)",
+  ];
+
+  for (let from = 1; from <= 2000; from += 500) {
+    const to = Math.min(from + 499, 2000);
+    const values = [];
+    for (let id = from; id <= to; id += 1) {
+      values.push(`(${id}, 'row-${id}-${suffix}', ${id})`);
+    }
+    statements.push(`INSERT INTO items (id, name, amount) VALUES ${values.join(", ")}`);
+  }
+
+  statements.push(
+    "UPDATE items SET name = name || '-u', amount = amount * 2, note = 'n-' || id WHERE id % 5 = 0",
+    "UPDATE items AS x SET amount = amount + x.id WHERE x.id BETWEEN 100 AND 199",
+    "UPDATE items SET note = 'first', note = 'last' WHERE id = 7",
+    "UPDATE items SET id = id + 10000 WHERE id BETWEEN 1 AND 100",
+    "UPDATE items SET id = id - 5000 WHERE id BETWEEN 10001 AND 10100",
+    "UPDATE items SET rowid = rowid + 20000 WHERE id BETWEEN 500 AND 599",
+    "UPDATE items SET oid = oid + 30000 WHERE id BETWEEN 600 AND 699",
+    "UPDATE items SET rowid = rowid WHERE id BETWEEN 1000 AND 1099",
+    "UPDATE items SET amount = amount WHERE id = 123456",
+    "UPDATE items SET name = 'all-' || id",
+    "UPDATE items SET bin = x'DEADBEEF' WHERE id % 7 = 0",
+    "UPDATE items SET bin = NULL WHERE id % 11 = 0",
+    "UPDATE items SET amount = 42 WHERE id BETWEEN 700 AND 799",
+    "CREATE TABLE payloads (id INTEGER PRIMARY KEY, label TEXT, body TEXT)",
+    `INSERT INTO payloads VALUES (1, 'small', '${"A".repeat(100)}'), ` +
+      `(2, 'large', '${"B".repeat(6000)}'), ` +
+      `(3, 'huge', '${"C".repeat(12000)}'), ` +
+      `(4, 'medium', '${"D".repeat(200)}')`,
+    `UPDATE payloads SET body = '${"E".repeat(12000)}' WHERE id = 1`,
+    "UPDATE payloads SET body = 'tiny' WHERE id = 2",
+    `UPDATE payloads SET body = '${"F".repeat(6000)}' WHERE id = 3`,
+    "UPDATE payloads SET body = body || body WHERE id = 4",
+    "UPDATE payloads SET id = id + 10",
+    "UPDATE payloads SET label = label || '-u' WHERE id % 2 = 0",
+  );
+
+  try {
+    for (const sql of statements) {
+      reference.run(sql);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.deepEqual(
+      rows(exported.db, "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY rowid"),
+      rows(reference, "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY rowid"),
+      "sqlite_schema rows differ",
+    );
+    assert.ok(
+      scalar(exported.db, "SELECT rootpage FROM sqlite_schema WHERE name = 'payloads'") > 0,
+      "payloads root page is missing",
+    );
+    assert.equal(scalar(exported.db, "SELECT COUNT(*) FROM items"), 2000, "items row count mismatch");
+    assert.deepEqual(
+      typedRows(exported.db, "items", ["id", "name", "amount", "note", "bin"]),
+      typedRows(reference, "items", ["id", "name", "amount", "note", "bin"]),
+      "updated item rows differ",
+    );
+    assert.deepEqual(
+      typedRows(exported.db, "payloads", ["id", "label", "body"]),
+      typedRows(reference, "payloads", ["id", "label", "body"]),
+      "updated payload rows differ",
+    );
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, update corpus)`,
+  );
+}
+
 const SQL = await initSqlJs();
 const tempDir = await mkdtemp(path.join(os.tmpdir(), "abap-sqlite-"));
 
@@ -438,6 +519,7 @@ try {
   await verifyOverflow(SQL, tempDir);
   await verifySplit(SQL, tempDir);
   await verifyDelete(SQL, tempDir);
+  await verifyUpdate(SQL, tempDir);
 } finally {
   await rm(tempDir, {recursive: true, force: true});
 }

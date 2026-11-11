@@ -537,7 +537,7 @@ sql.js.
 
 #### M5.10 UPDATE
 
-- [ ] `UPDATE`, including changing the rowid / `INTEGER PRIMARY KEY`, and growing or shrinking
+- [x] `UPDATE`, including changing the rowid / `INTEGER PRIMARY KEY`, and growing or shrinking
       records (into or out of overflow)
 
 **Done when:** an update corpus gives identical contents in sql.js and abap-sqlite.

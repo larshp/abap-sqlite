@@ -15,6 +15,7 @@ CLASS zcl_sqlite_scenario DEFINITION
     CONSTANTS c_insert_statements_database TYPE string VALUE 'compat/insert-statements.db'.
     CONSTANTS c_overflow_database TYPE string VALUE 'compat/overflow-write.db'.
     CONSTANTS c_split_database TYPE string VALUE 'compat/split.db'.
+    CONSTANTS c_update_database TYPE string VALUE 'compat/update.db'.
 
     CLASS-METHODS create_empty
       RETURNING VALUE(rv_name) TYPE string
@@ -45,6 +46,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS split_rows
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS update_rows
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -441,6 +446,134 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_pager->commit( ).
     lo_file->close( ).
     rv_name = c_split_database.
+  ENDMETHOD.
+
+  METHOD update_rows.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lv_suffix   TYPE string.
+    DATA lv_values   TYPE string.
+    DATA lv_from     TYPE i.
+    DATA lv_to       TYPE i.
+    DATA lv_id       TYPE i.
+    DATA lv_text     TYPE string.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_update_database ).
+
+    lo_database = zcl_sqlite_database=>create( c_update_database ).
+    lo_database->execute(
+      'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL,' &&
+      ' amount REAL, note TEXT, bin BLOB)' ).
+
+    lv_suffix = repeat( val = 'x'
+                        occ = 40 ).
+    lv_from = 1.
+    WHILE lv_from <= 2000.
+      lv_to = lv_from + 499.
+      IF lv_to > 2000.
+        lv_to = 2000.
+      ENDIF.
+
+      CLEAR lv_values.
+      lv_id = lv_from.
+      WHILE lv_id <= lv_to.
+        IF lv_id > lv_from.
+          lv_values = lv_values && ', '.
+        ENDIF.
+        lv_values = lv_values && |({ lv_id }, 'row-{ lv_id }-{ lv_suffix }', { lv_id })|.
+        lv_id = lv_id + 1.
+      ENDWHILE.
+
+      lo_database->execute( |INSERT INTO items (id, name, amount) VALUES { lv_values }| ).
+      lv_from = lv_to + 1.
+    ENDWHILE.
+
+    IF lo_database->last_insert_rowid( ) <> 2000.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'UPDATE corpus insert changed last_insert_rowid'.
+    ENDIF.
+
+    lo_database->execute(
+      'UPDATE items SET name = name || ''-u'', amount = amount * 2,' &&
+      ' note = ''n-'' || id WHERE id % 5 = 0' ).
+    lo_database->execute( 'UPDATE items AS x SET amount = amount + x.id WHERE x.id BETWEEN 100 AND 199' ).
+    lo_database->execute( 'UPDATE items SET note = ''first'', note = ''last'' WHERE id = 7' ).
+    lo_database->execute( 'UPDATE items SET id = id + 10000 WHERE id BETWEEN 1 AND 100' ).
+    lo_database->execute( 'UPDATE items SET id = id - 5000 WHERE id BETWEEN 10001 AND 10100' ).
+    lo_database->execute( 'UPDATE items SET rowid = rowid + 20000 WHERE id BETWEEN 500 AND 599' ).
+    lo_database->execute( 'UPDATE items SET oid = oid + 30000 WHERE id BETWEEN 600 AND 699' ).
+    lo_database->execute( 'UPDATE items SET rowid = rowid WHERE id BETWEEN 1000 AND 1099' ).
+    lo_database->execute( 'UPDATE items SET amount = amount WHERE id = 123456' ).
+
+    IF lo_database->changes( ) <> 0.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'UPDATE without matches changed changes'.
+    ENDIF.
+    IF lo_database->last_insert_rowid( ) <> 2000.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'UPDATE changed last_insert_rowid'.
+    ENDIF.
+
+    lo_database->execute( 'UPDATE items SET name = ''all-'' || id' ).
+    IF lo_database->changes( ) <> 2000.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'full UPDATE changed the wrong number of rows'.
+    ENDIF.
+    lo_database->execute( 'UPDATE items SET bin = x''DEADBEEF'' WHERE id % 7 = 0' ).
+    lo_database->execute( 'UPDATE items SET bin = NULL WHERE id % 11 = 0' ).
+    lo_database->execute( 'UPDATE items SET amount = 42 WHERE id BETWEEN 700 AND 799' ).
+
+    lo_database->execute( 'CREATE TABLE payloads (id INTEGER PRIMARY KEY, label TEXT, body TEXT)' ).
+    lv_text = repeat( val = 'A'
+                      occ = 100 ).
+    lv_values = |(1, 'small', '{ lv_text }')|.
+    lv_text = repeat( val = 'B'
+                      occ = 6000 ).
+    lv_values = lv_values && |, (2, 'large', '{ lv_text }')|.
+    lv_text = repeat( val = 'C'
+                      occ = 12000 ).
+    lv_values = lv_values && |, (3, 'huge', '{ lv_text }')|.
+    lv_text = repeat( val = 'D'
+                      occ = 200 ).
+    lv_values = lv_values && |, (4, 'medium', '{ lv_text }')|.
+    lo_database->execute( |INSERT INTO payloads VALUES { lv_values }| ).
+
+    IF lo_database->last_insert_rowid( ) <> 4.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'payload insert changed last_insert_rowid'.
+    ENDIF.
+
+    lv_text = repeat( val = 'E'
+                      occ = 12000 ).
+    lo_database->execute( |UPDATE payloads SET body = '{ lv_text }' WHERE id = 1| ).
+    lo_database->execute( 'UPDATE payloads SET body = ''tiny'' WHERE id = 2' ).
+    lv_text = repeat( val = 'F'
+                      occ = 6000 ).
+    lo_database->execute( |UPDATE payloads SET body = '{ lv_text }' WHERE id = 3| ).
+    lo_database->execute( 'UPDATE payloads SET body = body || body WHERE id = 4' ).
+    lo_database->execute( 'UPDATE payloads SET id = id + 10' ).
+    lo_database->execute( 'UPDATE payloads SET label = label || ''-u'' WHERE id % 2 = 0' ).
+
+    IF lo_database->last_insert_rowid( ) <> 4.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'payload UPDATE changed last_insert_rowid'.
+    ENDIF.
+
+    lo_database->close( ).
+    rv_name = c_update_database.
   ENDMETHOD.
 
   METHOD make_freeblock.
