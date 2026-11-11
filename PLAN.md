@@ -530,7 +530,7 @@ sql.js.
 
 #### M5.9 B-tree delete and DELETE
 
-- [ ] Cell removal, freeblock list / fragmentation handling, defragmentation. Merging underfull
+- [x] Cell removal, freeblock list / fragmentation handling, defragmentation. Merging underfull
       pages is optional at first, but the tree must stay valid. Then the `DELETE` statement.
 
 **Done when:** deleting random subsets of 10k rows passes `integrity_check`.

@@ -361,6 +361,71 @@ async function verifySplit(SQL, tempDir) {
   );
 }
 
+async function verifyDelete(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.delete_rows({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "delete.db");
+  const reference = new SQL.Database();
+  const suffix = "x".repeat(40);
+  const statements = [
+    "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, amount REAL)",
+  ];
+
+  for (let from = 1; from <= 10000; from += 500) {
+    const to = Math.min(from + 499, 10000);
+    const values = [];
+    for (let id = from; id <= to; id += 1) {
+      values.push(`(${id}, 'row-${id}-${suffix}', ${id})`);
+    }
+    statements.push(`INSERT INTO items (id, name, amount) VALUES ${values.join(", ")}`);
+  }
+
+  statements.push(
+    "DELETE FROM items WHERE id % 7 = 0",
+    "DELETE FROM items WHERE id BETWEEN 2000 AND 2999",
+    "DELETE FROM items WHERE id % 11 = 0 AND id > 5000",
+    "DELETE FROM items WHERE id BETWEEN 7000 AND 8500 AND id % 3 <> 0",
+    "DELETE FROM items WHERE id IN (1, 2, 3, 9999, 10000)",
+    "DELETE FROM items WHERE id = 123456",
+  );
+
+  try {
+    for (const sql of statements) {
+      reference.run(sql);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.equal(
+      scalar(exported.db, "SELECT rootpage FROM sqlite_schema WHERE name = 'items'"),
+      2,
+      "root page number changed",
+    );
+    assert.ok(scalar(exported.db, "PRAGMA freelist_count") > 0, "deletes freed no pages");
+    assert.deepEqual(
+      rows(exported.db, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      rows(reference, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      "sqlite_schema rows differ",
+    );
+    assert.deepEqual(
+      typedRows(exported.db, "items", ["id", "name", "amount"]),
+      typedRows(reference, "items", ["id", "name", "amount"]),
+      "delete rows differ",
+    );
+    assert.equal(
+      scalar(exported.db, "SELECT COUNT(*) FROM items"),
+      scalar(reference, "SELECT COUNT(*) FROM items"),
+      "row count mismatch",
+    );
+    assert.ok(scalar(exported.db, "SELECT COUNT(*) FROM items") < 10000, "deletes removed no rows");
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, random deletes)`,
+  );
+}
+
 const SQL = await initSqlJs();
 const tempDir = await mkdtemp(path.join(os.tmpdir(), "abap-sqlite-"));
 
@@ -372,6 +437,7 @@ try {
   await verifyFreelist(SQL, tempDir);
   await verifyOverflow(SQL, tempDir);
   await verifySplit(SQL, tempDir);
+  await verifyDelete(SQL, tempDir);
 } finally {
   await rm(tempDir, {recursive: true, force: true});
 }

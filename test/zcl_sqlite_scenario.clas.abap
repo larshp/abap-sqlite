@@ -8,6 +8,7 @@ CLASS zcl_sqlite_scenario DEFINITION
 
   PUBLIC SECTION.
     CONSTANTS c_create_table_database TYPE string VALUE 'compat/create-table.db'.
+    CONSTANTS c_delete_database TYPE string VALUE 'compat/delete.db'.
     CONSTANTS c_empty_database TYPE string VALUE 'compat/empty.db'.
     CONSTANTS c_freelist_database TYPE string VALUE 'compat/freelist.db'.
     CONSTANTS c_insert_database TYPE string VALUE 'compat/insert.db'.
@@ -20,6 +21,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS create_table
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS delete_rows
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -135,6 +140,68 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_database->close( ).
 
     rv_name = c_insert_statements_database.
+  ENDMETHOD.
+
+  METHOD delete_rows.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lv_suffix   TYPE string.
+    DATA lv_values   TYPE string.
+    DATA lv_from     TYPE i.
+    DATA lv_to       TYPE i.
+    DATA lv_id       TYPE i.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_delete_database ).
+
+    lo_database = zcl_sqlite_database=>create( c_delete_database ).
+    lo_database->execute( 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, amount REAL)' ).
+
+    lv_suffix = repeat( val = 'x'
+                        occ = 40 ).
+    lv_from = 1.
+    WHILE lv_from <= 10000.
+      lv_to = lv_from + 499.
+      IF lv_to > 10000.
+        lv_to = 10000.
+      ENDIF.
+
+      CLEAR lv_values.
+      lv_id = lv_from.
+      WHILE lv_id <= lv_to.
+        IF lv_id > lv_from.
+          lv_values = lv_values && ', '.
+        ENDIF.
+        lv_values = lv_values && |({ lv_id }, 'row-{ lv_id }-{ lv_suffix }', { lv_id })|.
+        lv_id = lv_id + 1.
+      ENDWHILE.
+
+      lo_database->execute( |INSERT INTO items (id, name, amount) VALUES { lv_values }| ).
+      lv_from = lv_to + 1.
+    ENDWHILE.
+
+    lo_database->execute( 'DELETE FROM items WHERE id % 7 = 0' ).
+    lo_database->execute( 'DELETE FROM items WHERE id BETWEEN 2000 AND 2999' ).
+    lo_database->execute( 'DELETE FROM items WHERE id % 11 = 0 AND id > 5000' ).
+    lo_database->execute( 'DELETE FROM items WHERE id BETWEEN 7000 AND 8500 AND id % 3 <> 0' ).
+    lo_database->execute( 'DELETE FROM items WHERE id IN (1, 2, 3, 9999, 10000)' ).
+    lo_database->execute( 'DELETE FROM items WHERE id = 123456' ).
+
+    IF lo_database->last_insert_rowid( ) <> 10000.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'DELETE changed last_insert_rowid'.
+    ENDIF.
+    IF lo_database->changes( ) <> 0.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'DELETE without matches changed changes'.
+    ENDIF.
+
+    lo_database->close( ).
+    rv_name = c_delete_database.
   ENDMETHOD.
 
   METHOD freelist_cycle.

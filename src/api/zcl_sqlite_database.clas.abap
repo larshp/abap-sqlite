@@ -111,6 +111,16 @@ CLASS zcl_sqlite_database DEFINITION
                 ev_last_rowid TYPE int8
       RAISING   zcx_sqlite_error.
 
+    METHODS execute_delete
+      IMPORTING io_statement      TYPE REF TO zcl_sqlite_ast_delete
+      RETURNING VALUE(rv_changes) TYPE i
+      RAISING   zcx_sqlite_error.
+
+    METHODS rowid_select_name
+      IMPORTING is_table       TYPE zcl_sqlite_schema=>ty_table
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
     METHODS build_insert_columns
       IMPORTING io_statement      TYPE REF TO zcl_sqlite_ast_insert
                 it_table_columns  TYPE zcl_sqlite_schema=>ty_columns
@@ -465,9 +475,11 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_create_table TYPE REF TO zcl_sqlite_ast_create_table.
     DATA lo_insert TYPE REF TO zcl_sqlite_ast_insert.
+    DATA lo_delete TYPE REF TO zcl_sqlite_ast_delete.
     DATA lv_changes TYPE i.
     DATA lv_last_rowid TYPE int8.
     DATA lv_schema_changed TYPE abap_bool.
+    DATA lv_inserted TYPE abap_bool.
 
     IF mo_pager IS NOT BOUND OR mo_schema IS NOT BOUND.
       RAISE EXCEPTION TYPE zcx_sqlite_error
@@ -480,10 +492,13 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       lv_schema_changed = abap_true.
     ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_insert.
       lo_insert ?= lo_statement.
+      lv_inserted = abap_true.
+    ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_delete.
+      lo_delete ?= lo_statement.
     ELSE.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
-          iv_message = 'only CREATE TABLE and INSERT statements are supported'.
+          iv_message = 'only CREATE TABLE, INSERT and DELETE statements are supported'.
     ENDIF.
 
     TRY.
@@ -491,13 +506,15 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           execute_create_table(
             io_statement = lo_create_table
             iv_sql       = iv_sql ).
-        ELSE.
+        ELSEIF lv_inserted = abap_true.
           execute_insert(
             EXPORTING
               io_statement  = lo_insert
             IMPORTING
               ev_changes    = lv_changes
               ev_last_rowid = lv_last_rowid ).
+        ELSE.
+          lv_changes = execute_delete( lo_delete ).
         ENDIF.
         mo_pager->commit( ).
         IF lv_schema_changed = abap_true.
@@ -505,7 +522,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           mv_changes = 0.
         ELSE.
           mv_changes = lv_changes.
-          IF lv_changes > 0.
+          IF lv_inserted = abap_true AND lv_changes > 0.
             mv_last_insert_rowid = lv_last_rowid.
           ENDIF.
         ENDIF.
@@ -693,6 +710,100 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     IF lv_changes > 0.
       ev_last_rowid = lv_last_rowid.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD execute_delete.
+    DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA lt_columns TYPE zcl_sqlite_ast_select=>ty_columns.
+    DATA lt_from TYPE zcl_sqlite_ast_select=>ty_from.
+    DATA lo_result_column TYPE REF TO zcl_sqlite_ast_result_column.
+    DATA lo_expression TYPE REF TO zcl_sqlite_ast_name.
+    DATA lo_table_ref TYPE REF TO zcl_sqlite_ast_table_ref.
+    DATA lo_select TYPE REF TO zcl_sqlite_ast_select.
+    DATA rs_result TYPE ty_result.
+    DATA ls_row TYPE ty_row.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lv_root_page TYPE i.
+    DATA lv_rowid TYPE int8.
+    DATA lv_changes TYPE i.
+
+    ls_table = mo_schema->table( io_statement->get_table( ) ).
+    IF ls_table-name IS INITIAL.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |no such table: { io_statement->get_table( ) }|.
+    ENDIF.
+    IF ls_table-without_rowid = abap_true.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'WITHOUT ROWID tables are not supported yet'.
+    ENDIF.
+
+    lo_expression = NEW zcl_sqlite_ast_name(
+      iv_kind = zcl_sqlite_ast_name=>c_column
+      iv_text = rowid_select_name( ls_table ) ).
+    lo_result_column = NEW zcl_sqlite_ast_result_column(
+      io_expression = lo_expression ).
+    APPEND lo_result_column TO lt_columns.
+
+    lo_table_ref = NEW zcl_sqlite_ast_table_ref(
+      iv_name  = io_statement->get_table( )
+      iv_alias = io_statement->get_alias( ) ).
+    APPEND lo_table_ref TO lt_from.
+
+    lo_select = NEW zcl_sqlite_ast_select(
+      it_columns = lt_columns
+      it_from    = lt_from
+      io_where   = io_statement->get_where( ) ).
+
+    rs_result = query_select( lo_select ).
+
+    lv_root_page = ls_table-rootpage.
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = mo_pager
+      iv_root_page = lv_root_page ).
+
+    LOOP AT rs_result-rows INTO ls_row.
+      READ TABLE ls_row INTO lo_value INDEX 1.
+      lv_rowid = lo_value->as_integer( ).
+      lo_writer->delete_row( lv_rowid ).
+      lv_changes = lv_changes + 1.
+    ENDLOOP.
+
+    rv_changes = lv_changes.
+  ENDMETHOD.
+
+  METHOD rowid_select_name.
+    DATA lt_candidates TYPE zcl_sqlite_ast_node=>ty_names.
+    DATA lv_candidate TYPE string.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA lv_found TYPE abap_bool.
+
+    APPEND 'rowid' TO lt_candidates.
+    APPEND '_rowid_' TO lt_candidates.
+    APPEND 'oid' TO lt_candidates.
+
+    LOOP AT lt_candidates INTO lv_candidate.
+      lv_found = abap_false.
+      LOOP AT is_table-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = to_upper( lv_candidate ).
+          lv_found = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lv_found = abap_false.
+        rv_name = lv_candidate.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+    RAISE EXCEPTION TYPE zcx_sqlite_error
+      EXPORTING
+        iv_code    = zcx_sqlite_error=>sqlite_error
+        iv_message = 'table has no unshadowed rowid alias'.
   ENDMETHOD.
 
   METHOD build_insert_columns.

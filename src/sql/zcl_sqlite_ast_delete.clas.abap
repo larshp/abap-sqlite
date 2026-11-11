@@ -13,6 +13,15 @@ CLASS zcl_sqlite_ast_delete DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_table
+      RETURNING VALUE(rv_table) TYPE string.
+
+    METHODS get_alias
+      RETURNING VALUE(rv_alias) TYPE string.
+
+    METHODS get_where
+      RETURNING VALUE(ro_where) TYPE REF TO zcl_sqlite_ast_node.
+
   PRIVATE SECTION.
     DATA mv_table TYPE string.
     DATA mv_alias TYPE string.
@@ -37,6 +46,18 @@ CLASS zcl_sqlite_ast_delete IMPLEMENTATION.
     IF mo_where IS BOUND.
       rv_text = rv_text && | WHERE | && mo_where->dump( ).
     ENDIF.
+  ENDMETHOD.
+
+  METHOD get_table.
+    rv_table = mv_table.
+  ENDMETHOD.
+
+  METHOD get_alias.
+    rv_alias = mv_alias.
+  ENDMETHOD.
+
+  METHOD get_where.
+    ro_where = mo_where.
   ENDMETHOD.
 
 ENDCLASS.

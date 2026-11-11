@@ -22,6 +22,8 @@ CLASS ltcl_btree_writer DEFINITION FINAL FOR TESTING
     METHODS interior_insert FOR TESTING RAISING zcx_sqlite_error.
     METHODS root_split FOR TESTING RAISING zcx_sqlite_error.
     METHODS interior_split FOR TESTING RAISING zcx_sqlite_error.
+    METHODS delete_rows FOR TESTING RAISING zcx_sqlite_error.
+    METHODS delete_overflow FOR TESTING RAISING zcx_sqlite_error.
 
     METHODS copy_and_open
       IMPORTING iv_source          TYPE string
@@ -585,6 +587,215 @@ CLASS ltcl_btree_writer IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals(
       act = lo_cursor->rowid( )
       exp = 6999 ).
+    close_database( ls_database ).
+  ENDMETHOD.
+
+  METHOD delete_rows.
+    DATA ls_database TYPE ty_database.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+    DATA lv_rowid TYPE int8.
+    DATA lv_name TYPE string.
+    DATA lv_suffix TYPE string.
+    DATA lv_count TYPE i.
+    DATA lv_depth TYPE i.
+    DATA lv_depth_before TYPE i.
+    DATA lv_freelist TYPE i.
+    DATA lv_found TYPE abap_bool.
+
+    ls_database = copy_and_open(
+      iv_source = c_page_512_source
+      iv_target = 'writer/page-512-delete.db' ).
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_suffix = repeat( val = 'x'
+                        occ = 20 ).
+
+    DO 2000 TIMES.
+      lv_rowid = 5000 + sy-index.
+      lv_name = |row-{ lv_rowid }-{ lv_suffix }|.
+      lo_writer->insert_row(
+        iv_rowid   = lv_rowid
+        iv_payload = record_two_columns( iv_id   = lv_rowid
+                                         iv_name = lv_name ) ).
+    ENDDO.
+
+    ls_database-pager->commit( ).
+    close_database( ls_database ).
+
+    ls_database = open_database( 'writer/page-512-delete.db' ).
+    lv_depth_before = tree_depth(
+      io_pager  = ls_database-pager
+      iv_page   = 2
+      iv_budget = ls_database-pager->page_count( ) ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_depth_before
+      exp = 3
+      msg = 'inserted rows should produce a three-level tree' ).
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    DO 2000 TIMES.
+      lo_writer->delete_row( 5000 + sy-index ).
+    ENDDO.
+
+    lv_freelist = ls_database-pager->freelist_count( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = boolc( lv_freelist > 0 )
+      exp = abap_true
+      msg = 'deleting rows should free b-tree pages' ).
+    ls_database-pager->commit( ).
+    close_database( ls_database ).
+
+    ls_database = open_database( 'writer/page-512-delete.db' ).
+    lv_depth = tree_depth(
+      io_pager  = ls_database-pager
+      iv_page   = 2
+      iv_budget = ls_database-pager->page_count( ) ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_depth
+      exp = 2
+      msg = 'deleting all inserted rows should collapse one level' ).
+
+    lo_cursor = NEW zcl_sqlite_cursor(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_found = lo_cursor->first( ).
+    WHILE lv_found = abap_true.
+      lv_count = lv_count + 1.
+      lv_found = lo_cursor->next( ).
+    ENDWHILE.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 40
+      msg = 'remaining fixture rows after deleting inserted rows' ).
+
+    lv_found = lo_cursor->seek( 5001 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_false
+      msg = 'deleted row must not be found' ).
+    lv_found = lo_cursor->seek( 1 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'first fixture row must survive' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->rowid( )
+      exp = 1 ).
+    lv_found = lo_cursor->seek( 40 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'last fixture row must survive' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->rowid( )
+      exp = 40 ).
+
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_name = repeat( val = 'Z'
+                      occ = 5000 ).
+    lo_writer->insert_row(
+      iv_rowid   = 7001
+      iv_payload = record_two_columns( iv_id   = 7001
+                                       iv_name = lv_name ) ).
+    ls_database-pager->commit( ).
+    close_database( ls_database ).
+
+    ls_database = open_database( 'writer/page-512-delete.db' ).
+    lo_cursor = NEW zcl_sqlite_cursor(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    CLEAR lv_count.
+    lv_found = lo_cursor->first( ).
+    WHILE lv_found = abap_true.
+      lv_count = lv_count + 1.
+      lv_found = lo_cursor->next( ).
+    ENDWHILE.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 41
+      msg = 'insert after collapsing the tree' ).
+
+    lv_found = lo_cursor->seek( 7001 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'inserted row after collapse must be found' ).
+    lt_values = lo_cursor->values( ).
+    READ TABLE lt_values INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = strlen( lo_value->as_text( ) )
+      exp = 5000
+      msg = 'overflow payload after collapse' ).
+
+    close_database( ls_database ).
+  ENDMETHOD.
+
+  METHOD delete_overflow.
+    DATA ls_database TYPE ty_database.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lv_freelist_before TYPE i.
+    DATA lv_freelist_after TYPE i.
+    DATA lv_count TYPE i.
+    DATA lv_found TYPE abap_bool.
+
+    ls_database = copy_and_open(
+      iv_source = c_overflow_source
+      iv_target = 'writer/overflow-delete.db' ).
+    lv_freelist_before = ls_database-pager->freelist_count( ).
+
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lo_writer->delete_row( 3 ).
+    lo_writer->delete_row( 4 ).
+
+    lv_freelist_after = ls_database-pager->freelist_count( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = boolc( lv_freelist_after > lv_freelist_before )
+      exp = abap_true
+      msg = 'deleting overflow rows should free their chains' ).
+
+    ls_database-pager->commit( ).
+    close_database( ls_database ).
+
+    ls_database = open_database( 'writer/overflow-delete.db' ).
+    lo_cursor = NEW zcl_sqlite_cursor(
+      io_pager     = ls_database-pager
+      iv_root_page = 2 ).
+    lv_found = lo_cursor->first( ).
+    WHILE lv_found = abap_true.
+      lv_count = lv_count + 1.
+      lv_found = lo_cursor->next( ).
+    ENDWHILE.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 2
+      msg = 'remaining rows after deleting overflow rows' ).
+
+    lv_found = lo_cursor->seek( 3 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_false
+      msg = 'deleted text overflow row must not be found' ).
+    lv_found = lo_cursor->seek( 4 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_false
+      msg = 'deleted blob overflow row must not be found' ).
+    lv_found = lo_cursor->seek( 1 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'near overflow row must survive' ).
+
     close_database( ls_database ).
   ENDMETHOD.
 

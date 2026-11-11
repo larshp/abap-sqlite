@@ -21,6 +21,10 @@ CLASS zcl_sqlite_btree_writer DEFINITION
                 iv_payload TYPE xstring
       RAISING   zcx_sqlite_error.
 
+    METHODS delete_row
+      IMPORTING iv_rowid TYPE int8
+      RAISING   zcx_sqlite_error.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
     CONSTANTS c_max_fragmented          TYPE i VALUE 255.
@@ -53,6 +57,12 @@ CLASS zcl_sqlite_btree_writer DEFINITION
            END OF ty_interior_cell.
     TYPES ty_interior_cells TYPE STANDARD TABLE OF ty_interior_cell WITH DEFAULT KEY.
 
+    TYPES: BEGIN OF ty_delete_result,
+             found     TYPE abap_bool,
+             empty     TYPE abap_bool,
+             max_rowid TYPE int8,
+           END OF ty_delete_result.
+
     DATA mo_pager       TYPE REF TO zcl_sqlite_pager.
     DATA mv_root_page   TYPE i.
     DATA mv_page_size   TYPE i.
@@ -63,6 +73,54 @@ CLASS zcl_sqlite_btree_writer DEFINITION
                 iv_rowid        TYPE int8
                 iv_cell         TYPE xstring
       RETURNING VALUE(rs_split) TYPE ty_split
+      RAISING   zcx_sqlite_error.
+
+    METHODS delete_page
+      IMPORTING iv_page          TYPE i
+                iv_rowid         TYPE int8
+      RETURNING VALUE(rs_result) TYPE ty_delete_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS delete_leaf_page
+      IMPORTING iv_page          TYPE i
+                is_raw           TYPE zcl_sqlite_pager=>ty_page
+                is_page          TYPE zcl_sqlite_page=>ty_page
+                iv_rowid         TYPE int8
+      RETURNING VALUE(rs_result) TYPE ty_delete_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS remove_interior_child
+      IMPORTING iv_page          TYPE i
+                is_raw           TYPE zcl_sqlite_pager=>ty_page
+                is_page          TYPE zcl_sqlite_page=>ty_page
+                iv_child_page    TYPE i
+                iv_child_index   TYPE i
+      RETURNING VALUE(rs_result) TYPE ty_delete_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS set_interior_key
+      IMPORTING iv_page          TYPE i
+                is_raw           TYPE zcl_sqlite_pager=>ty_page
+                is_page          TYPE zcl_sqlite_page=>ty_page
+                iv_child_index   TYPE i
+                iv_key           TYPE int8
+      RETURNING VALUE(rs_result) TYPE ty_delete_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS collapse_page
+      IMPORTING iv_page          TYPE i
+                is_raw           TYPE zcl_sqlite_pager=>ty_page
+                iv_child_page    TYPE i
+      RETURNING VALUE(rs_result) TYPE ty_delete_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS subtree_max
+      IMPORTING iv_page         TYPE i
+      RETURNING VALUE(rv_rowid) TYPE int8
+      RAISING   zcx_sqlite_error.
+
+    METHODS free_overflow_chain
+      IMPORTING iv_first_page TYPE i
       RAISING   zcx_sqlite_error.
 
     METHODS insert_leaf_page
@@ -259,6 +317,360 @@ CLASS zcl_sqlite_btree_writer IMPLEMENTATION.
         ENDLOOP.
         RAISE EXCEPTION lo_error.
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD delete_row.
+    delete_page( iv_page  = mv_root_page
+                 iv_rowid = iv_rowid ).
+  ENDMETHOD.
+
+  METHOD delete_page.
+    DATA ls_raw TYPE zcl_sqlite_pager=>ty_page.
+    DATA ls_page TYPE zcl_sqlite_page=>ty_page.
+    DATA ls_child TYPE ty_delete_result.
+    DATA lv_child TYPE i.
+    DATA lv_child_index TYPE i.
+    DATA lv_child_is_rightmost TYPE abap_bool.
+
+    ls_raw = mo_pager->get_page( iv_page ).
+    ls_page = zcl_sqlite_page=>parse(
+      iv_data   = ls_raw-data
+      iv_offset = ls_raw-btree_offset ).
+
+    CASE ls_page-page_type.
+      WHEN zcl_sqlite_page=>c_table_leaf.
+        rs_result = delete_leaf_page(
+          iv_page  = iv_page
+          is_raw   = ls_raw
+          is_page  = ls_page
+          iv_rowid = iv_rowid ).
+      WHEN zcl_sqlite_page=>c_table_interior.
+        find_child(
+          EXPORTING
+            is_raw         = ls_raw
+            is_page        = ls_page
+            iv_rowid       = iv_rowid
+          IMPORTING
+            ev_child       = lv_child
+            ev_child_index = lv_child_index ).
+
+        lv_child_is_rightmost = boolc(
+          lv_child = ls_page-rightmost_pointer ).
+
+        ls_child = delete_page(
+          iv_page  = lv_child
+          iv_rowid = iv_rowid ).
+        IF ls_child-found = abap_false.
+          RETURN.
+        ENDIF.
+
+        rs_result-found = abap_true.
+        IF lv_child_is_rightmost = abap_true.
+          lv_child_index = ls_page-cell_count + 1.
+        ELSE.
+          lv_child_index = lv_child_index + 1.
+        ENDIF.
+        IF ls_child-empty = abap_true.
+          rs_result = remove_interior_child(
+            iv_page        = iv_page
+            is_raw         = ls_raw
+            is_page        = ls_page
+            iv_child_page  = lv_child
+            iv_child_index = lv_child_index ).
+        ELSEIF lv_child_is_rightmost = abap_false.
+          rs_result = set_interior_key(
+            iv_page        = iv_page
+            is_raw         = ls_raw
+            is_page        = ls_page
+            iv_child_index = lv_child_index
+            iv_key         = ls_child-max_rowid ).
+        ELSE.
+          rs_result-empty = abap_false.
+          rs_result-max_rowid = ls_child-max_rowid.
+        ENDIF.
+      WHEN OTHERS.
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'writer found a non-table b-tree page' ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD delete_leaf_page.
+    DATA lt_cells TYPE ty_leaf_cells.
+    DATA lt_remaining TYPE ty_leaf_cells.
+    DATA ls_cell TYPE ty_leaf_cell.
+    DATA lv_payload_length TYPE int8.
+    DATA lv_local_size TYPE int8.
+    DATA lv_first_overflow TYPE int8.
+    DATA lv_offset TYPE i.
+    DATA lv_data TYPE xstring.
+
+    lt_cells = read_leaf_cells( is_raw  = is_raw
+                                is_page = is_page ).
+    LOOP AT lt_cells INTO ls_cell.
+      IF ls_cell-rowid = iv_rowid.
+        rs_result-found = abap_true.
+        TRY.
+            lv_payload_length = zcl_sqlite_bytes=>read_varint(
+              iv_data   = ls_cell-data
+              iv_offset = 0 ).
+          CATCH cx_sy_range_out_of_bounds.
+            fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+                  iv_message = 'table leaf cell header is truncated' ).
+        ENDTRY.
+        lv_local_size = zcl_sqlite_btree=>local_payload_size(
+          iv_payload_size = lv_payload_length
+          iv_usable_size  = mv_usable_size ).
+        IF lv_payload_length > lv_local_size.
+          IF xstrlen( ls_cell-data ) < 4.
+            fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+                  iv_message = 'overflow pointer is missing' ).
+          ENDIF.
+          lv_offset = xstrlen( ls_cell-data ) - 4.
+          lv_first_overflow = read_u32(
+            iv_data   = ls_cell-data
+            iv_offset = lv_offset ).
+        ENDIF.
+      ELSE.
+        APPEND ls_cell TO lt_remaining.
+      ENDIF.
+    ENDLOOP.
+
+    IF rs_result-found = abap_false.
+      RETURN.
+    ENDIF.
+
+    lv_data = build_leaf_page(
+      it_cells  = lt_remaining
+      iv_offset = is_raw-btree_offset ).
+    lv_data = preserve_header( iv_data = lv_data
+                               is_raw  = is_raw ).
+    mo_pager->put_page( iv_page = iv_page
+                        iv_data = lv_data ).
+
+    rs_result-empty = boolc( lines( lt_remaining ) = 0 ).
+    IF rs_result-empty = abap_false.
+      READ TABLE lt_remaining INTO ls_cell INDEX lines( lt_remaining ).
+      rs_result-max_rowid = ls_cell-rowid.
+    ENDIF.
+
+    IF lv_first_overflow > 0.
+      free_overflow_chain( CONV i( lv_first_overflow ) ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD remove_interior_child.
+    DATA lt_cells TYPE ty_interior_cells.
+    DATA ls_cell TYPE ty_interior_cell.
+    DATA lv_rightmost TYPE i.
+    DATA lv_new_rightmost TYPE i.
+    DATA lv_count TYPE i.
+    DATA lv_data TYPE xstring.
+
+    lt_cells = read_interior_cells( is_raw  = is_raw
+                                    is_page = is_page ).
+    lv_count = lines( lt_cells ).
+    lv_rightmost = is_page-rightmost_pointer.
+    lv_new_rightmost = lv_rightmost.
+
+    IF iv_child_index <= lv_count.
+      READ TABLE lt_cells INTO ls_cell INDEX iv_child_index.
+      IF ls_cell-child <> iv_child_page.
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'interior child pointer does not match' ).
+      ENDIF.
+      DELETE lt_cells INDEX iv_child_index.
+    ELSEIF iv_child_index = lv_count + 1.
+      READ TABLE lt_cells INTO ls_cell INDEX lv_count.
+      lv_new_rightmost = ls_cell-child.
+      DELETE lt_cells INDEX lv_count.
+    ELSE.
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+            iv_message = 'interior child index is out of range' ).
+    ENDIF.
+
+    IF lines( lt_cells ) = 0.
+      rs_result = collapse_page(
+        iv_page       = iv_page
+        is_raw        = is_raw
+        iv_child_page = lv_new_rightmost ).
+      IF iv_child_page <> lv_new_rightmost.
+        mo_pager->free_page( iv_child_page ).
+      ENDIF.
+      RETURN.
+    ENDIF.
+
+    lv_data = build_interior_page(
+      it_cells     = lt_cells
+      iv_rightmost = lv_new_rightmost
+      iv_offset    = is_raw-btree_offset ).
+    lv_data = preserve_header( iv_data = lv_data
+                               is_raw  = is_raw ).
+    mo_pager->put_page( iv_page = iv_page
+                        iv_data = lv_data ).
+    mo_pager->free_page( iv_child_page ).
+
+    rs_result-found = abap_true.
+    rs_result-empty = abap_false.
+    rs_result-max_rowid = subtree_max( lv_new_rightmost ).
+  ENDMETHOD.
+
+  METHOD set_interior_key.
+    DATA lt_cells TYPE ty_interior_cells.
+    DATA ls_cell TYPE ty_interior_cell.
+    DATA lv_data TYPE xstring.
+
+    lt_cells = read_interior_cells( is_raw  = is_raw
+                                    is_page = is_page ).
+    READ TABLE lt_cells INTO ls_cell INDEX iv_child_index.
+    IF sy-subrc <> 0.
+      fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+            iv_message = 'interior key index is out of range' ).
+    ENDIF.
+    ls_cell-key = iv_key.
+    ls_cell-data = build_interior_cell(
+      iv_child = ls_cell-child
+      iv_key   = iv_key ).
+    MODIFY lt_cells FROM ls_cell INDEX iv_child_index.
+
+    lv_data = build_interior_page(
+      it_cells     = lt_cells
+      iv_rightmost = is_page-rightmost_pointer
+      iv_offset    = is_raw-btree_offset ).
+    lv_data = preserve_header( iv_data = lv_data
+                               is_raw  = is_raw ).
+    mo_pager->put_page( iv_page = iv_page
+                        iv_data = lv_data ).
+
+    rs_result-found = abap_true.
+    rs_result-empty = abap_false.
+    rs_result-max_rowid = subtree_max( is_page-rightmost_pointer ).
+  ENDMETHOD.
+
+  METHOD collapse_page.
+    DATA ls_child_raw TYPE zcl_sqlite_pager=>ty_page.
+    DATA ls_child_page TYPE zcl_sqlite_page=>ty_page.
+    DATA lt_leaf_cells TYPE ty_leaf_cells.
+    DATA lt_interior_cells TYPE ty_interior_cells.
+    DATA ls_leaf_cell TYPE ty_leaf_cell.
+    DATA lv_data TYPE xstring.
+
+    ls_child_raw = mo_pager->get_page( iv_child_page ).
+    ls_child_page = zcl_sqlite_page=>parse(
+      iv_data   = ls_child_raw-data
+      iv_offset = ls_child_raw-btree_offset ).
+
+    CASE ls_child_page-page_type.
+      WHEN zcl_sqlite_page=>c_table_leaf.
+        lt_leaf_cells = read_leaf_cells(
+          is_raw  = ls_child_raw
+          is_page = ls_child_page ).
+        lv_data = build_leaf_page(
+          it_cells  = lt_leaf_cells
+          iv_offset = is_raw-btree_offset ).
+        rs_result-empty = boolc( lines( lt_leaf_cells ) = 0 ).
+        IF rs_result-empty = abap_false.
+          READ TABLE lt_leaf_cells INTO ls_leaf_cell
+            INDEX lines( lt_leaf_cells ).
+          rs_result-max_rowid = ls_leaf_cell-rowid.
+        ENDIF.
+      WHEN zcl_sqlite_page=>c_table_interior.
+        lt_interior_cells = read_interior_cells(
+          is_raw  = ls_child_raw
+          is_page = ls_child_page ).
+        lv_data = build_interior_page(
+          it_cells     = lt_interior_cells
+          iv_rightmost = ls_child_page-rightmost_pointer
+          iv_offset    = is_raw-btree_offset ).
+        rs_result-empty = abap_false.
+      WHEN OTHERS.
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'collapse found a non-table b-tree page' ).
+    ENDCASE.
+
+    lv_data = preserve_header( iv_data = lv_data
+                               is_raw  = is_raw ).
+    mo_pager->put_page( iv_page = iv_page
+                        iv_data = lv_data ).
+    mo_pager->free_page( iv_child_page ).
+
+    rs_result-found = abap_true.
+    IF ls_child_page-page_type = zcl_sqlite_page=>c_table_interior.
+      rs_result-max_rowid = subtree_max( iv_page ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD subtree_max.
+    DATA ls_raw TYPE zcl_sqlite_pager=>ty_page.
+    DATA ls_page TYPE zcl_sqlite_page=>ty_page.
+    DATA ls_cell TYPE ty_leaf_cell.
+    DATA lt_cells TYPE ty_leaf_cells.
+    DATA lv_page TYPE i.
+    DATA lv_iterations TYPE i.
+
+    lv_page = iv_page.
+    WHILE lv_page > 0.
+      lv_iterations = lv_iterations + 1.
+      IF lv_iterations > mo_pager->page_count( ).
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'b-tree is deeper than the file' ).
+      ENDIF.
+
+      ls_raw = mo_pager->get_page( lv_page ).
+      ls_page = zcl_sqlite_page=>parse(
+        iv_data   = ls_raw-data
+        iv_offset = ls_raw-btree_offset ).
+
+      CASE ls_page-page_type.
+        WHEN zcl_sqlite_page=>c_table_leaf.
+          lt_cells = read_leaf_cells( is_raw  = ls_raw
+                                      is_page = ls_page ).
+          IF lines( lt_cells ) = 0.
+            RETURN.
+          ENDIF.
+          READ TABLE lt_cells INTO ls_cell INDEX lines( lt_cells ).
+          rv_rowid = ls_cell-rowid.
+          RETURN.
+        WHEN zcl_sqlite_page=>c_table_interior.
+          lv_page = ls_page-rightmost_pointer.
+        WHEN OTHERS.
+          fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+                iv_message = 'subtree maximum found a non-table page' ).
+      ENDCASE.
+    ENDWHILE.
+
+    fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+          iv_message = 'b-tree child page number is invalid' ).
+  ENDMETHOD.
+
+  METHOD free_overflow_chain.
+    DATA lt_seen TYPE ty_pages.
+    DATA lv_page TYPE i.
+    DATA lv_next TYPE i.
+    DATA lv_iterations TYPE i.
+    DATA ls_raw TYPE zcl_sqlite_pager=>ty_page.
+
+    lv_page = iv_first_page.
+    WHILE lv_page <> 0.
+      lv_iterations = lv_iterations + 1.
+      IF lv_iterations > mo_pager->page_count( ).
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'overflow chain contains a cycle' ).
+      ENDIF.
+      READ TABLE lt_seen TRANSPORTING NO FIELDS
+        WITH KEY table_line = lv_page.
+      IF sy-subrc = 0.
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'overflow chain contains a cycle' ).
+      ENDIF.
+      APPEND lv_page TO lt_seen.
+
+      ls_raw = mo_pager->get_page( lv_page ).
+      lv_next = CONV i( read_u32(
+        iv_data   = ls_raw-data
+        iv_offset = 0 ) ).
+      mo_pager->free_page( lv_page ).
+      lv_page = lv_next.
+    ENDWHILE.
   ENDMETHOD.
 
   METHOD insert_page.
