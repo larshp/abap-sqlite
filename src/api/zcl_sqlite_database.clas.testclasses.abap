@@ -2179,16 +2179,22 @@ CLASS ltcl_database IMPLEMENTATION.
 
   METHOD index_delete_all.
     DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_check_vfs TYPE REF TO zif_sqlite_vfs.
     DATA lo_file     TYPE REF TO zif_sqlite_file.
     DATA lo_database TYPE REF TO zcl_sqlite_database.
     DATA lo_pager    TYPE REF TO zcl_sqlite_pager.
     DATA lo_schema   TYPE REF TO zcl_sqlite_schema.
     DATA lo_cursor   TYPE REF TO zcl_sqlite_index_cursor.
+    DATA lo_tcursor  TYPE REF TO zcl_sqlite_cursor.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
     DATA ls_index    TYPE zcl_sqlite_schema=>ty_index.
+    DATA ls_table    TYPE zcl_sqlite_schema=>ty_table.
     DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
     DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
     DATA lo_value    TYPE REF TO zcl_sqlite_value.
     DATA lv_name     TYPE string.
+    DATA lv_values   TYPE string.
+    DATA lv_text     TYPE string.
     DATA lv_count    TYPE i.
 
     lv_name = 'test/m5_11_delete_all.db'.
@@ -2196,23 +2202,81 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
     lo_database = zcl_sqlite_database=>create( lv_name ).
-    lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)' ).
-    lo_database->execute( 'INSERT INTO t VALUES (1, ''a''), (2, ''b''), (3, ''c''), (4, ''d''), (5, ''e'')' ).
-    lo_database->execute( 'CREATE INDEX idx_v ON t (v)' ).
-    lo_database->execute( 'DELETE FROM t' ).
-    rs_result = lo_database->query( 'SELECT count(*) FROM t' ).
-    READ TABLE rs_result-rows INTO ls_row INDEX 1.
-    READ TABLE ls_row INTO lo_value INDEX 1.
-    cl_abap_unit_assert=>assert_equals(
-      act = lo_value->as_integer( )
-      exp = 0
-      msg = 'simple delete all leaves table empty' ).
+    lo_database->execute( 'CREATE TABLE delete_all_t (id INTEGER PRIMARY KEY, name TEXT, qty INTEGER)' ).
+    DO 120 TIMES.
+      IF sy-index > 1.
+        lv_values = lv_values && ', '.
+      ENDIF.
+      lv_values = lv_values &&
+        |({ sy-index }, 'name-{ sy-index }', { sy-index })|.
+    ENDDO.
+    lo_database->execute( |INSERT INTO delete_all_t VALUES { lv_values }| ).
+    lo_database->execute( 'CREATE INDEX idx_name ON delete_all_t (name)' ).
+    lo_database->execute( 'CREATE UNIQUE INDEX idx_qty ON delete_all_t (qty)' ).
+    lo_database->execute( 'UPDATE delete_all_t SET name = ''changed'', qty = 500 WHERE id = 50' ).
+    lo_database->execute( 'DELETE FROM delete_all_t WHERE id <= 20' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO delete_all_t VALUES (200, ''dupe'', 500)' ).
+        cl_abap_unit_assert=>fail( 'duplicate unique index value was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint ).
+    ENDTRY.
+
+    lv_text = repeat( val = 'L'
+                      occ = 9000 ).
+    lo_database->execute( |INSERT INTO delete_all_t VALUES (201, '{ lv_text }', 201)| ).
     lo_database->close( ).
 
     lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
     lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
     lo_schema = zcl_sqlite_schema=>read( lo_pager ).
-    ls_index = lo_schema->index( 'idx_v' ).
+    lo_cursor = NEW zcl_sqlite_index_cursor(
+      io_pager     = lo_pager
+      iv_root_page = CONV i( lo_schema->index( 'idx_name' )-rootpage ) ).
+    IF lo_cursor->first( ) = abap_true.
+      DO.
+        lv_count = lv_count + 1.
+        IF lo_cursor->next( ) = abap_false.
+          EXIT.
+        ENDIF.
+      ENDDO.
+    ENDIF.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 101
+      msg = 'maintained index entry count' ).
+    lo_file->close( ).
+    lv_count = 0.
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'DELETE FROM delete_all_t' ).
+    rs_result = lo_database->query( 'SELECT count(*) FROM delete_all_t' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 0
+      msg = 'delete all leaves table empty' ).
+    lo_database->close( ).
+
+* the pre-delete index scan cached pages in lo_vfs, so inspect with a fresh VFS
+    lo_check_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_file = lo_check_vfs->open( lv_name ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lo_schema = zcl_sqlite_schema=>read( lo_pager ).
+    ls_table = lo_schema->table( 'delete_all_t' ).
+    lo_tcursor = NEW zcl_sqlite_cursor(
+      io_pager     = lo_pager
+      iv_root_page = CONV i( ls_table-rootpage ) ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_tcursor->first( )
+      exp = abap_false
+      msg = 'table stays empty after delete all' ).
+
+    ls_index = lo_schema->index( 'idx_name' ).
     lo_cursor = NEW zcl_sqlite_index_cursor(
       io_pager     = lo_pager
       iv_root_page = CONV i( ls_index-rootpage ) ).
@@ -2227,7 +2291,24 @@ CLASS ltcl_database IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals(
       act = lv_count
       exp = 0
-      msg = 'simple delete all leaves index empty' ).
+      msg = 'name index stays empty after delete all' ).
+
+    lv_count = 0.
+    lo_cursor = NEW zcl_sqlite_index_cursor(
+      io_pager     = lo_pager
+      iv_root_page = CONV i( lo_schema->index( 'idx_qty' )-rootpage ) ).
+    IF lo_cursor->first( ) = abap_true.
+      DO.
+        lv_count = lv_count + 1.
+        IF lo_cursor->next( ) = abap_false.
+          EXIT.
+        ENDIF.
+      ENDDO.
+    ENDIF.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 0
+      msg = 'qty index stays empty after delete all' ).
     lo_file->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
