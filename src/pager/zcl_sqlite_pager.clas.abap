@@ -127,6 +127,9 @@ CLASS zcl_sqlite_pager DEFINITION
     DATA mv_snapshot_header TYPE zcl_sqlite_header=>ty_header.
     DATA mv_snapshot_page_count TYPE i.
 
+* write transactions hold a lock on block 0 until commit or rollback
+    DATA mv_lock_level TYPE i.
+
 * statement-level savepoint inside an explicit transaction
     DATA mv_statement_valid TYPE abap_bool.
     DATA mt_statement_dirty TYPE ty_dirty.
@@ -134,6 +137,10 @@ CLASS zcl_sqlite_pager DEFINITION
     DATA mv_statement_page_count TYPE i.
 
     METHODS ensure_snapshot.
+
+    METHODS ensure_write_lock.
+
+    METHODS release_write_lock.
 
     METHODS zero_page
       RETURNING VALUE(rv_data) TYPE xstring.
@@ -487,6 +494,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
 
     IF lines( mt_dirty ) = 0.
       CLEAR mv_snapshot_valid.
+      release_write_lock( ).
       RETURN.
     ENDIF.
 
@@ -530,6 +538,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     CLEAR mv_snapshot_valid.
 * the cached page 1 has the old header bytes
     DELETE mt_cache WHERE number = 1.
+    release_write_lock( ).
   ENDMETHOD.
 
   METHOD rollback.
@@ -541,6 +550,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
     CLEAR mt_dirty.
     CLEAR mv_statement_valid.
     CLEAR mt_statement_dirty.
+    release_write_lock( ).
   ENDMETHOD.
 
   METHOD begin_statement.
@@ -634,10 +644,29 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
 
   METHOD ensure_snapshot.
     IF mv_snapshot_valid = abap_false.
+      ensure_write_lock( ).
       mv_snapshot_header = mv_header.
       mv_snapshot_page_count = mv_page_count.
       mv_snapshot_valid = abap_true.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD ensure_write_lock.
+    IF mv_lock_level >= zif_sqlite_file=>c_lock_reserved.
+      RETURN.
+    ENDIF.
+
+    mo_file->lock( zif_sqlite_file=>c_lock_reserved ).
+    mv_lock_level = zif_sqlite_file=>c_lock_reserved.
+  ENDMETHOD.
+
+  METHOD release_write_lock.
+    IF mv_lock_level = zif_sqlite_file=>c_lock_none.
+      RETURN.
+    ENDIF.
+
+    mo_file->unlock( zif_sqlite_file=>c_lock_none ).
+    mv_lock_level = zif_sqlite_file=>c_lock_none.
   ENDMETHOD.
 
   METHOD zero_page.

@@ -455,6 +455,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD close.
+    IF mo_pager IS BOUND.
+      mo_pager->rollback( ).
+    ENDIF.
     IF mo_file IS BOUND.
       mo_file->close( ).
     ENDIF.

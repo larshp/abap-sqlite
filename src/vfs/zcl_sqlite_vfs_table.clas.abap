@@ -36,6 +36,18 @@ CLASS zcl_sqlite_vfs_table DEFINITION
       IMPORTING iv_name        TYPE string
       RETURNING VALUE(rv_size) TYPE i.
 
+    METHODS lock_file
+      IMPORTING iv_name  TYPE string
+                iv_level TYPE i.
+
+    METHODS unlock_file
+      IMPORTING iv_name  TYPE string
+                iv_level TYPE i.
+
+    METHODS lock_level
+      IMPORTING iv_name         TYPE string
+      RETURNING VALUE(rv_level) TYPE i.
+
 * import replaces a file with the supplied bytes; export raises
 * cx_sy_file_access_error when the file does not exist
     METHODS import
@@ -57,7 +69,14 @@ CLASS zcl_sqlite_vfs_table DEFINITION
            END OF ty_block.
     TYPES ty_blocks TYPE HASHED TABLE OF ty_block WITH UNIQUE KEY name blockno.
 
+    TYPES: BEGIN OF ty_lock,
+             name  TYPE string,
+             level TYPE i,
+           END OF ty_lock.
+    TYPES ty_locks TYPE HASHED TABLE OF ty_lock WITH UNIQUE KEY name.
+
     DATA mt_blocks TYPE ty_blocks.
+    DATA mt_locks TYPE ty_locks.
     DATA mv_prefix TYPE string.
 
     METHODS db_name
@@ -163,6 +182,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
   METHOD zif_sqlite_vfs~delete.
     delete_blocks( iv_name = iv_name
                    iv_from = 0 ).
+    DELETE mt_locks WHERE name = iv_name.
   ENDMETHOD.
 
   METHOD zif_sqlite_vfs~list.
@@ -183,6 +203,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_sqlite_vfs~rename.
+    DATA ls_lock TYPE ty_lock.
     DATA lv_new_name TYPE zsqlite_files-filename.
     DATA lv_old_name TYPE zsqlite_files-filename.
 
@@ -200,6 +221,13 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
 
     DELETE mt_blocks WHERE name = iv_name.
     DELETE mt_blocks WHERE name = iv_new_name.
+
+    READ TABLE mt_locks INTO ls_lock WITH KEY name = iv_name.
+    IF sy-subrc = 0.
+      DELETE mt_locks WHERE name = iv_name.
+      ls_lock-name = iv_new_name.
+      INSERT ls_lock INTO TABLE mt_locks.
+    ENDIF.
   ENDMETHOD.
 
   METHOD read_file.
@@ -408,6 +436,75 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     SELECT SINGLE data FROM zsqlite_files INTO @lv_data
       WHERE mandt = @sy-mandt AND filename = @lv_name AND blockno = @lv_blockno.
     rv_size = lv_blockno * c_block_size + xstrlen( lv_data ).
+  ENDMETHOD.
+
+  METHOD lock_file.
+    DATA ls_file TYPE zsqlite_files.
+    DATA ls_lock TYPE ty_lock.
+    DATA lv_name TYPE zsqlite_files-filename.
+    DATA lv_take_row_lock TYPE abap_bool.
+
+    READ TABLE mt_locks INTO ls_lock WITH KEY name = iv_name.
+    IF sy-subrc = 0.
+      IF iv_level <= ls_lock-level.
+        RETURN.
+      ENDIF.
+      lv_take_row_lock = boolc(
+        ls_lock-level < zif_sqlite_file=>c_lock_reserved
+        AND iv_level >= zif_sqlite_file=>c_lock_reserved ).
+      ls_lock-level = iv_level.
+      MODIFY TABLE mt_locks FROM ls_lock.
+    ELSE.
+      lv_take_row_lock = boolc(
+        iv_level >= zif_sqlite_file=>c_lock_reserved ).
+      ls_lock-name = iv_name.
+      ls_lock-level = iv_level.
+      INSERT ls_lock INTO TABLE mt_locks.
+    ENDIF.
+
+    IF lv_take_row_lock = abap_false.
+      RETURN.
+    ENDIF.
+
+* ANORMALY: SELECT FOR UPDATE is not supported by the transpiler. The
+* generated code throws, see ANORMALIES.md, so the row lock is only taken
+* on a real SAP database. The VFS still tracks the lock level in tests.
+    IF to_upper( sy-dbsys ) = 'SQLITE'.
+      RETURN.
+    ENDIF.
+
+    lv_name = db_name( iv_name ).
+    SELECT SINGLE FOR UPDATE mandt, filename, blockno, data
+      FROM zsqlite_files
+      INTO @ls_file
+      WHERE mandt = @sy-mandt
+        AND filename = @lv_name
+        AND blockno = 0.
+  ENDMETHOD.
+
+  METHOD unlock_file.
+    DATA ls_lock TYPE ty_lock.
+
+    READ TABLE mt_locks INTO ls_lock WITH KEY name = iv_name.
+    IF sy-subrc <> 0 OR iv_level >= ls_lock-level.
+      RETURN.
+    ENDIF.
+
+    IF iv_level = zif_sqlite_file=>c_lock_none.
+      DELETE mt_locks WHERE name = iv_name.
+    ELSE.
+      ls_lock-level = iv_level.
+      MODIFY TABLE mt_locks FROM ls_lock.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD lock_level.
+    DATA ls_lock TYPE ty_lock.
+
+    READ TABLE mt_locks INTO ls_lock WITH KEY name = iv_name.
+    IF sy-subrc = 0.
+      rv_level = ls_lock-level.
+    ENDIF.
   ENDMETHOD.
 
   METHOD import.

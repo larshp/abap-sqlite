@@ -1,5 +1,6 @@
-* A VFS that keeps every file in memory as fixed size blocks. Locking does
-* nothing, it is meant for tests and temporary databases.
+* A VFS that keeps every file in memory as fixed size blocks. Lock levels
+* are tracked per file; there is no cross-session locking, it is meant for
+* tests and temporary databases.
 CLASS zcl_sqlite_vfs_memory DEFINITION
   PUBLIC
   FINAL
@@ -31,6 +32,18 @@ CLASS zcl_sqlite_vfs_memory DEFINITION
       IMPORTING iv_name        TYPE string
       RETURNING VALUE(rv_size) TYPE i.
 
+    METHODS lock_file
+      IMPORTING iv_name  TYPE string
+                iv_level TYPE i.
+
+    METHODS unlock_file
+      IMPORTING iv_name  TYPE string
+                iv_level TYPE i.
+
+    METHODS lock_level
+      IMPORTING iv_name         TYPE string
+      RETURNING VALUE(rv_level) TYPE i.
+
   PRIVATE SECTION.
     CONSTANTS c_block_size TYPE i VALUE 4096.
 
@@ -40,6 +53,12 @@ CLASS zcl_sqlite_vfs_memory DEFINITION
            END OF ty_file.
     TYPES ty_files TYPE HASHED TABLE OF ty_file WITH UNIQUE KEY name.
 
+    TYPES: BEGIN OF ty_lock,
+             name  TYPE string,
+             level TYPE i,
+           END OF ty_lock.
+    TYPES ty_locks TYPE HASHED TABLE OF ty_lock WITH UNIQUE KEY name.
+
     TYPES: BEGIN OF ty_block,
              name    TYPE string,
              blockno TYPE i,
@@ -48,6 +67,7 @@ CLASS zcl_sqlite_vfs_memory DEFINITION
     TYPES ty_blocks TYPE HASHED TABLE OF ty_block WITH UNIQUE KEY name blockno.
 
     DATA mt_files TYPE ty_files.
+    DATA mt_locks TYPE ty_locks.
     DATA mt_blocks TYPE ty_blocks.
 
     METHODS zero_bytes
@@ -98,6 +118,7 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
 
   METHOD zif_sqlite_vfs~delete.
     DELETE mt_files WHERE name = iv_name.
+    DELETE mt_locks WHERE name = iv_name.
     DELETE mt_blocks WHERE name = iv_name.
   ENDMETHOD.
 
@@ -113,6 +134,7 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
   METHOD zif_sqlite_vfs~rename.
     DATA ls_file TYPE ty_file.
     DATA ls_block TYPE ty_block.
+    DATA ls_lock TYPE ty_lock.
     DATA lt_blocks TYPE STANDARD TABLE OF ty_block WITH DEFAULT KEY.
 
     READ TABLE mt_files INTO ls_file WITH KEY name = iv_name.
@@ -128,6 +150,13 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
     DELETE mt_files WHERE name = iv_name.
     ls_file-name = iv_new_name.
     INSERT ls_file INTO TABLE mt_files.
+
+    READ TABLE mt_locks INTO ls_lock WITH KEY name = iv_name.
+    IF sy-subrc = 0.
+      DELETE mt_locks WHERE name = iv_name.
+      ls_lock-name = iv_new_name.
+      INSERT ls_lock INTO TABLE mt_locks.
+    ENDIF.
 
     LOOP AT mt_blocks INTO ls_block WHERE name = iv_name.
       ls_block-name = iv_new_name.
@@ -295,6 +324,48 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
     READ TABLE mt_files INTO ls_file WITH KEY name = iv_name.
     IF sy-subrc = 0.
       rv_size = ls_file-size.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD lock_file.
+    DATA ls_lock TYPE ty_lock.
+
+    READ TABLE mt_locks INTO ls_lock WITH KEY name = iv_name.
+    IF sy-subrc = 0.
+      IF iv_level <= ls_lock-level.
+        RETURN.
+      ENDIF.
+      ls_lock-level = iv_level.
+      MODIFY TABLE mt_locks FROM ls_lock.
+    ELSE.
+      ls_lock-name = iv_name.
+      ls_lock-level = iv_level.
+      INSERT ls_lock INTO TABLE mt_locks.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD unlock_file.
+    DATA ls_lock TYPE ty_lock.
+
+    READ TABLE mt_locks INTO ls_lock WITH KEY name = iv_name.
+    IF sy-subrc <> 0 OR iv_level >= ls_lock-level.
+      RETURN.
+    ENDIF.
+
+    IF iv_level = zif_sqlite_file=>c_lock_none.
+      DELETE mt_locks WHERE name = iv_name.
+    ELSE.
+      ls_lock-level = iv_level.
+      MODIFY TABLE mt_locks FROM ls_lock.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD lock_level.
+    DATA ls_lock TYPE ty_lock.
+
+    READ TABLE mt_locks INTO ls_lock WITH KEY name = iv_name.
+    IF sy-subrc = 0.
+      rv_level = ls_lock-level.
     ENDIF.
   ENDMETHOD.
 

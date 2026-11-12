@@ -21,6 +21,7 @@ CLASS ltcl_pager DEFINITION FINAL FOR TESTING
     METHODS freelist_roundtrip FOR TESTING RAISING zcx_sqlite_error.
     METHODS freelist_rollback FOR TESTING RAISING zcx_sqlite_error.
     METHODS statement_rollback FOR TESTING RAISING zcx_sqlite_error.
+    METHODS write_lock FOR TESTING RAISING zcx_sqlite_error.
 
     METHODS open_pager
       IMPORTING iv_cache_size   TYPE i
@@ -668,6 +669,79 @@ CLASS ltcl_pager IMPLEMENTATION.
       CATCH zcx_sqlite_error INTO DATA(lo_error).
         cl_abap_unit_assert=>fail( |statement rollback failed: { lo_error->message }| ).
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD write_lock.
+    DATA lo_memory TYPE REF TO zcl_sqlite_vfs_memory.
+    DATA lo_pager TYPE REF TO zcl_sqlite_pager.
+    DATA lv_data TYPE xstring.
+    DATA lv_lock TYPE i.
+
+    lo_pager = open_writable_pager( 2 ).
+    lo_memory ?= mo_vfs.
+
+    lv_lock = lo_memory->lock_level( c_file ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_lock
+      exp = zif_sqlite_file=>c_lock_none
+      msg = 'new pager is unlocked' ).
+
+    lv_data = lo_pager->get_page( 2 )-data.
+    lv_lock = lo_memory->lock_level( c_file ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_lock
+      exp = zif_sqlite_file=>c_lock_none
+      msg = 'reading does not take the write lock' ).
+
+    lv_data = change_byte(
+      iv_data   = lv_data
+      iv_offset = 0
+      iv_value  = 170 ).
+    lo_pager->put_page( iv_page = 2
+                        iv_data = lv_data ).
+    lv_lock = lo_memory->lock_level( c_file ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_lock
+      exp = zif_sqlite_file=>c_lock_reserved
+      msg = 'first write takes the write lock' ).
+
+* a failed statement inside a transaction keeps the lock
+    lo_pager->begin_statement( ).
+    lv_data = lo_pager->get_page( 3 )-data.
+    lv_data = change_byte(
+      iv_data   = lv_data
+      iv_offset = 0
+      iv_value  = 85 ).
+    lo_pager->put_page( iv_page = 3
+                        iv_data = lv_data ).
+    lo_pager->rollback_statement( ).
+    lv_lock = lo_memory->lock_level( c_file ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_lock
+      exp = zif_sqlite_file=>c_lock_reserved
+      msg = 'statement rollback keeps the transaction lock' ).
+
+    lo_pager->rollback( ).
+    lv_lock = lo_memory->lock_level( c_file ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_lock
+      exp = zif_sqlite_file=>c_lock_none
+      msg = 'transaction rollback releases the lock' ).
+
+* a successful commit releases the lock as well
+    lv_data = lo_pager->get_page( 2 )-data.
+    lv_data = change_byte(
+      iv_data   = lv_data
+      iv_offset = 0
+      iv_value  = 170 ).
+    lo_pager->put_page( iv_page = 2
+                        iv_data = lv_data ).
+    lo_pager->commit( ).
+    lv_lock = lo_memory->lock_level( c_file ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_lock
+      exp = zif_sqlite_file=>c_lock_none
+      msg = 'commit releases the lock' ).
   ENDMETHOD.
 
   METHOD open_pager.

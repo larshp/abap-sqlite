@@ -566,7 +566,7 @@ ABAP `ROLLBACK WORK` after a SQLite commit.
 
 #### M5.14 Write locking
 
-- [ ] Take the write lock on block 0 of the file (D5) when a write transaction starts
+- [x] Take the write lock on block 0 of the file (D5) when a write transaction starts
 
 **Done when:** the lock is taken and released at the right points (tested through the VFS).
 

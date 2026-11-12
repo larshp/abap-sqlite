@@ -52,9 +52,15 @@ CLASS zcl_sqlite_file_table IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_sqlite_file~lock.
+    mo_vfs->lock_file(
+      iv_name  = mv_name
+      iv_level = iv_level ).
   ENDMETHOD.
 
   METHOD zif_sqlite_file~unlock.
+    mo_vfs->unlock_file(
+      iv_name  = mv_name
+      iv_level = iv_level ).
   ENDMETHOD.
 
   METHOD zif_sqlite_file~close.

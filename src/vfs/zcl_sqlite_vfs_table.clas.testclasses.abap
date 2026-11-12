@@ -11,6 +11,7 @@ CLASS ltcl_vfs_table DEFINITION FINAL FOR TESTING
 
     METHODS contract FOR TESTING.
     METHODS import_export FOR TESTING.
+    METHODS locking FOR TESTING.
     METHODS teardown.
     METHODS cleanup.
 ENDCLASS.
@@ -125,6 +126,72 @@ CLASS ltcl_vfs_table IMPLEMENTATION.
       CATCH cx_sy_file_access_error.
 * expected
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD locking.
+    DATA lo_file TYPE REF TO zif_sqlite_file.
+    DATA lo_table TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lv_level TYPE i.
+    DATA lv_name TYPE string.
+
+    lv_name = 'locking.db'.
+    cleanup( ).
+
+    lo_table = NEW zcl_sqlite_vfs_table( iv_prefix = c_prefix ).
+    lo_file = lo_table->zif_sqlite_vfs~open( lv_name ).
+    lo_file->write( iv_offset = 0
+                    iv_data   = 'CAFE' ).
+
+    lv_level = lo_table->lock_level( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_level
+      exp = zif_sqlite_file=>c_lock_none
+      msg = 'new file is unlocked' ).
+
+    lo_file->lock( zif_sqlite_file=>c_lock_shared ).
+    lv_level = lo_table->lock_level( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_level
+      exp = zif_sqlite_file=>c_lock_shared
+      msg = 'shared lock' ).
+
+    lo_file->lock( zif_sqlite_file=>c_lock_reserved ).
+    lv_level = lo_table->lock_level( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_level
+      exp = zif_sqlite_file=>c_lock_reserved
+      msg = 'reserved lock' ).
+
+    lo_file->lock( zif_sqlite_file=>c_lock_exclusive ).
+    lv_level = lo_table->lock_level( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_level
+      exp = zif_sqlite_file=>c_lock_exclusive
+      msg = 'exclusive lock' ).
+
+    lo_file->unlock( zif_sqlite_file=>c_lock_shared ).
+    lv_level = lo_table->lock_level( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_level
+      exp = zif_sqlite_file=>c_lock_shared
+      msg = 'unlock to shared' ).
+
+    lo_file->unlock( zif_sqlite_file=>c_lock_none ).
+    lv_level = lo_table->lock_level( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_level
+      exp = zif_sqlite_file=>c_lock_none
+      msg = 'unlock all' ).
+
+    lo_file->lock( zif_sqlite_file=>c_lock_reserved ).
+    lo_table->zif_sqlite_vfs~delete( lv_name ).
+    lv_level = lo_table->lock_level( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_level
+      exp = zif_sqlite_file=>c_lock_none
+      msg = 'delete clears the lock state' ).
+
+    cleanup( ).
   ENDMETHOD.
 
   METHOD create_vfs.

@@ -69,6 +69,11 @@ behaviour, but any code path that reaches the statement aborts the whole unit te
 Production code that uses `FOR UPDATE` (D5 locking) must keep it out of code paths the transpiler
 tests execute.
 
+Since M5.14 the table VFS takes the block 0 write lock only when
+`TO_UPPER( sy-dbsys ) <> 'SQLITE'`. In the transpiler (`sy-dbsys = 'sqlite'`) it tracks the lock
+level in memory instead, so the pager lock and release points are still tested through the VFS.
+The real `SELECT SINGLE FOR UPDATE` only runs on SAP systems.
+
 ## int8 arithmetic does not raise CX_SY_ARITHMETIC_OVERFLOW
 
 - **Component:** runtime
