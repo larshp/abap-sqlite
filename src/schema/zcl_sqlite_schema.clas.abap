@@ -94,6 +94,10 @@ CLASS zcl_sqlite_schema DEFINITION
       IMPORTING iv_name           TYPE string
       RETURNING VALUE(rt_indexes) TYPE ty_indexes.
 
+    METHODS indexes_in_definition_order
+      IMPORTING iv_name           TYPE string
+      RETURNING VALUE(rt_indexes) TYPE ty_indexes.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
     TYPES:
@@ -336,6 +340,16 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
 
     ls_table = table( iv_name ).
     rt_indexes = ls_table-indexes.
+  ENDMETHOD.
+
+  METHOD indexes_in_definition_order.
+    DATA ls_index TYPE ty_index.
+
+    LOOP AT mt_indexes INTO ls_index.
+      IF to_upper( ls_index-tbl_name ) = to_upper( iv_name ).
+        APPEND ls_index TO rt_indexes.
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD add_table.

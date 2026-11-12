@@ -544,7 +544,7 @@ sql.js.
 
 #### M5.11 Indexes
 
-- [ ] Index b-tree insert/delete. `CREATE INDEX` (build from existing rows). Index maintenance
+- [x] Index b-tree insert/delete. `CREATE INDEX` (build from existing rows). Index maintenance
       on INSERT/UPDATE/DELETE.
 
 **Done when:** indexes stay consistent through DML (sql.js `integrity_check`).

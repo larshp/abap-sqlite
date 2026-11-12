@@ -117,6 +117,43 @@ CLASS zcl_sqlite_database DEFINITION
                 iv_sql       TYPE string
       RAISING   zcx_sqlite_error.
 
+    METHODS execute_create_index
+      IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_create_index
+                iv_sql       TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS create_autoindexes
+      IMPORTING iv_table_name TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS build_index
+      IMPORTING is_table TYPE zcl_sqlite_schema=>ty_table
+                is_index TYPE zcl_sqlite_schema=>ty_index
+      RAISING   zcx_sqlite_error.
+
+    METHODS rebuild_table_indexes
+      IMPORTING is_table TYPE zcl_sqlite_schema=>ty_table
+      RAISING   zcx_sqlite_error.
+
+    METHODS insert_index_entries
+      IMPORTING is_table  TYPE zcl_sqlite_schema=>ty_table
+                it_values TYPE zcl_sqlite_record=>ty_values
+                iv_rowid  TYPE int8
+      RAISING   zcx_sqlite_error.
+
+    METHODS index_key
+      IMPORTING is_table         TYPE zcl_sqlite_schema=>ty_table
+                is_index         TYPE zcl_sqlite_schema=>ty_index
+                it_values        TYPE zcl_sqlite_record=>ty_values
+                iv_rowid         TYPE int8
+      RETURNING VALUE(rt_values) TYPE zcl_sqlite_record=>ty_values
+      RAISING   zcx_sqlite_error.
+
+    METHODS validate_index_statement
+      IMPORTING is_table     TYPE zcl_sqlite_schema=>ty_table
+                io_statement TYPE REF TO zcl_sqlite_ast_create_index
+      RAISING   zcx_sqlite_error.
+
     METHODS execute_insert
       IMPORTING io_statement  TYPE REF TO zcl_sqlite_ast_insert
       EXPORTING ev_changes    TYPE i
@@ -519,12 +556,14 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
   METHOD execute.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_create_table TYPE REF TO zcl_sqlite_ast_create_table.
+    DATA lo_create_index TYPE REF TO zcl_sqlite_ast_create_index.
     DATA lo_insert TYPE REF TO zcl_sqlite_ast_insert.
     DATA lo_update TYPE REF TO zcl_sqlite_ast_update.
     DATA lo_delete TYPE REF TO zcl_sqlite_ast_delete.
     DATA lv_changes TYPE i.
     DATA lv_last_rowid TYPE int8.
     DATA lv_schema_changed TYPE abap_bool.
+    DATA lv_index_created TYPE abap_bool.
     DATA lv_inserted TYPE abap_bool.
     DATA lv_updated TYPE abap_bool.
 
@@ -537,6 +576,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     IF lo_statement IS INSTANCE OF zcl_sqlite_ast_create_table.
       lo_create_table ?= lo_statement.
       lv_schema_changed = abap_true.
+    ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_create_index.
+      lo_create_index ?= lo_statement.
+      lv_index_created = abap_true.
     ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_insert.
       lo_insert ?= lo_statement.
       lv_inserted = abap_true.
@@ -548,13 +590,17 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ELSE.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
-          iv_message = 'only CREATE TABLE, INSERT, UPDATE and DELETE statements are supported'.
+          iv_message = 'only CREATE TABLE, CREATE INDEX, INSERT, UPDATE and DELETE statements are supported'.
     ENDIF.
 
     TRY.
         IF lv_schema_changed = abap_true.
           execute_create_table(
             io_statement = lo_create_table
+            iv_sql       = iv_sql ).
+        ELSEIF lv_index_created = abap_true.
+          execute_create_index(
+            io_statement = lo_create_index
             iv_sql       = iv_sql ).
         ELSEIF lv_inserted = abap_true.
           execute_insert(
@@ -569,7 +615,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           lv_changes = execute_delete( lo_delete ).
         ENDIF.
         mo_pager->commit( ).
-        IF lv_schema_changed = abap_true.
+        IF lv_schema_changed = abap_true OR lv_index_created = abap_true.
           mo_schema = zcl_sqlite_schema=>read( mo_pager ).
           mv_changes = 0.
         ELSE.
@@ -631,7 +677,280 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       io_pager = mo_pager
       is_entry = ls_entry ).
 
+    create_autoindexes( lv_name ).
+
     mo_pager->bump_schema_cookie( ).
+  ENDMETHOD.
+
+  METHOD execute_create_index.
+    DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_existing TYPE zcl_sqlite_schema=>ty_index.
+    DATA ls_entry TYPE zcl_sqlite_catalog=>ty_entry.
+    DATA ls_index TYPE zcl_sqlite_schema=>ty_index.
+    DATA lo_schema TYPE REF TO zcl_sqlite_schema.
+    DATA lv_table_name TYPE string.
+    DATA lv_name TYPE string.
+    DATA lv_root_page TYPE i.
+
+    lv_name = io_statement->get_name( ).
+    lv_table_name = io_statement->get_table_name( ).
+    ls_table = mo_schema->table( lv_table_name ).
+    IF ls_table-name IS INITIAL.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |no such table: { lv_table_name }|.
+    ENDIF.
+    IF ls_table-without_rowid = abap_true.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'WITHOUT ROWID tables are not supported yet'.
+    ENDIF.
+
+    ls_existing = mo_schema->index( lv_name ).
+    IF ls_existing-name IS NOT INITIAL.
+      IF io_statement->is_if_not_exists( ) = abap_true.
+        RETURN.
+      ENDIF.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |index { lv_name } already exists|.
+    ENDIF.
+
+    validate_index_statement(
+      is_table     = ls_table
+      io_statement = io_statement ).
+
+    lv_root_page = mo_pager->allocate_page( ).
+    mo_pager->put_page(
+      iv_page = lv_root_page
+      iv_data = zcl_sqlite_btree=>empty_index_leaf(
+        mo_pager->page_size( ) ) ).
+
+    ls_entry-type = 'index'.
+    ls_entry-name = lv_name.
+    ls_entry-tbl_name = lv_table_name.
+    ls_entry-rootpage = lv_root_page.
+    ls_entry-sql = normalized_sql( iv_sql ).
+    ls_entry-sql_is_null = abap_false.
+    zcl_sqlite_catalog=>append(
+      io_pager = mo_pager
+      is_entry = ls_entry ).
+
+    lo_schema = zcl_sqlite_schema=>read( mo_pager ).
+    ls_index = lo_schema->index( lv_name ).
+    ls_table = lo_schema->table( lv_table_name ).
+    build_index(
+      is_table = ls_table
+      is_index = ls_index ).
+
+    mo_pager->bump_schema_cookie( ).
+  ENDMETHOD.
+
+  METHOD create_autoindexes.
+    DATA lo_schema TYPE REF TO zcl_sqlite_schema.
+    DATA lt_indexes TYPE zcl_sqlite_schema=>ty_indexes.
+    DATA ls_index TYPE zcl_sqlite_schema=>ty_index.
+    DATA ls_entry TYPE zcl_sqlite_catalog=>ty_entry.
+    DATA lv_root_page TYPE i.
+
+    lo_schema = zcl_sqlite_schema=>read( mo_pager ).
+    lt_indexes = lo_schema->indexes_in_definition_order( iv_table_name ).
+    LOOP AT lt_indexes INTO ls_index.
+      IF ls_index-rootpage > 0.
+        CONTINUE.
+      ENDIF.
+
+      lv_root_page = mo_pager->allocate_page( ).
+      mo_pager->put_page(
+        iv_page = lv_root_page
+        iv_data = zcl_sqlite_btree=>empty_index_leaf(
+          mo_pager->page_size( ) ) ).
+
+      CLEAR ls_entry.
+      ls_entry-type = 'index'.
+      ls_entry-name = ls_index-name.
+      ls_entry-tbl_name = ls_index-tbl_name.
+      ls_entry-rootpage = lv_root_page.
+      ls_entry-sql_is_null = abap_true.
+      zcl_sqlite_catalog=>append(
+        io_pager = mo_pager
+        is_entry = ls_entry ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD build_index.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lo_writer TYPE REF TO zcl_sqlite_index_writer.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lt_key TYPE zcl_sqlite_record=>ty_values.
+    DATA lv_root_page TYPE i.
+
+    lv_root_page = is_index-rootpage.
+    lo_writer = NEW zcl_sqlite_index_writer(
+      io_pager     = mo_pager
+      iv_root_page = lv_root_page ).
+    lo_writer->clear_tree( ).
+
+    lv_root_page = is_table-rootpage.
+    lo_cursor = NEW zcl_sqlite_cursor(
+      io_pager     = mo_pager
+      iv_root_page = lv_root_page ).
+    IF lo_cursor->first( ) = abap_false.
+      RETURN.
+    ENDIF.
+
+    DO.
+      lt_values = lo_cursor->values( ).
+      lt_key = index_key(
+        is_table  = is_table
+        is_index  = is_index
+        it_values = lt_values
+        iv_rowid  = lo_cursor->rowid( ) ).
+      lo_writer->insert_entry(
+        it_values        = lt_key
+        iv_unique        = is_index-is_unique
+        iv_prefix_length = lines( is_index-columns ) ).
+      IF lo_cursor->next( ) = abap_false.
+        EXIT.
+      ENDIF.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD rebuild_table_indexes.
+    DATA ls_index TYPE zcl_sqlite_schema=>ty_index.
+
+    LOOP AT is_table-indexes INTO ls_index.
+      IF ls_index-rootpage <= 0.
+        CONTINUE.
+      ENDIF.
+      build_index(
+        is_table = is_table
+        is_index = ls_index ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD insert_index_entries.
+    DATA ls_index TYPE zcl_sqlite_schema=>ty_index.
+    DATA lo_writer TYPE REF TO zcl_sqlite_index_writer.
+    DATA lt_key TYPE zcl_sqlite_record=>ty_values.
+    DATA lv_root_page TYPE i.
+
+    LOOP AT is_table-indexes INTO ls_index.
+      IF ls_index-rootpage <= 0.
+        CONTINUE.
+      ENDIF.
+      lv_root_page = ls_index-rootpage.
+      lo_writer = NEW zcl_sqlite_index_writer(
+        io_pager     = mo_pager
+        iv_root_page = lv_root_page ).
+      lt_key = index_key(
+        is_table  = is_table
+        is_index  = ls_index
+        it_values = it_values
+        iv_rowid  = iv_rowid ).
+      lo_writer->insert_entry(
+        it_values        = lt_key
+        iv_unique        = ls_index-is_unique
+        iv_prefix_length = lines( ls_index-columns ) ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD index_key.
+    DATA ls_index_column TYPE zcl_sqlite_schema=>ty_index_column.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+    DATA lv_found TYPE abap_bool.
+    DATA lv_name TYPE string.
+
+    LOOP AT is_index-columns INTO ls_index_column.
+      CLEAR: lo_value, lv_found.
+      lv_name = to_upper( ls_index_column-name ).
+
+      LOOP AT is_table-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = lv_name.
+          READ TABLE it_values INTO lo_value INDEX ls_column-cid + 1.
+          IF sy-subrc <> 0.
+            lo_value = zcl_sqlite_value=>null( ).
+          ENDIF.
+          IF ls_column-rowid_alias = abap_true.
+            lo_value = zcl_sqlite_value=>integer( iv_rowid ).
+          ENDIF.
+          lv_found = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+
+      IF lv_found = abap_false.
+        IF lv_name = 'ROWID' OR lv_name = '_ROWID_' OR lv_name = 'OID'.
+          lo_value = zcl_sqlite_value=>integer( iv_rowid ).
+        ELSE.
+          RAISE EXCEPTION TYPE zcx_sqlite_error
+            EXPORTING
+              iv_code    = zcx_sqlite_error=>sqlite_error
+              iv_message = |no such column: { ls_index_column-name }|.
+        ENDIF.
+      ENDIF.
+
+      APPEND lo_value TO rt_values.
+    ENDLOOP.
+
+    APPEND zcl_sqlite_value=>integer( iv_rowid ) TO rt_values.
+  ENDMETHOD.
+
+  METHOD validate_index_statement.
+    DATA lt_columns TYPE zcl_sqlite_ast_create_index=>ty_columns.
+    DATA lo_column TYPE REF TO zcl_sqlite_ast_indexed_column.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA lv_found TYPE abap_bool.
+    DATA lv_name TYPE string.
+    DATA lv_collation TYPE string.
+    DATA lv_order TYPE string.
+
+    IF io_statement->get_where( ) IS BOUND.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'partial indexes are not supported yet'.
+    ENDIF.
+
+    lt_columns = io_statement->get_columns( ).
+    LOOP AT lt_columns INTO lo_column.
+      lv_name = to_upper( lo_column->get_name( ) ).
+      lv_collation = to_upper( lo_column->get_collation( ) ).
+      lv_order = to_upper( lo_column->get_order( ) ).
+      IF lv_collation IS NOT INITIAL AND lv_collation <> 'BINARY'.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = |collation { lo_column->get_collation( ) } is not supported yet|.
+      ENDIF.
+      IF lv_order = 'DESC'.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = 'descending indexes are not supported yet'.
+      ENDIF.
+
+      lv_found = abap_false.
+      LOOP AT is_table-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = lv_name.
+          lv_found = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lv_found = abap_false
+          AND lv_name <> 'ROWID'
+          AND lv_name <> '_ROWID_'
+          AND lv_name <> 'OID'.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = |no such column: { lo_column->get_name( ) }|.
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD execute_insert.
@@ -793,7 +1112,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           iv_code    = zcx_sqlite_error=>sqlite_error
           iv_message = 'WITHOUT ROWID tables are not supported yet'.
     ENDIF.
-
     lo_expression = NEW zcl_sqlite_ast_name(
       iv_kind = zcl_sqlite_ast_name=>c_column
       iv_text = rowid_select_name( ls_table ) ).
@@ -824,6 +1142,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       lo_writer->delete_row( lv_rowid ).
       lv_changes = lv_changes + 1.
     ENDLOOP.
+
+    rebuild_table_indexes( ls_table ).
 
     rv_changes = lv_changes.
   ENDMETHOD.
@@ -934,6 +1254,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         iv_rowid   = ls_pending-new_rowid
         iv_payload = ls_pending-payload ).
     ENDLOOP.
+
+    rebuild_table_indexes( ls_table ).
 
     rv_changes = lines( lt_pending ).
   ENDMETHOD.
@@ -1253,6 +1575,11 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     lo_writer->insert_row(
       iv_rowid   = lv_rowid
       iv_payload = zcl_sqlite_record=>encode( lt_record_values ) ).
+
+    insert_index_entries(
+      is_table  = is_table
+      it_values = lt_record_values
+      iv_rowid  = lv_rowid ).
 
     rs_result-rowid = lv_rowid.
     rs_result-max_rowid = iv_max_rowid.

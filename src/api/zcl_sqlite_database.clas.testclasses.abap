@@ -26,6 +26,9 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS insert_select FOR TESTING RAISING zcx_sqlite_error.
     METHODS delete_rows FOR TESTING RAISING zcx_sqlite_error.
     METHODS update_rows FOR TESTING RAISING zcx_sqlite_error.
+    METHODS create_index FOR TESTING RAISING zcx_sqlite_error.
+    METHODS index_maintenance FOR TESTING RAISING zcx_sqlite_error.
+    METHODS index_delete_all FOR TESTING RAISING zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -1867,6 +1870,365 @@ CLASS ltcl_database IMPLEMENTATION.
     ENDTRY.
     lo_database->close( ).
 
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD create_index.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_file     TYPE REF TO zif_sqlite_file.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_pager    TYPE REF TO zcl_sqlite_pager.
+    DATA lo_schema   TYPE REF TO zcl_sqlite_schema.
+    DATA lo_cursor   TYPE REF TO zcl_sqlite_index_cursor.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA ls_table    TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_index    TYPE zcl_sqlite_schema=>ty_index.
+    DATA ls_index_column TYPE zcl_sqlite_schema=>ty_index_column.
+    DATA lt_indexes  TYPE zcl_sqlite_schema=>ty_indexes.
+    DATA lt_values   TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_name     TYPE string.
+    DATA lv_values   TYPE string.
+    DATA lv_count    TYPE i.
+    DATA lv_current  TYPE string.
+    DATA lv_previous_name TYPE string.
+
+    lv_name = 'test/m5_11_create_index.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database->execute( 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, tag TEXT)' ).
+    DO 600 TIMES.
+      IF sy-index > 1.
+        lv_values = lv_values && ', '.
+      ENDIF.
+      lv_values = lv_values &&
+        |({ sy-index }, 'name-{ sy-index }', 'tag-{ sy-index }')|.
+    ENDDO.
+    lo_database->execute( |INSERT INTO items (id, name, tag) VALUES { lv_values }| ).
+
+    lo_database->execute( 'CREATE INDEX idx_name ON items (name)' ).
+    lo_database->execute( 'CREATE UNIQUE INDEX idx_tag ON items (tag)' ).
+    lo_database->execute( 'CREATE INDEX IF NOT EXISTS idx_name ON items (name)' ).
+
+    TRY.
+        lo_database->execute( 'CREATE INDEX idx_name ON items (tag)' ).
+        cl_abap_unit_assert=>fail( 'duplicate index was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'CREATE INDEX idx_missing ON items (missing)' ).
+        cl_abap_unit_assert=>fail( 'index on missing column was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'CREATE INDEX idx_desc ON items (name DESC)' ).
+        cl_abap_unit_assert=>fail( 'descending index was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'CREATE INDEX idx_nocase ON items (name COLLATE NOCASE)' ).
+        cl_abap_unit_assert=>fail( 'NOCASE index was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    lo_database->execute( 'CREATE TABLE duplicates (value TEXT)' ).
+    lo_database->execute( 'INSERT INTO duplicates VALUES (''same''), (''same'')' ).
+    TRY.
+        lo_database->execute( 'CREATE UNIQUE INDEX idx_duplicate ON duplicates (value)' ).
+        cl_abap_unit_assert=>fail( 'unique index over duplicate values was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint ).
+    ENDTRY.
+
+    lo_database->execute( 'CREATE TABLE auto (a TEXT UNIQUE, b TEXT PRIMARY KEY)' ).
+    lo_database->close( ).
+
+    lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lo_schema = zcl_sqlite_schema=>read( lo_pager ).
+    ls_index = lo_schema->index( 'idx_name' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_index-tbl_name
+      exp = 'items'
+      msg = 'index table name' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_index-is_unique
+      exp = abap_false
+      msg = 'plain index is not unique' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( ls_index-columns )
+      exp = 1
+      msg = 'index column count' ).
+    READ TABLE ls_index-columns INTO ls_index_column INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_index_column-name
+      exp = 'name'
+      msg = 'index column name' ).
+
+    ls_index = lo_schema->index( 'idx_tag' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_index-is_unique
+      exp = abap_true
+      msg = 'unique index flag' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_index-origin
+      exp = 'c'
+      msg = 'created index origin' ).
+
+    ls_table = lo_schema->table( 'auto' ).
+    lt_indexes = lo_schema->indexes_in_definition_order( 'auto' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lt_indexes )
+      exp = 2
+      msg = 'autoindex count' ).
+    READ TABLE lt_indexes INTO ls_index INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_index-origin
+      exp = 'u'
+      msg = 'first autoindex origin' ).
+    IF ls_index-rootpage <= 0.
+      cl_abap_unit_assert=>fail( 'first autoindex root is missing' ).
+    ENDIF.
+    READ TABLE lt_indexes INTO ls_index INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_index-origin
+      exp = 'pk'
+      msg = 'second autoindex origin' ).
+    IF ls_index-rootpage <= 0.
+      cl_abap_unit_assert=>fail( 'second autoindex root is missing' ).
+    ENDIF.
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_table-name
+      exp = 'auto'
+      msg = 'autoindex table' ).
+
+    lo_cursor = NEW zcl_sqlite_index_cursor(
+      io_pager     = lo_pager
+      iv_root_page = CONV i( lo_schema->index( 'idx_name' )-rootpage ) ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->first( )
+      exp = abap_true
+      msg = 'index has entries' ).
+    DO.
+      lt_values = lo_cursor->values( ).
+      lv_count = lv_count + 1.
+      READ TABLE lt_values INTO lo_value INDEX 1.
+      lv_current = lo_value->as_text( ).
+      IF lv_count = 1.
+        cl_abap_unit_assert=>assert_equals(
+          act = lv_current
+          exp = 'name-1'
+          msg = 'first index value' ).
+      ELSEIF lv_current < lv_previous_name.
+        cl_abap_unit_assert=>fail( 'index values are not ascending' ).
+      ENDIF.
+      lv_previous_name = lv_current.
+      IF lo_cursor->next( ) = abap_false.
+        EXIT.
+      ENDIF.
+    ENDDO.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 600
+      msg = 'index entry count' ).
+    lo_file->close( ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'CREATE INDEX IF NOT EXISTS idx_name ON items (name)' ).
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD index_maintenance.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_file     TYPE REF TO zif_sqlite_file.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_pager    TYPE REF TO zcl_sqlite_pager.
+    DATA lo_schema   TYPE REF TO zcl_sqlite_schema.
+    DATA lo_cursor   TYPE REF TO zcl_sqlite_index_cursor.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA ls_index    TYPE zcl_sqlite_schema=>ty_index.
+    DATA lt_values   TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_name     TYPE string.
+    DATA lv_values   TYPE string.
+    DATA lv_text     TYPE string.
+    DATA lv_count    TYPE i.
+    DATA lv_rowid    TYPE int8.
+    DATA lv_found    TYPE abap_bool.
+
+    lv_name = 'test/m5_11_maintenance.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database->execute( 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, qty INTEGER)' ).
+    DO 120 TIMES.
+      IF sy-index > 1.
+        lv_values = lv_values && ', '.
+      ENDIF.
+      lv_values = lv_values &&
+        |({ sy-index }, 'name-{ sy-index }', { sy-index })|.
+    ENDDO.
+    lo_database->execute( |INSERT INTO items VALUES { lv_values }| ).
+    lo_database->execute( 'CREATE INDEX idx_name ON items (name)' ).
+    lo_database->execute( 'CREATE UNIQUE INDEX idx_qty ON items (qty)' ).
+
+    lo_database->execute( 'UPDATE items SET name = ''changed'', qty = 500 WHERE id = 50' ).
+    lo_database->execute( 'DELETE FROM items WHERE id <= 20' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO items (id, name, qty) VALUES (200, ''dupe'', 500)' ).
+        cl_abap_unit_assert=>fail( 'duplicate unique index value was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint ).
+    ENDTRY.
+
+    lv_text = repeat( val = 'L'
+                      occ = 9000 ).
+    lo_database->execute( |INSERT INTO items (id, name, qty) VALUES (201, '{ lv_text }', 201)| ).
+
+    lo_database->close( ).
+    lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lo_schema = zcl_sqlite_schema=>read( lo_pager ).
+
+    ls_index = lo_schema->index( 'idx_name' ).
+    lo_cursor = NEW zcl_sqlite_index_cursor(
+      io_pager     = lo_pager
+      iv_root_page = CONV i( ls_index-rootpage ) ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_cursor->first( )
+      exp = abap_true
+      msg = 'maintained index has entries' ).
+    DO.
+      lt_values = lo_cursor->values( ).
+      lv_count = lv_count + 1.
+      READ TABLE lt_values INTO lo_value INDEX 2.
+      lv_rowid = lo_value->as_integer( ).
+      READ TABLE lt_values INTO lo_value INDEX 1.
+      CASE lv_rowid.
+        WHEN 50.
+          cl_abap_unit_assert=>assert_equals(
+            act = lo_value->as_text( )
+            exp = 'changed'
+            msg = 'updated index value' ).
+          lv_found = abap_true.
+        WHEN 201.
+          cl_abap_unit_assert=>assert_equals(
+            act = strlen( lo_value->as_text( ) )
+            exp = 9000
+            msg = 'overflow index value' ).
+          lv_found = abap_true.
+      ENDCASE.
+      IF lo_cursor->next( ) = abap_false.
+        EXIT.
+      ENDIF.
+    ENDDO.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 101
+      msg = 'maintained index entry count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'updated and overflow entries found' ).
+
+    lo_cursor = NEW zcl_sqlite_index_cursor(
+      io_pager     = lo_pager
+      iv_root_page = CONV i( lo_schema->index( 'idx_qty' )-rootpage ) ).
+    lv_count = 0.
+    IF lo_cursor->first( ) = abap_true.
+      DO.
+        lv_count = lv_count + 1.
+        IF lo_cursor->next( ) = abap_false.
+          EXIT.
+        ENDIF.
+      ENDDO.
+    ENDIF.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 101
+      msg = 'unique index entry count' ).
+    lo_file->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD index_delete_all.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_file     TYPE REF TO zif_sqlite_file.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_pager    TYPE REF TO zcl_sqlite_pager.
+    DATA lo_schema   TYPE REF TO zcl_sqlite_schema.
+    DATA lo_cursor   TYPE REF TO zcl_sqlite_index_cursor.
+    DATA ls_index    TYPE zcl_sqlite_schema=>ty_index.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_name     TYPE string.
+    DATA lv_count    TYPE i.
+
+    lv_name = 'test/m5_11_delete_all.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)' ).
+    lo_database->execute( 'INSERT INTO t VALUES (1, ''a''), (2, ''b''), (3, ''c''), (4, ''d''), (5, ''e'')' ).
+    lo_database->execute( 'CREATE INDEX idx_v ON t (v)' ).
+    lo_database->execute( 'DELETE FROM t' ).
+    rs_result = lo_database->query( 'SELECT count(*) FROM t' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 0
+      msg = 'simple delete all leaves table empty' ).
+    lo_database->close( ).
+
+    lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lo_schema = zcl_sqlite_schema=>read( lo_pager ).
+    ls_index = lo_schema->index( 'idx_v' ).
+    lo_cursor = NEW zcl_sqlite_index_cursor(
+      io_pager     = lo_pager
+      iv_root_page = CONV i( ls_index-rootpage ) ).
+    IF lo_cursor->first( ) = abap_true.
+      DO.
+        lv_count = lv_count + 1.
+        IF lo_cursor->next( ) = abap_false.
+          EXIT.
+        ENDIF.
+      ENDDO.
+    ENDIF.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_count
+      exp = 0
+      msg = 'simple delete all leaves index empty' ).
+    lo_file->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
 

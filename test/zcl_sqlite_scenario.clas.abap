@@ -11,6 +11,7 @@ CLASS zcl_sqlite_scenario DEFINITION
     CONSTANTS c_delete_database TYPE string VALUE 'compat/delete.db'.
     CONSTANTS c_empty_database TYPE string VALUE 'compat/empty.db'.
     CONSTANTS c_freelist_database TYPE string VALUE 'compat/freelist.db'.
+    CONSTANTS c_index_database TYPE string VALUE 'compat/index.db'.
     CONSTANTS c_insert_database TYPE string VALUE 'compat/insert.db'.
     CONSTANTS c_insert_statements_database TYPE string VALUE 'compat/insert-statements.db'.
     CONSTANTS c_overflow_database TYPE string VALUE 'compat/overflow-write.db'.
@@ -30,6 +31,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS freelist_cycle
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS index_rows
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -249,6 +254,78 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
 
     lo_file->close( ).
     rv_name = c_freelist_database.
+  ENDMETHOD.
+
+  METHOD index_rows.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lv_from     TYPE i.
+    DATA lv_to       TYPE i.
+    DATA lv_id       TYPE i.
+    DATA lv_values   TYPE string.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_index_database ).
+
+    lo_database = zcl_sqlite_database=>create( c_index_database ).
+    lo_database->execute(
+      'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,' &&
+      ' qty INTEGER, tag TEXT)' ).
+
+    lv_from = 1.
+    WHILE lv_from <= 400.
+      lv_to = lv_from + 199.
+      IF lv_to > 400.
+        lv_to = 400.
+      ENDIF.
+
+      CLEAR lv_values.
+      lv_id = lv_from.
+      WHILE lv_id <= lv_to.
+        IF lv_id > lv_from.
+          lv_values = lv_values && ', '.
+        ENDIF.
+        lv_values = lv_values &&
+          |({ lv_id }, 'name-{ lv_id }', { lv_id * 7 MOD 23 }, 'tag-{ lv_id }')|.
+        lv_id = lv_id + 1.
+      ENDWHILE.
+
+      lo_database->execute( |INSERT INTO items (id, name, qty, tag) VALUES { lv_values }| ).
+      lv_from = lv_to + 1.
+    ENDWHILE.
+
+    lo_database->execute( 'CREATE INDEX idx_qty ON items (qty)' ).
+    lo_database->execute( 'CREATE UNIQUE INDEX idx_tag ON items (tag)' ).
+    lo_database->execute(
+      'UPDATE items SET name = name || ''-u'', qty = qty + 1,' &&
+      ' tag = tag || ''-u'' WHERE id % 7 = 0' ).
+    lo_database->execute( 'UPDATE items SET id = id + 1000 WHERE id BETWEEN 50 AND 99' ).
+    lo_database->execute( 'DELETE FROM items WHERE id % 11 = 0' ).
+    lo_database->execute( 'DELETE FROM items WHERE id BETWEEN 200 AND 249' ).
+    lo_database->execute( 'UPDATE items SET tag = NULL WHERE id % 13 = 0' ).
+
+    CLEAR lv_values.
+    lv_id = 401.
+    WHILE lv_id <= 600.
+      IF lv_id > 401.
+        lv_values = lv_values && ', '.
+      ENDIF.
+      lv_values = lv_values &&
+        |({ lv_id }, 'name-{ lv_id }', { lv_id * 5 MOD 17 }, 'tag-{ lv_id }')|.
+      lv_id = lv_id + 1.
+    ENDWHILE.
+    lo_database->execute( |INSERT INTO items (id, name, qty, tag) VALUES { lv_values }| ).
+    lo_database->execute(
+      'INSERT INTO items VALUES (601, ''null-1'', NULL, NULL),' &&
+      ' (602, ''null-2'', NULL, NULL)' ).
+    lo_database->execute( 'UPDATE items SET qty = NULL WHERE id % 19 = 0' ).
+    lo_database->execute( 'DELETE FROM items WHERE id BETWEEN 300 AND 329' ).
+    lo_database->execute(
+      'INSERT INTO items VALUES (603, ''name-603'', 9, ''tag-603''),' &&
+      ' (604, ''name-604'', 9, ''tag-604'')' ).
+
+    lo_database->close( ).
+    rv_name = c_index_database.
   ENDMETHOD.
 
   METHOD insert_rows.

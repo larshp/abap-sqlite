@@ -507,6 +507,108 @@ async function verifyUpdate(SQL, tempDir) {
   );
 }
 
+async function verifyIndex(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.index_rows({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "index.db");
+  const reference = new SQL.Database();
+  const statements = [
+    "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, qty INTEGER, tag TEXT)",
+  ];
+
+  function addBatch(from, to, multiplier, modulus) {
+    const values = [];
+    for (let id = from; id <= to; id += 1) {
+      values.push(`(${id}, 'name-${id}', ${(id * multiplier) % modulus}, 'tag-${id}')`);
+    }
+    statements.push(`INSERT INTO items (id, name, qty, tag) VALUES ${values.join(", ")}`);
+  }
+
+  addBatch(1, 400, 7, 23);
+  statements.push(
+    "CREATE INDEX idx_qty ON items (qty)",
+    "CREATE UNIQUE INDEX idx_tag ON items (tag)",
+    "UPDATE items SET name = name || '-u', qty = qty + 1, tag = tag || '-u' WHERE id % 7 = 0",
+    "UPDATE items SET id = id + 1000 WHERE id BETWEEN 50 AND 99",
+    "DELETE FROM items WHERE id % 11 = 0",
+    "DELETE FROM items WHERE id BETWEEN 200 AND 249",
+    "UPDATE items SET tag = NULL WHERE id % 13 = 0",
+  );
+  addBatch(401, 600, 5, 17);
+  statements.push(
+    "INSERT INTO items VALUES (601, 'null-1', NULL, NULL), (602, 'null-2', NULL, NULL)",
+    "UPDATE items SET qty = NULL WHERE id % 19 = 0",
+    "DELETE FROM items WHERE id BETWEEN 300 AND 329",
+    "INSERT INTO items VALUES (603, 'name-603', 9, 'tag-603'), (604, 'name-604', 9, 'tag-604')",
+  );
+
+  function indexShape(db) {
+    return rows(db, "PRAGMA index_list(items)")
+      .map(([, name, unique, origin, partial]) => [name, unique, origin, partial])
+      .sort((left, right) => String(left[0]).localeCompare(String(right[0])));
+  }
+
+  function indexColumns(db, name) {
+    return rows(db, `PRAGMA index_info(${quoteIdentifier(name)})`).map(([, , column]) => column);
+  }
+
+  try {
+    for (const sql of statements) {
+      reference.run(sql);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.deepEqual(
+      rows(
+        exported.db,
+        "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name",
+      ),
+      rows(
+        reference,
+        "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name",
+      ),
+      "sqlite_schema rows differ",
+    );
+    for (const [type, name, rootpage] of rows(
+      exported.db,
+      "SELECT type, name, rootpage FROM sqlite_schema ORDER BY type, name",
+    )) {
+      assert.ok(Number(rootpage) > 0, `${type} ${name} has no root page`);
+    }
+
+    assert.deepEqual(indexShape(exported.db), indexShape(reference), "index list differs");
+    for (const name of ["sqlite_autoindex_items_1", "idx_qty", "idx_tag"]) {
+      assert.deepEqual(
+        indexColumns(exported.db, name),
+        indexColumns(reference, name),
+        `index columns differ for ${name}`,
+      );
+    }
+
+    assert.deepEqual(
+      typedRows(exported.db, "items", ["id", "name", "qty", "tag"]),
+      typedRows(reference, "items", ["id", "name", "qty", "tag"]),
+      "indexed rows differ",
+    );
+
+    const indexQueries = [
+      "SELECT id, qty FROM items INDEXED BY idx_qty WHERE qty IS NOT NULL ORDER BY qty, id",
+      "SELECT id, tag FROM items INDEXED BY idx_tag WHERE tag IS NULL ORDER BY id",
+      "SELECT id, tag FROM items INDEXED BY idx_tag WHERE tag >= 'tag-5' ORDER BY tag, id",
+      "SELECT id, name FROM items INDEXED BY sqlite_autoindex_items_1 WHERE name >= 'name-50' ORDER BY name",
+    ];
+    for (const sql of indexQueries) {
+      assert.deepEqual(rows(exported.db, sql), rows(reference, sql), `index query differs: ${sql}`);
+    }
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, index maintenance)`,
+  );
+}
+
 const SQL = await initSqlJs();
 const tempDir = await mkdtemp(path.join(os.tmpdir(), "abap-sqlite-"));
 
@@ -515,6 +617,7 @@ try {
   await verifyEmpty(SQL, tempDir);
   await verifyInsert(SQL, tempDir);
   await verifyInsertStatements(SQL, tempDir);
+  await verifyIndex(SQL, tempDir);
   await verifyFreelist(SQL, tempDir);
   await verifyOverflow(SQL, tempDir);
   await verifySplit(SQL, tempDir);

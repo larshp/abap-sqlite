@@ -25,6 +25,9 @@ CLASS zcl_sqlite_ast_create_index DEFINITION
     METHODS is_unique
       RETURNING VALUE(rv_result) TYPE abap_bool.
 
+    METHODS is_if_not_exists
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
     METHODS get_columns
       RETURNING VALUE(rt_columns) TYPE ty_columns.
 
@@ -65,6 +68,10 @@ CLASS zcl_sqlite_ast_create_index IMPLEMENTATION.
 
   METHOD is_unique.
     rv_result = mv_unique.
+  ENDMETHOD.
+
+  METHOD is_if_not_exists.
+    rv_result = mv_if_not_exists.
   ENDMETHOD.
 
   METHOD get_columns.
