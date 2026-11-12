@@ -9,6 +9,7 @@ CLASS zcl_sqlite_scenario DEFINITION
   PUBLIC SECTION.
     CONSTANTS c_create_table_database TYPE string VALUE 'compat/create-table.db'.
     CONSTANTS c_delete_database TYPE string VALUE 'compat/delete.db'.
+    CONSTANTS c_drop_database TYPE string VALUE 'compat/drop.db'.
     CONSTANTS c_empty_database TYPE string VALUE 'compat/empty.db'.
     CONSTANTS c_freelist_database TYPE string VALUE 'compat/freelist.db'.
     CONSTANTS c_index_database TYPE string VALUE 'compat/index.db'.
@@ -27,6 +28,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS delete_rows
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS drop_objects
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -254,6 +259,69 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
 
     lo_file->close( ).
     rv_name = c_freelist_database.
+  ENDMETHOD.
+
+  METHOD drop_objects.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lv_values   TYPE string.
+    DATA lv_text     TYPE string.
+    DATA lv_from     TYPE i.
+    DATA lv_to       TYPE i.
+    DATA lv_id       TYPE i.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( c_drop_database ).
+
+    lo_database = zcl_sqlite_database=>create( c_drop_database ).
+    lo_database->execute( 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, body TEXT)' ).
+
+    lv_from = 1.
+    WHILE lv_from <= 600.
+      lv_to = lv_from + 199.
+      IF lv_to > 600.
+        lv_to = 600.
+      ENDIF.
+
+      CLEAR lv_values.
+      lv_id = lv_from.
+      WHILE lv_id <= lv_to.
+        IF lv_id > lv_from.
+          lv_values = lv_values && ', '.
+        ENDIF.
+        lv_values = lv_values &&
+          |({ lv_id }, 'name-{ lv_id }', 'body-{ lv_id }')|.
+        lv_id = lv_id + 1.
+      ENDWHILE.
+
+      lo_database->execute( |INSERT INTO items VALUES { lv_values }| ).
+      lv_from = lv_to + 1.
+    ENDWHILE.
+
+    lv_text = repeat( val = 'L'
+                      occ = 9000 ).
+    lo_database->execute( |INSERT INTO items VALUES (601, 'long', '{ lv_text }')| ).
+    lo_database->execute( 'CREATE INDEX idx_body ON items (body)' ).
+    lo_database->execute( 'CREATE INDEX idx_name ON items (name)' ).
+
+    lo_database->execute( 'CREATE TABLE temp (id INTEGER PRIMARY KEY, value TEXT)' ).
+    CLEAR lv_values.
+    lv_id = 1.
+    WHILE lv_id <= 200.
+      IF lv_id > 1.
+        lv_values = lv_values && ', '.
+      ENDIF.
+      lv_values = lv_values && |({ lv_id }, 'temp-{ lv_id }')|.
+      lv_id = lv_id + 1.
+    ENDWHILE.
+    lo_database->execute( |INSERT INTO temp VALUES { lv_values }| ).
+    lo_database->execute( 'CREATE INDEX temp_idx ON temp (value)' ).
+
+    lo_database->execute( 'DROP INDEX idx_body' ).
+    lo_database->execute( 'DROP TABLE temp' ).
+
+    lo_database->close( ).
+    rv_name = c_drop_database.
   ENDMETHOD.
 
   METHOD index_rows.

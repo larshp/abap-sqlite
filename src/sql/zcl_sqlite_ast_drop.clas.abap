@@ -11,6 +11,15 @@ CLASS zcl_sqlite_ast_drop DEFINITION
                 iv_name        TYPE string
                 iv_if_exists   TYPE abap_bool DEFAULT abap_false.
 
+    METHODS get_object_type
+      RETURNING VALUE(rv_object_type) TYPE string.
+
+    METHODS get_name
+      RETURNING VALUE(rv_name) TYPE string.
+
+    METHODS is_if_exists
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -27,6 +36,18 @@ CLASS zcl_sqlite_ast_drop IMPLEMENTATION.
     mv_object_type = iv_object_type.
     mv_name = iv_name.
     mv_if_exists = iv_if_exists.
+  ENDMETHOD.
+
+  METHOD get_object_type.
+    rv_object_type = mv_object_type.
+  ENDMETHOD.
+
+  METHOD get_name.
+    rv_name = mv_name.
+  ENDMETHOD.
+
+  METHOD is_if_exists.
+    rv_result = mv_if_exists.
   ENDMETHOD.
 
   METHOD dump.

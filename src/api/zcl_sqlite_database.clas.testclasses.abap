@@ -29,6 +29,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS create_index FOR TESTING RAISING zcx_sqlite_error.
     METHODS index_maintenance FOR TESTING RAISING zcx_sqlite_error.
     METHODS index_delete_all FOR TESTING RAISING zcx_sqlite_error.
+    METHODS drop_table_and_index FOR TESTING RAISING zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -2309,6 +2310,167 @@ CLASS ltcl_database IMPLEMENTATION.
       act = lv_count
       exp = 0
       msg = 'qty index stays empty after delete all' ).
+    lo_file->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD drop_table_and_index.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_file     TYPE REF TO zif_sqlite_file.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_pager    TYPE REF TO zcl_sqlite_pager.
+    DATA lo_schema   TYPE REF TO zcl_sqlite_schema.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA ls_table    TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_index    TYPE zcl_sqlite_schema=>ty_index.
+    DATA lv_name     TYPE string.
+    DATA lv_values   TYPE string.
+    DATA lv_text     TYPE string.
+    DATA lv_pages    TYPE i.
+    DATA lv_free     TYPE i.
+
+    lv_name = 'test/m5_12_drop.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database->execute( 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, body TEXT)' ).
+    DO 600 TIMES.
+      IF sy-index > 1.
+        lv_values = lv_values && ', '.
+      ENDIF.
+      lv_values = lv_values &&
+        |({ sy-index }, 'name-{ sy-index }', 'body-{ sy-index }')|.
+    ENDDO.
+    lo_database->execute( |INSERT INTO items VALUES { lv_values }| ).
+    lv_text = repeat( val = 'L'
+                      occ = 9000 ).
+    lo_database->execute( |INSERT INTO items VALUES (601, 'long', '{ lv_text }')| ).
+    lo_database->execute( 'CREATE INDEX idx_body ON items (body)' ).
+    lo_database->execute( 'CREATE INDEX idx_name ON items (name)' ).
+    lo_database->close( ).
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lv_pages = lo_pager->page_count( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_pager->freelist_count( )
+      exp = 0
+      msg = 'new database has no free pages' ).
+    lo_file->close( ).
+
+* dropping one index releases its pages but keeps the table and other indexes
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'DROP INDEX main.idx_body' ).
+    lo_database->execute( 'DROP INDEX IF EXISTS idx_body' ).
+    lo_database->execute( 'DROP INDEX IF EXISTS missing' ).
+    lo_database->execute( 'DROP TABLE IF EXISTS missing' ).
+
+    TRY.
+        lo_database->execute( 'DROP INDEX missing' ).
+        cl_abap_unit_assert=>fail( 'dropping a missing index was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'DROP TABLE missing' ).
+        cl_abap_unit_assert=>fail( 'dropping a missing table was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'DROP INDEX sqlite_autoindex_items_1' ).
+        cl_abap_unit_assert=>fail( 'dropping a constraint index was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error ).
+    ENDTRY.
+    lo_database->close( ).
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lo_schema = zcl_sqlite_schema=>read( lo_pager ).
+    ls_index = lo_schema->index( 'idx_body' ).
+    IF ls_index-name IS NOT INITIAL.
+      cl_abap_unit_assert=>fail( 'dropped index stays absent' ).
+    ENDIF.
+    ls_index = lo_schema->index( 'idx_name' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_index-name
+      exp = 'idx_name'
+      msg = 'remaining index survives' ).
+    lv_free = lo_pager->freelist_count( ).
+    IF lv_free <= 0.
+      cl_abap_unit_assert=>fail( 'dropped index pages were not freed' ).
+    ENDIF.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_pager->page_count( )
+      exp = lv_pages
+      msg = 'dropping an index does not shrink the file' ).
+    lo_file->close( ).
+
+* dropping the table frees its pages, its overflow chains and its indexes
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'DROP TABLE main.items' ).
+    lo_database->execute( 'DROP TABLE IF EXISTS items' ).
+    lo_database->close( ).
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lo_schema = zcl_sqlite_schema=>read( lo_pager ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lo_schema->tables( ) )
+      exp = 0
+      msg = 'dropped table stays absent' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lo_schema->indexes( ) )
+      exp = 0
+      msg = 'table indexes are dropped with the table' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_pager->page_count( )
+      exp = lv_pages
+      msg = 'dropping a table does not shrink the file' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_pager->freelist_count( )
+      exp = lv_pages - 1
+      msg = 'all pages except sqlite_schema are free' ).
+    lo_file->close( ).
+
+* the freed pages can be allocated again
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'CREATE TABLE reuse (id INTEGER PRIMARY KEY, value TEXT)' ).
+    lo_database->execute( 'INSERT INTO reuse VALUES (1, ''a''), (2, ''b''), (3, ''c'')' ).
+    rs_result = lo_database->query( 'SELECT count(*) FROM reuse' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 3
+      msg = 'reused pages hold the new table' ).
+    lo_database->close( ).
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_file = lo_vfs->zif_sqlite_vfs~open( lv_name ).
+    lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
+    lo_schema = zcl_sqlite_schema=>read( lo_pager ).
+    ls_table = lo_schema->table( 'reuse' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_table-name
+      exp = 'reuse'
+      msg = 'new table is in the catalog' ).
     lo_file->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.

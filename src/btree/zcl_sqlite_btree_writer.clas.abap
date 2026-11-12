@@ -25,6 +25,10 @@ CLASS zcl_sqlite_btree_writer DEFINITION
       IMPORTING iv_rowid TYPE int8
       RAISING   zcx_sqlite_error.
 
+* free every page of the table tree, including its overflow chains and root
+    METHODS free_tree
+      RAISING   zcx_sqlite_error.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
     CONSTANTS c_max_fragmented          TYPE i VALUE 255.
@@ -121,6 +125,15 @@ CLASS zcl_sqlite_btree_writer DEFINITION
 
     METHODS free_overflow_chain
       IMPORTING iv_first_page TYPE i
+      RAISING   zcx_sqlite_error.
+
+    METHODS clear_page
+      IMPORTING iv_page TYPE i
+      RAISING   zcx_sqlite_error.
+
+    METHODS free_cell_overflow
+      IMPORTING iv_data   TYPE xstring
+                iv_offset TYPE i
       RAISING   zcx_sqlite_error.
 
     METHODS insert_leaf_page
@@ -322,6 +335,88 @@ CLASS zcl_sqlite_btree_writer IMPLEMENTATION.
   METHOD delete_row.
     delete_page( iv_page  = mv_root_page
                  iv_rowid = iv_rowid ).
+  ENDMETHOD.
+
+  METHOD free_tree.
+    clear_page( mv_root_page ).
+    mo_pager->free_page( mv_root_page ).
+  ENDMETHOD.
+
+  METHOD clear_page.
+    DATA ls_raw TYPE zcl_sqlite_pager=>ty_page.
+    DATA ls_page TYPE zcl_sqlite_page=>ty_page.
+    DATA lt_cells TYPE ty_interior_cells.
+    DATA ls_cell TYPE ty_interior_cell.
+    DATA lv_offset TYPE i.
+
+    ls_raw = mo_pager->get_page( iv_page ).
+    ls_page = zcl_sqlite_page=>parse(
+      iv_data   = ls_raw-data
+      iv_offset = ls_raw-btree_offset ).
+
+    CASE ls_page-page_type.
+      WHEN zcl_sqlite_page=>c_table_leaf.
+        LOOP AT ls_page-cell_offsets INTO lv_offset.
+          free_cell_overflow(
+            iv_data   = ls_raw-data
+            iv_offset = lv_offset ).
+        ENDLOOP.
+      WHEN zcl_sqlite_page=>c_table_interior.
+        lt_cells = read_interior_cells(
+          is_raw  = ls_raw
+          is_page = ls_page ).
+        LOOP AT lt_cells INTO ls_cell.
+          clear_page( ls_cell-child ).
+        ENDLOOP.
+        clear_page( ls_page-rightmost_pointer ).
+      WHEN OTHERS.
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'table tree contains a non-table page' ).
+    ENDCASE.
+
+    IF iv_page <> mv_root_page.
+      mo_pager->free_page( iv_page ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD free_cell_overflow.
+    DATA lv_payload_length TYPE int8.
+    DATA lv_payload_length_size TYPE i.
+    DATA lv_rowid_offset TYPE i.
+    DATA lv_rowid_size TYPE i.
+    DATA lv_local_size TYPE int8.
+    DATA lv_pointer_offset TYPE i.
+    DATA lv_first_page TYPE int8.
+
+    TRY.
+        lv_payload_length = zcl_sqlite_bytes=>read_varint(
+          iv_data   = iv_data
+          iv_offset = iv_offset ).
+        lv_payload_length_size = zcl_sqlite_bytes=>varint_length(
+          iv_data   = iv_data
+          iv_offset = iv_offset ).
+        lv_rowid_offset = iv_offset + lv_payload_length_size.
+        lv_rowid_size = zcl_sqlite_bytes=>varint_length(
+          iv_data   = iv_data
+          iv_offset = lv_rowid_offset ).
+      CATCH cx_sy_range_out_of_bounds.
+        fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
+              iv_message = 'table leaf cell header is truncated' ).
+    ENDTRY.
+
+    lv_local_size = zcl_sqlite_btree=>local_payload_size(
+      iv_payload_size = lv_payload_length
+      iv_usable_size  = mv_usable_size ).
+    IF lv_payload_length <= lv_local_size.
+      RETURN.
+    ENDIF.
+
+    lv_pointer_offset = lv_rowid_offset + lv_rowid_size
+                      + CONV i( lv_local_size ).
+    lv_first_page = read_u32(
+      iv_data   = iv_data
+      iv_offset = lv_pointer_offset ).
+    free_overflow_chain( CONV i( lv_first_page ) ).
   ENDMETHOD.
 
   METHOD delete_page.

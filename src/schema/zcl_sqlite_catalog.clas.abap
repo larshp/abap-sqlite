@@ -19,6 +19,7 @@ CLASS zcl_sqlite_catalog DEFINITION
              sql_is_null TYPE abap_bool,
            END OF ty_entry.
     TYPES ty_entries TYPE STANDARD TABLE OF ty_entry WITH DEFAULT KEY.
+    TYPES ty_names TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
 
     CLASS-METHODS read
       IMPORTING io_pager          TYPE REF TO zcl_sqlite_pager
@@ -29,6 +30,12 @@ CLASS zcl_sqlite_catalog DEFINITION
       IMPORTING io_pager        TYPE REF TO zcl_sqlite_pager
                 is_entry        TYPE ty_entry
       RETURNING VALUE(rv_rowid) TYPE int8
+      RAISING   zcx_sqlite_error.
+
+* remove the entries with the given names, used by DROP TABLE and DROP INDEX
+    CLASS-METHODS remove
+      IMPORTING io_pager TYPE REF TO zcl_sqlite_pager
+                it_names TYPE ty_names
       RAISING   zcx_sqlite_error.
 
   PROTECTED SECTION.
@@ -133,6 +140,46 @@ CLASS zcl_sqlite_catalog IMPLEMENTATION.
     lo_writer->insert_row(
       iv_rowid   = rv_rowid
       iv_payload = zcl_sqlite_record=>encode( lt_values ) ).
+  ENDMETHOD.
+
+  METHOD remove.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lt_values TYPE zcl_sqlite_record=>ty_values.
+    DATA lt_rowids TYPE STANDARD TABLE OF int8 WITH DEFAULT KEY.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+    DATA lv_found TYPE abap_bool.
+    DATA lv_name TYPE string.
+    DATA lv_remove TYPE string.
+    DATA lv_rowid TYPE int8.
+
+    lo_cursor = NEW zcl_sqlite_cursor(
+      io_pager     = io_pager
+      iv_root_page = 1 ).
+
+    lv_found = lo_cursor->first( ).
+    WHILE lv_found = abap_true.
+      lt_values = lo_cursor->values( ).
+      READ TABLE lt_values INTO lo_value INDEX 2.
+      lv_name = lo_value->as_text( ).
+      LOOP AT it_names INTO lv_remove.
+        IF to_upper( lv_remove ) = to_upper( lv_name ).
+          lv_rowid = lo_cursor->rowid( ).
+          APPEND lv_rowid TO lt_rowids.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      lv_found = lo_cursor->next( ).
+    ENDWHILE.
+
+* deleting from high to low keeps the remaining rowids valid
+    SORT lt_rowids DESCENDING.
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = io_pager
+      iv_root_page = 1 ).
+    LOOP AT lt_rowids INTO lv_rowid.
+      lo_writer->delete_row( lv_rowid ).
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD as_text.

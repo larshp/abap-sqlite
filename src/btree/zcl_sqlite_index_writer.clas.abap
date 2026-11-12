@@ -29,6 +29,10 @@ CLASS zcl_sqlite_index_writer DEFINITION
     METHODS clear_tree
       RAISING zcx_sqlite_error.
 
+* free every page of the index tree, including the root page
+    METHODS free_tree
+      RAISING zcx_sqlite_error.
+
     METHODS rebuild
       IMPORTING it_keys          TYPE ty_keys
                 iv_unique        TYPE abap_bool DEFAULT abap_false
@@ -305,6 +309,11 @@ CLASS zcl_sqlite_index_writer IMPLEMENTATION.
     mo_pager->put_page(
       iv_page = mv_root_page
       iv_data = zcl_sqlite_btree=>empty_index_leaf( mv_page_size ) ).
+  ENDMETHOD.
+
+  METHOD free_tree.
+    clear_page( mv_root_page ).
+    mo_pager->free_page( mv_root_page ).
   ENDMETHOD.
 
   METHOD rebuild.

@@ -122,6 +122,30 @@ CLASS zcl_sqlite_database DEFINITION
                 iv_sql       TYPE string
       RAISING   zcx_sqlite_error.
 
+    METHODS execute_drop
+      IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_drop
+      RAISING   zcx_sqlite_error.
+
+    METHODS execute_drop_table
+      IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_drop
+      RAISING   zcx_sqlite_error.
+
+    METHODS execute_drop_index
+      IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_drop
+      RAISING   zcx_sqlite_error.
+
+    METHODS drop_table_tree
+      IMPORTING is_table TYPE zcl_sqlite_schema=>ty_table
+      RAISING   zcx_sqlite_error.
+
+    METHODS drop_index_tree
+      IMPORTING is_index TYPE zcl_sqlite_schema=>ty_index
+      RAISING   zcx_sqlite_error.
+
+    METHODS strip_schema_name
+      IMPORTING iv_name        TYPE string
+      RETURNING VALUE(rv_name) TYPE string.
+
     METHODS create_autoindexes
       IMPORTING iv_table_name TYPE string
       RAISING   zcx_sqlite_error.
@@ -560,6 +584,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_insert TYPE REF TO zcl_sqlite_ast_insert.
     DATA lo_update TYPE REF TO zcl_sqlite_ast_update.
     DATA lo_delete TYPE REF TO zcl_sqlite_ast_delete.
+    DATA lo_drop   TYPE REF TO zcl_sqlite_ast_drop.
     DATA lv_changes TYPE i.
     DATA lv_last_rowid TYPE int8.
     DATA lv_schema_changed TYPE abap_bool.
@@ -587,14 +612,19 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       lv_updated = abap_true.
     ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_delete.
       lo_delete ?= lo_statement.
+    ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_drop.
+      lo_drop ?= lo_statement.
+      lv_schema_changed = abap_true.
     ELSE.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
-          iv_message = 'only CREATE TABLE, CREATE INDEX, INSERT, UPDATE and DELETE statements are supported'.
+          iv_message = 'only CREATE TABLE/INDEX, DROP TABLE/INDEX, INSERT, UPDATE and DELETE are supported'.
     ENDIF.
 
     TRY.
-        IF lv_schema_changed = abap_true.
+        IF lo_drop IS BOUND.
+          execute_drop( lo_drop ).
+        ELSEIF lv_schema_changed = abap_true.
           execute_create_table(
             io_statement = lo_create_table
             iv_sql       = iv_sql ).
@@ -747,6 +777,128 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       is_index = ls_index ).
 
     mo_pager->bump_schema_cookie( ).
+  ENDMETHOD.
+
+  METHOD execute_drop.
+    DATA lv_object_type TYPE string.
+
+    lv_object_type = to_upper( io_statement->get_object_type( ) ).
+    CASE lv_object_type.
+      WHEN 'TABLE'.
+        execute_drop_table( io_statement ).
+      WHEN 'INDEX'.
+        execute_drop_index( io_statement ).
+      WHEN OTHERS.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = |unsupported DROP object: { io_statement->get_object_type( ) }|.
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD execute_drop_table.
+    DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_index TYPE zcl_sqlite_schema=>ty_index.
+    DATA lt_names TYPE zcl_sqlite_catalog=>ty_names.
+    DATA lv_name TYPE string.
+
+    lv_name = strip_schema_name( io_statement->get_name( ) ).
+    ls_table = mo_schema->table( lv_name ).
+    IF ls_table-name IS INITIAL.
+      IF io_statement->is_if_exists( ) = abap_true.
+        RETURN.
+      ENDIF.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |no such table: { lv_name }|.
+    ENDIF.
+    IF ls_table-without_rowid = abap_true.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'WITHOUT ROWID tables are not supported yet'.
+    ENDIF.
+
+    APPEND ls_table-name TO lt_names.
+    LOOP AT ls_table-indexes INTO ls_index.
+      APPEND ls_index-name TO lt_names.
+      IF ls_index-rootpage > 0.
+        drop_index_tree( ls_index ).
+      ENDIF.
+    ENDLOOP.
+
+    drop_table_tree( ls_table ).
+    zcl_sqlite_catalog=>remove(
+      io_pager = mo_pager
+      it_names = lt_names ).
+    mo_pager->bump_schema_cookie( ).
+  ENDMETHOD.
+
+  METHOD execute_drop_index.
+    DATA ls_index TYPE zcl_sqlite_schema=>ty_index.
+    DATA lt_names TYPE zcl_sqlite_catalog=>ty_names.
+    DATA lv_name TYPE string.
+
+    lv_name = strip_schema_name( io_statement->get_name( ) ).
+    ls_index = mo_schema->index( lv_name ).
+    IF ls_index-name IS INITIAL.
+      IF io_statement->is_if_exists( ) = abap_true.
+        RETURN.
+      ENDIF.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |no such index: { lv_name }|.
+    ENDIF.
+
+    IF ls_index-origin = 'u' OR ls_index-origin = 'pk'.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'index associated with UNIQUE or PRIMARY KEY constraint cannot be dropped'.
+    ENDIF.
+
+    IF ls_index-rootpage > 0.
+      drop_index_tree( ls_index ).
+    ENDIF.
+    APPEND ls_index-name TO lt_names.
+    zcl_sqlite_catalog=>remove(
+      io_pager = mo_pager
+      it_names = lt_names ).
+    mo_pager->bump_schema_cookie( ).
+  ENDMETHOD.
+
+  METHOD drop_table_tree.
+    DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+
+    IF is_table-rootpage <= 0.
+      RETURN.
+    ENDIF.
+    lo_writer = NEW zcl_sqlite_btree_writer(
+      io_pager     = mo_pager
+      iv_root_page = CONV i( is_table-rootpage ) ).
+    lo_writer->free_tree( ).
+  ENDMETHOD.
+
+  METHOD drop_index_tree.
+    DATA lo_writer TYPE REF TO zcl_sqlite_index_writer.
+
+    IF is_index-rootpage <= 0.
+      RETURN.
+    ENDIF.
+    lo_writer = NEW zcl_sqlite_index_writer(
+      io_pager     = mo_pager
+      iv_root_page = CONV i( is_index-rootpage ) ).
+    lo_writer->free_tree( ).
+  ENDMETHOD.
+
+  METHOD strip_schema_name.
+    rv_name = iv_name.
+    IF strlen( iv_name ) > 5
+        AND to_upper( iv_name(5) ) = 'MAIN.'.
+      rv_name = iv_name+5.
+    ENDIF.
   ENDMETHOD.
 
   METHOD create_autoindexes.

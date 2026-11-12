@@ -609,6 +609,91 @@ async function verifyIndex(SQL, tempDir) {
   );
 }
 
+async function verifyDrop(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.drop_objects({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "drop.db");
+  const reference = new SQL.Database();
+  const statements = [
+    "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, body TEXT)",
+  ];
+
+  for (let from = 1; from <= 600; from += 200) {
+    const values = [];
+    for (let id = from; id <= Math.min(from + 199, 600); id += 1) {
+      values.push(`(${id}, 'name-${id}', 'body-${id}')`);
+    }
+    statements.push(`INSERT INTO items VALUES ${values.join(", ")}`);
+  }
+  statements.push(
+    `INSERT INTO items VALUES (601, 'long', '${"L".repeat(9000)}')`,
+    "CREATE INDEX idx_body ON items (body)",
+    "CREATE INDEX idx_name ON items (name)",
+    "CREATE TABLE temp (id INTEGER PRIMARY KEY, value TEXT)",
+  );
+
+  const tempValues = [];
+  for (let id = 1; id <= 200; id += 1) {
+    tempValues.push(`(${id}, 'temp-${id}')`);
+  }
+  statements.push(
+    `INSERT INTO temp VALUES ${tempValues.join(", ")}`,
+    "CREATE INDEX temp_idx ON temp (value)",
+    "DROP INDEX idx_body",
+    "DROP TABLE temp",
+  );
+
+  function indexShape(db) {
+    return rows(db, "PRAGMA index_list(items)")
+      .map(([, name, unique, origin, partial]) => [name, unique, origin, partial])
+      .sort((left, right) => String(left[0]).localeCompare(String(right[0])));
+  }
+
+  try {
+    for (const sql of statements) {
+      reference.run(sql);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.deepEqual(
+      rows(
+        exported.db,
+        "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name",
+      ),
+      rows(
+        reference,
+        "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name",
+      ),
+      "sqlite_schema rows differ",
+    );
+    assert.deepEqual(indexShape(exported.db), indexShape(reference), "index list differs");
+    assert.deepEqual(
+      typedRows(exported.db, "items", ["id", "name", "body"]),
+      typedRows(reference, "items", ["id", "name", "body"]),
+      "rows after DROP differ",
+    );
+
+    const freePages = scalar(exported.db, "PRAGMA freelist_count");
+    const pageCount = scalar(exported.db, "PRAGMA page_count");
+    assert.ok(freePages > 0, "dropped pages are not on the freelist");
+    assert.ok(freePages < pageCount, "the schema page was freed");
+
+    const indexQuery =
+      "SELECT id, name FROM items INDEXED BY idx_name WHERE name >= 'name-50' ORDER BY name";
+    assert.deepEqual(
+      rows(exported.db, indexQuery),
+      rows(reference, indexQuery),
+      "index query after DROP differs",
+    );
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, drop objects)`,
+  );
+}
+
 const SQL = await initSqlJs();
 const tempDir = await mkdtemp(path.join(os.tmpdir(), "abap-sqlite-"));
 
@@ -618,6 +703,7 @@ try {
   await verifyInsert(SQL, tempDir);
   await verifyInsertStatements(SQL, tempDir);
   await verifyIndex(SQL, tempDir);
+  await verifyDrop(SQL, tempDir);
   await verifyFreelist(SQL, tempDir);
   await verifyOverflow(SQL, tempDir);
   await verifySplit(SQL, tempDir);

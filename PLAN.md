@@ -551,7 +551,7 @@ sql.js.
 
 #### M5.12 DROP TABLE / DROP INDEX
 
-- [ ] Free all pages of the b-tree, remove the `sqlite_schema` rows
+- [x] Free all pages of the b-tree, remove the `sqlite_schema` rows
 
 **Done when:** the freed pages show up in the freelist, and `integrity_check` passes.
 
