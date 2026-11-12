@@ -557,8 +557,8 @@ sql.js.
 
 #### M5.13 Transactions and the ABAP LUW
 
-- [ ] Autocommit per statement. `BEGIN` / `COMMIT` / `ROLLBACK`. Statement-level rollback on error.
-- [ ] ABAP LUW integration: the default is to only write to the DB, and the caller owns
+- [x] Autocommit per statement. `BEGIN` / `COMMIT` / `ROLLBACK`. Statement-level rollback on error.
+- [x] ABAP LUW integration: the default is to only write to the DB, and the caller owns
       `COMMIT WORK`. Option `auto_commit_work`.
 
 **Done when:** tests cover rollback after a failed statement, an explicit `ROLLBACK`, and an

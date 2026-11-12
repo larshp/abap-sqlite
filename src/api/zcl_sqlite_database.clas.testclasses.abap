@@ -30,6 +30,14 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS index_maintenance FOR TESTING RAISING zcx_sqlite_error.
     METHODS index_delete_all FOR TESTING RAISING zcx_sqlite_error.
     METHODS drop_table_and_index FOR TESTING RAISING zcx_sqlite_error.
+    METHODS transactions FOR TESTING RAISING zcx_sqlite_error.
+    METHODS abap_luw FOR TESTING RAISING zcx_sqlite_error.
+
+    METHODS count_rows
+      IMPORTING io_database     TYPE REF TO zcl_sqlite_database
+                iv_sql          TYPE string
+      RETURNING VALUE(rv_count) TYPE i
+      RAISING   zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -2473,6 +2481,226 @@ CLASS ltcl_database IMPLEMENTATION.
       msg = 'new table is in the catalog' ).
     lo_file->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD count_rows.
+    rv_count = lines( io_database->query( iv_sql )-rows ).
+  ENDMETHOD.
+
+  METHOD transactions.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA lv_name     TYPE string.
+
+    lv_name = 'test/m5_13_transactions.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)' ).
+    lo_database->execute( 'INSERT INTO t VALUES (1, ''one'')' ).
+
+* an explicit transaction is invisible until it commits
+    lo_database->execute( 'BEGIN' ).
+    lo_database->execute( 'INSERT INTO t VALUES (2, ''two'')' ).
+    lo_database->execute( 'INSERT INTO t VALUES (3, ''three'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id >= 2' )
+      exp = 2
+      msg = 'rows are visible inside the transaction' ).
+
+    TRY.
+        lo_database->execute( 'BEGIN' ).
+        cl_abap_unit_assert=>fail( 'nested BEGIN must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error
+          msg = 'nested BEGIN error code' ).
+    ENDTRY.
+
+    lo_database->execute( 'ROLLBACK' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id >= 2' )
+      exp = 0
+      msg = 'ROLLBACK discards the transaction' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 1' )
+      exp = 1
+      msg = 'rows from before the transaction survive' ).
+
+* COMMIT makes the transaction durable in the SQLite file
+    lo_database->execute( 'BEGIN' ).
+    lo_database->execute( 'INSERT INTO t VALUES (4, ''four'')' ).
+    lo_database->execute( 'COMMIT' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 4' )
+      exp = 1
+      msg = 'COMMIT keeps the transaction' ).
+
+    TRY.
+        lo_database->execute( 'COMMIT' ).
+        cl_abap_unit_assert=>fail( 'COMMIT without a transaction must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error
+          msg = 'COMMIT error code' ).
+    ENDTRY.
+    TRY.
+        lo_database->execute( 'ROLLBACK' ).
+        cl_abap_unit_assert=>fail( 'ROLLBACK without a transaction must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error
+          msg = 'ROLLBACK error code' ).
+    ENDTRY.
+
+* a failed statement rolls back only itself, not the whole transaction
+    lo_database->execute( 'BEGIN' ).
+    lo_database->execute( 'INSERT INTO t VALUES (10, ''ten'')' ).
+    TRY.
+        lo_database->execute( 'INSERT INTO t VALUES (10, ''duplicate'')' ).
+        cl_abap_unit_assert=>fail( 'duplicate primary key must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint
+          msg = 'duplicate key error code' ).
+    ENDTRY.
+    lo_database->execute( 'INSERT INTO t VALUES (11, ''eleven'')' ).
+    lo_database->execute( 'COMMIT' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 10' )
+      exp = 1
+      msg = 'statement before the failure survives' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 11' )
+      exp = 1
+      msg = 'statement after the failure survives' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE v = ''duplicate''' )
+      exp = 0
+      msg = 'failed statement leaves no row behind' ).
+
+* END is a synonym for COMMIT
+    lo_database->execute( 'BEGIN' ).
+    lo_database->execute( 'INSERT INTO t VALUES (12, ''twelve'')' ).
+    lo_database->execute( 'END' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 12' )
+      exp = 1
+      msg = 'END commits' ).
+
+* DDL inside a transaction is rolled back with it
+    lo_database->execute( 'BEGIN' ).
+    lo_database->execute( 'CREATE TABLE temp (id INTEGER)' ).
+    lo_database->execute( 'INSERT INTO temp VALUES (1)' ).
+    lo_database->execute( 'ROLLBACK' ).
+    TRY.
+        lo_database->query( 'SELECT id FROM temp' ).
+        cl_abap_unit_assert=>fail( 'rolled back table must not exist' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error
+          msg = 'rolled back table error code' ).
+    ENDTRY.
+
+    lo_database->execute( 'BEGIN' ).
+    TRY.
+        lo_database->execute( 'ROLLBACK TO SAVEPOINT s' ).
+        cl_abap_unit_assert=>fail( 'savepoints must be rejected' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error
+          msg = 'savepoint error code' ).
+    ENDTRY.
+    lo_database->execute( 'ROLLBACK' ).
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD abap_luw.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lv_name     TYPE string.
+
+    lv_name = 'test/m5_13_luw.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+    COMMIT WORK.
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY)' ).
+    lo_database->close( ).
+    COMMIT WORK.
+
+* by default a SQLite COMMIT only writes the bytes, it does not end the ABAP
+* LUW. A later ROLLBACK WORK must undo the write.
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'BEGIN' ).
+    lo_database->execute( 'INSERT INTO t VALUES (1)' ).
+    lo_database->execute( 'COMMIT' ).
+    lo_database->close( ).
+    ROLLBACK WORK.
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t' )
+      exp = 0
+      msg = 'caller-owned LUW is rolled back' ).
+    lo_database->close( ).
+
+* auto_commit_work turns the SQLite commit into an ABAP LUW commit
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->set_auto_commit_work( abap_true ).
+    lo_database->execute( 'BEGIN' ).
+    lo_database->execute( 'INSERT INTO t VALUES (2)' ).
+    lo_database->execute( 'COMMIT' ).
+    lo_database->close( ).
+    ROLLBACK WORK.
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 2' )
+      exp = 1
+      msg = 'auto_commit_work survives ROLLBACK WORK' ).
+    lo_database->close( ).
+
+* autocommit statements also use auto_commit_work
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->set_auto_commit_work( abap_true ).
+    lo_database->execute( 'INSERT INTO t VALUES (3)' ).
+    lo_database->close( ).
+    ROLLBACK WORK.
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t' )
+      exp = 2
+      msg = 'autocommit statement is durable' ).
+    lo_database->close( ).
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+    COMMIT WORK.
   ENDMETHOD.
 
 ENDCLASS.

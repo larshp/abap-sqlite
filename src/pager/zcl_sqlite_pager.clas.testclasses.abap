@@ -20,6 +20,7 @@ CLASS ltcl_pager DEFINITION FINAL FOR TESTING
     METHODS invalid_write FOR TESTING.
     METHODS freelist_roundtrip FOR TESTING RAISING zcx_sqlite_error.
     METHODS freelist_rollback FOR TESTING RAISING zcx_sqlite_error.
+    METHODS statement_rollback FOR TESTING RAISING zcx_sqlite_error.
 
     METHODS open_pager
       IMPORTING iv_cache_size   TYPE i
@@ -599,6 +600,74 @@ CLASS ltcl_pager IMPLEMENTATION.
       act = lv_file_after
       exp = lv_file_before
       msg = 'rollback leaves file unchanged' ).
+  ENDMETHOD.
+
+  METHOD statement_rollback.
+    DATA lo_pager TYPE REF TO zcl_sqlite_pager.
+    DATA lv_initial_count TYPE i.
+    DATA lv_dirty_before TYPE i.
+    DATA lv_new_page TYPE i.
+    DATA lv_page2 TYPE xstring.
+    DATA lv_page2_modified TYPE xstring.
+    DATA lv_page3 TYPE xstring.
+    DATA lv_page3_modified TYPE xstring.
+
+    lo_pager = open_writable_pager( 2 ).
+    lv_initial_count = lo_pager->page_count( ).
+    lv_page2 = lo_pager->get_page( 2 )-data.
+    lv_page3 = lo_pager->get_page( 3 )-data.
+
+    TRY.
+        lo_pager->begin_statement( ).
+        lv_page2_modified = change_byte(
+          iv_data   = lv_page2
+          iv_offset = 0
+          iv_value  = 170 ).
+        lo_pager->put_page( iv_page = 2
+                            iv_data = lv_page2_modified ).
+        lo_pager->commit_statement( ).
+        lv_dirty_before = lo_pager->dirty_page_count( ).
+
+        lo_pager->begin_statement( ).
+        lv_page3_modified = change_byte(
+          iv_data   = lv_page3
+          iv_offset = 0
+          iv_value  = 85 ).
+        lo_pager->put_page( iv_page = 3
+                            iv_data = lv_page3_modified ).
+        lv_new_page = lo_pager->allocate_page( ).
+        cl_abap_unit_assert=>assert_true( boolc( lv_new_page > 0 ) ).
+        lo_pager->rollback_statement( ).
+
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->get_page( 2 )-data
+          exp = lv_page2_modified
+          msg = 'earlier statement survives' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->get_page( 3 )-data
+          exp = lv_page3
+          msg = 'failed statement is undone' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->page_count( )
+          exp = lv_initial_count
+          msg = 'failed allocation is undone' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->dirty_page_count( )
+          exp = lv_dirty_before
+          msg = 'dirty pages are restored' ).
+
+        lo_pager->rollback( ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->get_page( 2 )-data
+          exp = lv_page2
+          msg = 'transaction rollback undoes all statements' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_pager->dirty_page_count( )
+          exp = 0
+          msg = 'transaction rollback clears dirty pages' ).
+      CATCH zcx_sqlite_error INTO DATA(lo_error).
+        cl_abap_unit_assert=>fail( |statement rollback failed: { lo_error->message }| ).
+    ENDTRY.
   ENDMETHOD.
 
   METHOD open_pager.

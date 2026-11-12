@@ -15,6 +15,18 @@ CLASS zcl_sqlite_ast_transaction DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_action
+      RETURNING VALUE(rv_action) TYPE string.
+
+    METHODS get_mode
+      RETURNING VALUE(rv_mode) TYPE string.
+
+    METHODS get_to
+      RETURNING VALUE(rv_to) TYPE string.
+
+    METHODS is_savepoint
+      RETURNING VALUE(rv_savepoint) TYPE abap_bool.
+
   PRIVATE SECTION.
     DATA mv_action      TYPE string.
     DATA mv_mode        TYPE string.
@@ -50,6 +62,22 @@ CLASS zcl_sqlite_ast_transaction IMPLEMENTATION.
       ENDIF.
       rv_text = rv_text && mv_to.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD get_action.
+    rv_action = mv_action.
+  ENDMETHOD.
+
+  METHOD get_mode.
+    rv_mode = mv_mode.
+  ENDMETHOD.
+
+  METHOD get_to.
+    rv_to = mv_to.
+  ENDMETHOD.
+
+  METHOD is_savepoint.
+    rv_savepoint = mv_savepoint.
   ENDMETHOD.
 
 ENDCLASS.

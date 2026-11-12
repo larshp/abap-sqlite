@@ -34,10 +34,15 @@ CLASS zcl_sqlite_database DEFINITION
       RETURNING VALUE(rs_result) TYPE ty_result
       RAISING   zcx_sqlite_error.
 
-* execute one non-query statement and commit it
+* execute one non-query statement; outside a transaction it autocommits
     METHODS execute
       IMPORTING iv_sql TYPE string
       RAISING   zcx_sqlite_error.
+
+* issue COMMIT WORK after every SQLite commit, instead of leaving the ABAP
+* LUW open so the caller can commit or roll back the bytes
+    METHODS set_auto_commit_work
+      IMPORTING iv_auto_commit_work TYPE abap_bool.
 
     METHODS last_insert_rowid
       RETURNING VALUE(rv_rowid) TYPE int8.
@@ -95,6 +100,20 @@ CLASS zcl_sqlite_database DEFINITION
     TYPES ty_source_indexes TYPE STANDARD TABLE OF i WITH DEFAULT KEY.
     TYPES ty_upper_names TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
 
+    TYPES: BEGIN OF ty_statement,
+             create_table   TYPE REF TO zcl_sqlite_ast_create_table,
+             create_index   TYPE REF TO zcl_sqlite_ast_create_index,
+             insert         TYPE REF TO zcl_sqlite_ast_insert,
+             update         TYPE REF TO zcl_sqlite_ast_update,
+             delete         TYPE REF TO zcl_sqlite_ast_delete,
+             drop           TYPE REF TO zcl_sqlite_ast_drop,
+             transaction    TYPE REF TO zcl_sqlite_ast_transaction,
+             schema_changed TYPE abap_bool,
+             index_created  TYPE abap_bool,
+             inserted       TYPE abap_bool,
+             updated        TYPE abap_bool,
+           END OF ty_statement.
+
     CONSTANTS c_max_rowid TYPE int8 VALUE '9223372036854775807'.
 
     DATA mo_file   TYPE REF TO zif_sqlite_file.
@@ -102,6 +121,8 @@ CLASS zcl_sqlite_database DEFINITION
     DATA mo_schema TYPE REF TO zcl_sqlite_schema.
     DATA mv_last_insert_rowid TYPE int8.
     DATA mv_changes           TYPE i.
+    DATA mv_in_transaction    TYPE abap_bool.
+    DATA mv_auto_commit_work  TYPE abap_bool.
 
     CLASS-METHODS empty_page
       RETURNING VALUE(rv_page) TYPE xstring
@@ -112,10 +133,26 @@ CLASS zcl_sqlite_database DEFINITION
       RETURNING VALUE(rs_result) TYPE ty_result
       RAISING   zcx_sqlite_error.
 
+    METHODS classify_statement
+      IMPORTING io_statement        TYPE REF TO zcl_sqlite_ast_node
+      RETURNING VALUE(rs_statement) TYPE ty_statement
+      RAISING   zcx_sqlite_error.
+
+    METHODS execute_statement
+      IMPORTING is_statement TYPE ty_statement
+                iv_sql       TYPE string
+      RAISING   zcx_sqlite_error.
+
     METHODS execute_create_table
       IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_create_table
                 iv_sql       TYPE string
       RAISING   zcx_sqlite_error.
+
+    METHODS execute_transaction
+      IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_transaction
+      RAISING   zcx_sqlite_error.
+
+    METHODS commit_work_if_requested.
 
     METHODS execute_create_index
       IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_create_index
@@ -434,6 +471,10 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     rv_changes = mv_changes.
   ENDMETHOD.
 
+  METHOD set_auto_commit_work.
+    mv_auto_commit_work = iv_auto_commit_work.
+  ENDMETHOD.
+
   METHOD query.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_select    TYPE REF TO zcl_sqlite_ast_select.
@@ -579,18 +620,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
   METHOD execute.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
-    DATA lo_create_table TYPE REF TO zcl_sqlite_ast_create_table.
-    DATA lo_create_index TYPE REF TO zcl_sqlite_ast_create_index.
-    DATA lo_insert TYPE REF TO zcl_sqlite_ast_insert.
-    DATA lo_update TYPE REF TO zcl_sqlite_ast_update.
-    DATA lo_delete TYPE REF TO zcl_sqlite_ast_delete.
-    DATA lo_drop   TYPE REF TO zcl_sqlite_ast_drop.
-    DATA lv_changes TYPE i.
-    DATA lv_last_rowid TYPE int8.
-    DATA lv_schema_changed TYPE abap_bool.
-    DATA lv_index_created TYPE abap_bool.
-    DATA lv_inserted TYPE abap_bool.
-    DATA lv_updated TYPE abap_bool.
+    DATA ls_statement TYPE ty_statement.
 
     IF mo_pager IS NOT BOUND OR mo_schema IS NOT BOUND.
       RAISE EXCEPTION TYPE zcx_sqlite_error
@@ -598,66 +628,164 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ENDIF.
 
     lo_statement = zcl_sqlite_parser=>parse_statement( iv_sql ).
-    IF lo_statement IS INSTANCE OF zcl_sqlite_ast_create_table.
-      lo_create_table ?= lo_statement.
-      lv_schema_changed = abap_true.
-    ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_create_index.
-      lo_create_index ?= lo_statement.
-      lv_index_created = abap_true.
-    ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_insert.
-      lo_insert ?= lo_statement.
-      lv_inserted = abap_true.
-    ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_update.
-      lo_update ?= lo_statement.
-      lv_updated = abap_true.
-    ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_delete.
-      lo_delete ?= lo_statement.
-    ELSEIF lo_statement IS INSTANCE OF zcl_sqlite_ast_drop.
-      lo_drop ?= lo_statement.
-      lv_schema_changed = abap_true.
+    ls_statement = classify_statement( lo_statement ).
+
+    IF ls_statement-transaction IS BOUND.
+      execute_transaction( ls_statement-transaction ).
+      RETURN.
+    ENDIF.
+
+    execute_statement(
+      is_statement = ls_statement
+      iv_sql       = iv_sql ).
+  ENDMETHOD.
+
+  METHOD classify_statement.
+    IF io_statement IS INSTANCE OF zcl_sqlite_ast_create_table.
+      rs_statement-create_table ?= io_statement.
+      rs_statement-schema_changed = abap_true.
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_create_index.
+      rs_statement-create_index ?= io_statement.
+      rs_statement-index_created = abap_true.
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_insert.
+      rs_statement-insert ?= io_statement.
+      rs_statement-inserted = abap_true.
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_update.
+      rs_statement-update ?= io_statement.
+      rs_statement-updated = abap_true.
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_delete.
+      rs_statement-delete ?= io_statement.
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_drop.
+      rs_statement-drop ?= io_statement.
+      rs_statement-schema_changed = abap_true.
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_transaction.
+      rs_statement-transaction ?= io_statement.
     ELSE.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
-          iv_message = 'only CREATE TABLE/INDEX, DROP TABLE/INDEX, INSERT, UPDATE and DELETE are supported'.
+          iv_message = 'only CREATE TABLE/INDEX, DROP TABLE/INDEX, INSERT, UPDATE, DELETE'
+                    && ' and transaction control are supported'.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD execute_statement.
+    DATA lv_changes TYPE i.
+    DATA lv_last_rowid TYPE int8.
 
     TRY.
-        IF lo_drop IS BOUND.
-          execute_drop( lo_drop ).
-        ELSEIF lv_schema_changed = abap_true.
+        IF mv_in_transaction = abap_true.
+          mo_pager->begin_statement( ).
+        ENDIF.
+
+        IF is_statement-drop IS BOUND.
+          execute_drop( is_statement-drop ).
+        ELSEIF is_statement-schema_changed = abap_true.
           execute_create_table(
-            io_statement = lo_create_table
+            io_statement = is_statement-create_table
             iv_sql       = iv_sql ).
-        ELSEIF lv_index_created = abap_true.
+        ELSEIF is_statement-index_created = abap_true.
           execute_create_index(
-            io_statement = lo_create_index
+            io_statement = is_statement-create_index
             iv_sql       = iv_sql ).
-        ELSEIF lv_inserted = abap_true.
+        ELSEIF is_statement-inserted = abap_true.
           execute_insert(
             EXPORTING
-              io_statement  = lo_insert
+              io_statement  = is_statement-insert
             IMPORTING
               ev_changes    = lv_changes
               ev_last_rowid = lv_last_rowid ).
-        ELSEIF lv_updated = abap_true.
-          lv_changes = execute_update( lo_update ).
+        ELSEIF is_statement-updated = abap_true.
+          lv_changes = execute_update( is_statement-update ).
         ELSE.
-          lv_changes = execute_delete( lo_delete ).
+          lv_changes = execute_delete( is_statement-delete ).
         ENDIF.
-        mo_pager->commit( ).
-        IF lv_schema_changed = abap_true OR lv_index_created = abap_true.
+
+        IF mv_in_transaction = abap_true.
+          mo_pager->commit_statement( ).
+        ELSE.
+* autocommit per statement: write the statement's pages to the file now
+          mo_pager->commit( ).
+        ENDIF.
+
+        IF is_statement-schema_changed = abap_true
+            OR is_statement-index_created = abap_true.
           mo_schema = zcl_sqlite_schema=>read( mo_pager ).
           mv_changes = 0.
         ELSE.
           mv_changes = lv_changes.
-          IF lv_inserted = abap_true AND lv_changes > 0.
+          IF is_statement-inserted = abap_true AND lv_changes > 0.
             mv_last_insert_rowid = lv_last_rowid.
           ENDIF.
         ENDIF.
+
+        IF mv_in_transaction = abap_false.
+          commit_work_if_requested( ).
+        ENDIF.
       CATCH zcx_sqlite_error INTO DATA(lo_error).
-        mo_pager->rollback( ).
+        IF mv_in_transaction = abap_true.
+* keep the earlier statements of the transaction, drop only this one
+          mo_pager->rollback_statement( ).
+        ELSE.
+          mo_pager->rollback( ).
+        ENDIF.
         RAISE EXCEPTION lo_error.
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD execute_transaction.
+    DATA lv_action TYPE string.
+
+    lv_action = to_upper( io_statement->get_action( ) ).
+
+    CASE lv_action.
+      WHEN 'BEGIN'.
+        IF mv_in_transaction = abap_true.
+          RAISE EXCEPTION TYPE zcx_sqlite_error
+            EXPORTING
+              iv_code    = zcx_sqlite_error=>sqlite_error
+              iv_message = 'cannot start a transaction within a transaction'.
+        ENDIF.
+        mv_in_transaction = abap_true.
+      WHEN 'COMMIT' OR 'END'.
+        IF mv_in_transaction = abap_false.
+          RAISE EXCEPTION TYPE zcx_sqlite_error
+            EXPORTING
+              iv_code    = zcx_sqlite_error=>sqlite_error
+              iv_message = 'cannot commit - no transaction is active'.
+        ENDIF.
+        mo_pager->commit( ).
+        mv_in_transaction = abap_false.
+        commit_work_if_requested( ).
+      WHEN 'ROLLBACK'.
+        IF io_statement->get_to( ) IS NOT INITIAL
+            OR io_statement->is_savepoint( ) = abap_true.
+          RAISE EXCEPTION TYPE zcx_sqlite_error
+            EXPORTING
+              iv_code    = zcx_sqlite_error=>sqlite_error
+              iv_message = 'ROLLBACK TO SAVEPOINT is not supported'.
+        ENDIF.
+        IF mv_in_transaction = abap_false.
+          RAISE EXCEPTION TYPE zcx_sqlite_error
+            EXPORTING
+              iv_code    = zcx_sqlite_error=>sqlite_error
+              iv_message = 'cannot rollback - no transaction is active'.
+        ENDIF.
+        mo_pager->rollback( ).
+        mv_in_transaction = abap_false.
+        mo_schema = zcl_sqlite_schema=>read( mo_pager ).
+        mv_changes = 0.
+      WHEN OTHERS.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = 'unknown transaction control statement'.
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD commit_work_if_requested.
+    IF mv_auto_commit_work = abap_true.
+      COMMIT WORK.
+    ENDIF.
   ENDMETHOD.
 
   METHOD execute_create_table.

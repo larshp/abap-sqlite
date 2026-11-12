@@ -68,6 +68,15 @@ CLASS zcl_sqlite_pager DEFINITION
 
     METHODS rollback.
 
+* save the dirty pages at the start of one statement, so a failing statement
+* can be undone without dropping the changes of the whole transaction
+    METHODS begin_statement
+      RAISING zcx_sqlite_error.
+
+    METHODS commit_statement.
+
+    METHODS rollback_statement.
+
     METHODS dirty_page_count
       RETURNING VALUE(rv_count) TYPE i.
 
@@ -117,6 +126,12 @@ CLASS zcl_sqlite_pager DEFINITION
     DATA mv_snapshot_valid TYPE abap_bool.
     DATA mv_snapshot_header TYPE zcl_sqlite_header=>ty_header.
     DATA mv_snapshot_page_count TYPE i.
+
+* statement-level savepoint inside an explicit transaction
+    DATA mv_statement_valid TYPE abap_bool.
+    DATA mt_statement_dirty TYPE ty_dirty.
+    DATA mv_statement_header TYPE zcl_sqlite_header=>ty_header.
+    DATA mv_statement_page_count TYPE i.
 
     METHODS ensure_snapshot.
 
@@ -524,6 +539,39 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
       CLEAR mv_snapshot_valid.
     ENDIF.
     CLEAR mt_dirty.
+    CLEAR mv_statement_valid.
+    CLEAR mt_statement_dirty.
+  ENDMETHOD.
+
+  METHOD begin_statement.
+    IF mv_statement_valid = abap_true.
+      fail( iv_code    = zcx_sqlite_error=>sqlite_misuse
+            iv_message = 'a statement is already active' ).
+    ENDIF.
+
+    mt_statement_dirty = mt_dirty.
+    mv_statement_header = mv_header.
+    mv_statement_page_count = mv_page_count.
+    mv_statement_valid = abap_true.
+  ENDMETHOD.
+
+  METHOD commit_statement.
+    CLEAR mv_statement_valid.
+    CLEAR mt_statement_dirty.
+  ENDMETHOD.
+
+  METHOD rollback_statement.
+    IF mv_statement_valid = abap_false.
+      RETURN.
+    ENDIF.
+
+    mt_dirty = mt_statement_dirty.
+    mv_header = mv_statement_header.
+    mv_page_count = mv_statement_page_count.
+    DELETE mt_cache WHERE number > mv_page_count.
+
+    CLEAR mv_statement_valid.
+    CLEAR mt_statement_dirty.
   ENDMETHOD.
 
   METHOD dirty_page_count.
