@@ -572,7 +572,7 @@ ABAP `ROLLBACK WORK` after a SQLite commit.
 
 #### M5.15 Randomized write workloads
 
-- [ ] Seeded random insert/update/delete workloads (10k+ ops, overflow payloads, many indexes),
+- [x] Seeded random insert/update/delete workloads (10k+ ops, overflow payloads, many indexes),
       checked against sql.js every N operations
 
 **Done when:** the workloads give files that pass `integrity_check` in sql.js and match a

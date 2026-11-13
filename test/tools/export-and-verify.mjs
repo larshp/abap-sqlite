@@ -67,6 +67,183 @@ function typedRows(db, tableName, columns) {
   );
 }
 
+const randomRounds = 12;
+const randomRoundOperations = 1000;
+const randomCheckpointRound = 2;
+const randomInsertCount = 20;
+const randomUpdateCount = 490;
+const randomDeleteCount = 490;
+const randomSeed = 12345;
+
+function randomBelow(state, limit) {
+  state.seed = (state.seed * 48271) % 2147483647;
+  return state.seed % limit;
+}
+
+function randomWorkload() {
+  const state = {seed: randomSeed};
+  const largeBody = "A".repeat(12000);
+  const mediumBody = "B".repeat(6000);
+  const largeBlob = "DEADBEEF".repeat(512);
+  const schema = [
+    "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, qty INTEGER, tag TEXT)",
+    "CREATE INDEX idx_qty ON items (qty)",
+    "CREATE INDEX idx_tag ON items (tag)",
+    "CREATE INDEX idx_qty_tag ON items (qty, tag)",
+    "CREATE TABLE payloads (id INTEGER PRIMARY KEY, item_id INTEGER, body TEXT, bin BLOB)",
+    `INSERT INTO payloads (id, item_id, body, bin) VALUES ` +
+      `(1, 1, '${largeBody}', x'${largeBlob}'), ` +
+      `(2, 2, '${mediumBody}', NULL), ` +
+      `(3, 3, '${largeBody}', x'${largeBlob}'), ` +
+      `(4, 4, '${mediumBody}', NULL)`,
+  ];
+  const rounds = [];
+  let insertSeq = 0;
+
+  for (let round = 1; round <= randomRounds; round += 1) {
+    const statements = [];
+
+    const values = [];
+    for (let row = 1; row <= randomInsertCount; row += 1) {
+      insertSeq += 1;
+      const id = 1 + ((insertSeq * 7919) % 6000);
+      const qty = randomBelow(state, 1000);
+      const tag = randomBelow(state, 100);
+
+      values.push(`(${id}, 'name-${id}', ${qty}, 'tag-${tag}')`);
+    }
+    statements.push(`INSERT INTO items (id, name, qty, tag) VALUES ${values.join(", ")}`);
+
+    const updateIds = [];
+    for (let row = 1; row <= randomUpdateCount; row += 1) {
+      updateIds.push(1 + randomBelow(state, 6000));
+    }
+    const delta = randomBelow(state, 1000) + 1;
+    const tag = randomBelow(state, 100);
+    statements.push(
+      `UPDATE items SET qty = qty + ${delta}, tag = 'tag-${tag}', ` +
+        `name = 'name-' || id || '-u${round}' WHERE id IN (${updateIds.join(", ")})`,
+    );
+
+    const deleteIds = [];
+    for (let row = 1; row <= randomDeleteCount; row += 1) {
+      deleteIds.push(1 + randomBelow(state, 6000));
+    }
+    statements.push(`DELETE FROM items WHERE id IN (${deleteIds.join(", ")})`);
+
+    const payloadId = ((round - 1) % 4) + 1;
+    const payloadBody = round % 2 === 0 ? largeBody : mediumBody;
+    statements.push(
+      `UPDATE payloads SET body = '${payloadBody}', bin = x'${largeBlob}' WHERE id = ${payloadId}`,
+    );
+
+    rounds.push(statements);
+  }
+
+  return {schema, rounds};
+}
+
+function assertRandomState(actual, expected, label) {
+  const actualIds = rows(actual, "SELECT id FROM items ORDER BY id").map((row) => row[0]);
+  const expectedIds = rows(expected, "SELECT id FROM items ORDER BY id").map((row) => row[0]);
+  const actualSet = new Set(actualIds);
+  const expectedSet = new Set(expectedIds);
+  const missing = expectedIds.filter((id) => !actualSet.has(id));
+  const extra = actualIds.filter((id) => !expectedSet.has(id));
+  if (missing.length !== 0 || extra.length !== 0) {
+    console.error(`${label}: ids actual=${actualIds.length} expected=${expectedIds.length}`);
+    console.error(`${label}: missing=${JSON.stringify(missing.slice(0, 30))}`);
+    console.error(`${label}: extra=${JSON.stringify(extra.slice(0, 30))}`);
+  }
+  assert.equal(scalar(actual, "PRAGMA integrity_check"), "ok", `${label}: integrity_check failed`);
+  assert.deepEqual(
+    rows(actual, "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name"),
+    rows(expected, "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name"),
+    `${label}: sqlite_schema differs`,
+  );
+  assert.deepEqual(
+    rows(actual, "PRAGMA index_list(items)"),
+    rows(expected, "PRAGMA index_list(items)"),
+    `${label}: index list differs`,
+  );
+  assert.deepEqual(
+    typedRows(actual, "items", ["id", "name", "qty", "tag"]),
+    typedRows(expected, "items", ["id", "name", "qty", "tag"]),
+    `${label}: item rows differ`,
+  );
+  assert.deepEqual(
+    typedRows(actual, "payloads", ["id", "item_id", "body", "bin"]),
+    typedRows(expected, "payloads", ["id", "item_id", "body", "bin"]),
+    `${label}: payload rows differ`,
+  );
+
+  const indexQueries = [
+    "SELECT id, qty, tag FROM items INDEXED BY idx_qty WHERE qty BETWEEN 100 AND 110 ORDER BY qty, id",
+    "SELECT id, tag FROM items INDEXED BY idx_tag WHERE tag = 'tag-42' ORDER BY id",
+    "SELECT id, qty, tag FROM items INDEXED BY idx_qty_tag WHERE qty BETWEEN 500 AND 510 ORDER BY qty, tag, id",
+    "SELECT id, name FROM items INDEXED BY sqlite_autoindex_items_1 WHERE name >= 'name-1000' AND name < 'name-1001' ORDER BY name",
+  ];
+  for (const sql of indexQueries) {
+    assert.deepEqual(rows(actual, sql), rows(expected, sql), `${label}: index query differs: ${sql}`);
+  }
+}
+
+async function verifyRandomWorkload(SQL, tempDir) {
+  // Earlier scenarios leave thousands of blocks in ZSQLITE_FILES. The random
+  // workload is independent and would be dominated by writes to that shared
+  // table, so start it from a clean store.
+  console.error("random clear start", Date.now());
+  await clearFiles();
+  console.error("random clear done", Date.now());
+  console.error("random scenario start", Date.now());
+  const fileName = (await zcl_sqlite_scenario.random_workload({rv_name: 1})).get();
+  console.error("random scenario done", Date.now());
+  const exported = await openExported(SQL, tempDir, fileName, "random.db");
+  const reference = new SQL.Database();
+  const workload = randomWorkload();
+
+  try {
+    for (const sql of workload.schema) {
+      reference.run(sql);
+    }
+
+    for (let roundIndex = 0; roundIndex < workload.rounds.length; roundIndex += 1) {
+      for (const sql of workload.rounds[roundIndex]) {
+        reference.run(sql);
+      }
+
+      const round = roundIndex + 1;
+      if (round % randomCheckpointRound !== 0) {
+        continue;
+      }
+
+      const operation = round * randomRoundOperations;
+      const checkpointName = `compat/random-${operation}.db`;
+      const checkpoint = await openExported(
+        SQL,
+        tempDir,
+        checkpointName,
+        `random-${operation}.db`,
+      );
+      try {
+        assertRandomState(checkpoint.db, reference, `checkpoint ${operation}`);
+      } finally {
+        checkpoint.db.close();
+      }
+    }
+
+    assertRandomState(exported.db, reference, "final workload");
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, ` +
+      `${randomRounds * randomRoundOperations} random operations)`,
+  );
+}
+
 function blockBytes(value) {
   if (typeof value === "string") {
     assert.match(value, /^[0-9a-f]*$/i, "ZSQLITE_FILES block is not hex text");
@@ -81,6 +258,10 @@ function blockBytes(value) {
 const client = abap.context.databaseConnections?.DEFAULT;
 assert.ok(client, "transpiler SQLite connection is not available");
 const mandt = abap.builtin.sy.get().mandt.get();
+
+async function clearFiles() {
+  await client.execute([`DELETE FROM zsqlite_files WHERE mandt = '${mandt}'`]);
+}
 
 async function exportDatabase(fileName) {
   const selected = await client.select({
@@ -696,19 +877,31 @@ async function verifyDrop(SQL, tempDir) {
 
 const SQL = await initSqlJs();
 const tempDir = await mkdtemp(path.join(os.tmpdir(), "abap-sqlite-"));
+const only = process.env.SQLITE_VERIFY_ONLY;
 
 try {
-  await verifyCreateTable(SQL, tempDir);
-  await verifyEmpty(SQL, tempDir);
-  await verifyInsert(SQL, tempDir);
-  await verifyInsertStatements(SQL, tempDir);
-  await verifyIndex(SQL, tempDir);
-  await verifyDrop(SQL, tempDir);
-  await verifyFreelist(SQL, tempDir);
-  await verifyOverflow(SQL, tempDir);
-  await verifySplit(SQL, tempDir);
-  await verifyDelete(SQL, tempDir);
-  await verifyUpdate(SQL, tempDir);
+  const steps = [
+    ["create-table", verifyCreateTable],
+    ["empty", verifyEmpty],
+    ["insert", verifyInsert],
+    ["insert-statements", verifyInsertStatements],
+    ["index", verifyIndex],
+    ["drop", verifyDrop],
+    ["freelist", verifyFreelist],
+    ["overflow", verifyOverflow],
+    ["split", verifySplit],
+    ["delete", verifyDelete],
+    ["update", verifyUpdate],
+    ["random", verifyRandomWorkload],
+  ];
+  for (const [name, step] of steps) {
+    if (only && only !== name) {
+      continue;
+    }
+    console.error(`verify step ${name} start`, Date.now());
+    await step(SQL, tempDir);
+    console.error(`verify step ${name} done`, Date.now());
+  }
 } finally {
   await rm(tempDir, {recursive: true, force: true});
 }

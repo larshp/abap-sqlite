@@ -16,6 +16,9 @@ CLASS zcl_sqlite_scenario DEFINITION
     CONSTANTS c_insert_database TYPE string VALUE 'compat/insert.db'.
     CONSTANTS c_insert_statements_database TYPE string VALUE 'compat/insert-statements.db'.
     CONSTANTS c_overflow_database TYPE string VALUE 'compat/overflow-write.db'.
+    CONSTANTS c_random_checkpoint TYPE i VALUE 2000.
+    CONSTANTS c_random_database TYPE string VALUE 'compat/random.db'.
+    CONSTANTS c_random_operations TYPE i VALUE 12000.
     CONSTANTS c_split_database TYPE string VALUE 'compat/split.db'.
     CONSTANTS c_update_database TYPE string VALUE 'compat/update.db'.
 
@@ -52,6 +55,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS overflow_rows
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS random_workload
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -525,6 +532,152 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_pager->commit( ).
     lo_file->close( ).
     rv_name = c_overflow_database.
+  ENDMETHOD.
+
+  METHOD random_workload.
+    CONSTANTS c_rounds TYPE i VALUE 12.
+    CONSTANTS c_round_ops TYPE i VALUE 1000.
+    CONSTANTS c_inserts TYPE i VALUE 20.
+    CONSTANTS c_updates TYPE i VALUE 490.
+    CONSTANTS c_deletes TYPE i VALUE 490.
+
+    DATA lo_vfs         TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_checkpoint  TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database    TYPE REF TO zcl_sqlite_database.
+    DATA lo_random      TYPE REF TO zcl_sqlite_random.
+    DATA lv_round       TYPE i.
+    DATA lv_row         TYPE i.
+    DATA lv_op          TYPE i.
+    DATA lv_inserts     TYPE i.
+    DATA lv_id          TYPE i.
+    DATA lv_qty         TYPE i.
+    DATA lv_tag         TYPE i.
+    DATA lv_delta       TYPE i.
+    DATA lv_values      TYPE string.
+    DATA lv_ids         TYPE string.
+    DATA lv_sql         TYPE string.
+    DATA lv_body        TYPE string.
+    DATA lv_large_body  TYPE string.
+    DATA lv_medium_body TYPE string.
+    DATA lv_large_blob  TYPE string.
+    DATA lv_export      TYPE xstring.
+    DATA lv_name        TYPE string.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( c_random_database ).
+
+    lo_database = zcl_sqlite_database=>create( c_random_database ).
+    lo_database->execute(
+      'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,' &&
+      ' qty INTEGER, tag TEXT)' ).
+    lo_database->execute( 'CREATE INDEX idx_qty ON items (qty)' ).
+    lo_database->execute( 'CREATE INDEX idx_tag ON items (tag)' ).
+    lo_database->execute( 'CREATE INDEX idx_qty_tag ON items (qty, tag)' ).
+    lo_database->execute(
+      'CREATE TABLE payloads (id INTEGER PRIMARY KEY, item_id INTEGER,' &&
+      ' body TEXT, bin BLOB)' ).
+
+    lo_random = NEW zcl_sqlite_random( ).
+    lv_large_body = repeat( val = 'A'
+                            occ = 12000 ).
+    lv_medium_body = repeat( val = 'B'
+                             occ = 6000 ).
+    lv_large_blob = repeat( val = 'DEADBEEF'
+                            occ = 512 ).
+
+    lv_sql = |INSERT INTO payloads (id, item_id, body, bin) VALUES | &&
+      |(1, 1, '{ lv_large_body }', x'{ lv_large_blob }'), | &&
+      |(2, 2, '{ lv_medium_body }', NULL), | &&
+      |(3, 3, '{ lv_large_body }', x'{ lv_large_blob }'), | &&
+      |(4, 4, '{ lv_medium_body }', NULL)|.
+    lo_database->execute( lv_sql ).
+
+    lo_database->execute( 'BEGIN' ).
+    DO c_rounds TIMES.
+      lv_round = sy-index.
+      lv_op = lv_round * c_round_ops.
+
+* 20 inserts, main table keeps only small cells
+      CLEAR lv_values.
+      lv_row = 1.
+      WHILE lv_row <= c_inserts.
+        lv_inserts = lv_inserts + 1.
+        lv_id = 1 + ( lv_inserts * 7919 ) MOD 6000.
+        lv_qty = lo_random->next( 1000 ).
+        lv_tag = lo_random->next( 100 ).
+
+        IF lv_row > 1.
+          lv_values = lv_values && ', '.
+        ENDIF.
+        lv_values = lv_values &&
+          |({ lv_id }, 'name-{ lv_id }', { lv_qty }, 'tag-{ lv_tag }')|.
+        lv_row = lv_row + 1.
+      ENDWHILE.
+      lv_sql = |INSERT INTO items (id, name, qty, tag) VALUES { lv_values }|.
+      lo_database->execute( lv_sql ).
+
+* 490 updates, random row selection but one index rebuild per batch
+      CLEAR lv_ids.
+      lv_row = 1.
+      WHILE lv_row <= c_updates.
+        lv_id = 1 + lo_random->next( 6000 ).
+        IF lv_row > 1.
+          lv_ids = lv_ids && ', '.
+        ENDIF.
+        lv_ids = lv_ids && |{ lv_id }|.
+        lv_row = lv_row + 1.
+      ENDWHILE.
+      lv_delta = lo_random->next( 1000 ) + 1.
+      lv_tag = lo_random->next( 100 ).
+      lv_sql = 'UPDATE items SET qty = qty + ' && |{ lv_delta }| &&
+        ', tag = ''tag-' && |{ lv_tag }| &&
+        ''', name = ''name-'' || id || ''-u' && |{ lv_round }| &&
+        ''' WHERE id IN (' && lv_ids && ')'.
+      lo_database->execute( lv_sql ).
+
+* 490 deletes, also one index rebuild per batch
+      CLEAR lv_ids.
+      lv_row = 1.
+      WHILE lv_row <= c_deletes.
+        lv_id = 1 + lo_random->next( 6000 ).
+        IF lv_row > 1.
+          lv_ids = lv_ids && ', '.
+        ENDIF.
+        lv_ids = lv_ids && |{ lv_id }|.
+        lv_row = lv_row + 1.
+      ENDWHILE.
+      lv_sql = |DELETE FROM items WHERE id IN ({ lv_ids })|.
+      lo_database->execute( lv_sql ).
+
+* overflow payloads live in their own small table so large cells never
+* accumulate next to many small cells on one leaf page
+      lv_id = ( ( lv_round - 1 ) MOD 4 ) + 1.
+      IF lv_round MOD 2 = 0.
+        lv_body = lv_large_body.
+      ELSE.
+        lv_body = lv_medium_body.
+      ENDIF.
+      lv_sql = |UPDATE payloads SET body = '{ lv_body }', bin = x'{ lv_large_blob }' WHERE id = { lv_id }|.
+      lo_database->execute( lv_sql ).
+
+      IF lv_op MOD c_random_checkpoint = 0.
+        lo_database->execute( 'COMMIT' ).
+* a fresh VFS instance is required to read blocks written by the
+* database's own VFS instance, otherwise the checkpoint is stale
+        lo_checkpoint = NEW zcl_sqlite_vfs_table( ).
+        lv_export = lo_checkpoint->export( c_random_database ).
+        lv_name = |compat/random-{ lv_op }.db|.
+        lo_checkpoint->import(
+          iv_name = lv_name
+          iv_data = lv_export ).
+        IF lv_round < c_rounds.
+          lo_database->execute( 'BEGIN' ).
+        ENDIF.
+      ENDIF.
+    ENDDO.
+
+    lo_database->close( ).
+    rv_name = c_random_database.
   ENDMETHOD.
 
   METHOD split_rows.

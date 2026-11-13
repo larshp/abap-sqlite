@@ -66,6 +66,7 @@ CLASS zcl_sqlite_vfs_table DEFINITION
              name    TYPE string,
              blockno TYPE i,
              data    TYPE xstring,
+             exists  TYPE abap_bool,
            END OF ty_block.
     TYPES ty_blocks TYPE HASHED TABLE OF ty_block WITH UNIQUE KEY name blockno.
 
@@ -557,8 +558,10 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
       WHERE mandt = @sy-mandt AND filename = @lv_name AND blockno = @iv_blockno.
     IF sy-subrc = 0.
       rv_data = lv_data.
+      ls_block-exists = abap_true.
     ELSE.
       rv_data = zero_bytes( c_block_size ).
+      ls_block-exists = abap_false.
     ENDIF.
 
     ls_block-name = iv_name.
@@ -577,11 +580,22 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     ls_block-filename = lv_name.
     ls_block-blockno = iv_blockno.
     ls_block-data = iv_data.
-    MODIFY zsqlite_files FROM @ls_block.
+* use the cache to pick INSERT or UPDATE; MODIFY would attempt an INSERT
+* first in the transpiler, which is expensive for existing blocks
+    READ TABLE mt_blocks INTO ls_cache WITH KEY name = iv_name blockno = iv_blockno.
+    IF sy-subrc = 0 AND ls_cache-exists = abap_true.
+      UPDATE zsqlite_files FROM @ls_block.
+    ELSE.
+      INSERT zsqlite_files FROM @ls_block.
+      IF sy-subrc <> 0.
+        UPDATE zsqlite_files FROM @ls_block.
+      ENDIF.
+    ENDIF.
 
     ls_cache-name = iv_name.
     ls_cache-blockno = iv_blockno.
     ls_cache-data = iv_data.
+    ls_cache-exists = abap_true.
 
     MODIFY TABLE mt_blocks FROM ls_cache.
     IF sy-subrc <> 0.
