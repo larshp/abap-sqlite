@@ -582,7 +582,7 @@ reference run.
 
 #### M6.1 Prepared statements
 
-- [ ] `prepare( sql ) → ZIF_SQLITE_STATEMENT`: `bind( index|name, value )`, `step( ) → abap_bool`,
+- [x] `prepare( sql ) → ZIF_SQLITE_STATEMENT`: `bind( index|name, value )`, `step( ) → abap_bool`,
       `column_count`, `column_name`, `column_type`, `column_value`, `reset( )`
 
 **Done when:** a statement can be prepared once and run many times with different bindings.

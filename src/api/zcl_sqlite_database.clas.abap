@@ -34,6 +34,12 @@ CLASS zcl_sqlite_database DEFINITION
       RETURNING VALUE(rs_result) TYPE ty_result
       RAISING   zcx_sqlite_error.
 
+* prepare one statement; parameters can be bound before step( )
+    METHODS prepare
+      IMPORTING iv_sql              TYPE string
+      RETURNING VALUE(ro_statement) TYPE REF TO zif_sqlite_statement
+      RAISING   zcx_sqlite_error.
+
 * execute one non-query statement; outside a transaction it autocommits
     METHODS execute
       IMPORTING iv_sql TYPE string
@@ -476,6 +482,17 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
   METHOD set_auto_commit_work.
     mv_auto_commit_work = iv_auto_commit_work.
+  ENDMETHOD.
+
+  METHOD prepare.
+    IF mo_pager IS NOT BOUND OR mo_schema IS NOT BOUND.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING iv_message = 'database is closed'.
+    ENDIF.
+
+    ro_statement = NEW zcl_sqlite_statement(
+      io_database = me
+      iv_sql      = iv_sql ).
   ENDMETHOD.
 
   METHOD query.

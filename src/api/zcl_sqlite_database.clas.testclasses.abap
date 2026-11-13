@@ -32,6 +32,9 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS drop_table_and_index FOR TESTING RAISING zcx_sqlite_error.
     METHODS transactions FOR TESTING RAISING zcx_sqlite_error.
     METHODS abap_luw FOR TESTING RAISING zcx_sqlite_error.
+    METHODS prepared_select FOR TESTING RAISING zcx_sqlite_error.
+    METHODS prepared_dml FOR TESTING RAISING zcx_sqlite_error.
+    METHODS prepared_named FOR TESTING RAISING zcx_sqlite_error.
 
     METHODS count_rows
       IMPORTING io_database     TYPE REF TO zcl_sqlite_database
@@ -2480,6 +2483,356 @@ CLASS ltcl_database IMPLEMENTATION.
       exp = 'reuse'
       msg = 'new table is in the catalog' ).
     lo_file->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD prepared_select.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_insert   TYPE REF TO zif_sqlite_statement.
+    DATA lo_select   TYPE REF TO zif_sqlite_statement.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_name     TYPE string.
+    DATA lv_found    TYPE abap_bool.
+    DATA lv_sql      TYPE string.
+
+    lv_name = 'test/m6_1_prepared_select.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lv_sql = 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, qty INTEGER)'.
+    lo_database->execute( lv_sql ).
+
+    lv_sql = 'INSERT INTO items (id, name, qty) VALUES (?, ?, ?)'.
+    lo_insert = lo_database->prepare( lv_sql ).
+    lo_insert->bind(
+      iv_index = 1
+      io_value = zcl_sqlite_value=>integer( 1 ) ).
+    lo_insert->bind(
+      iv_index = 2
+      io_value = zcl_sqlite_value=>text( 'one' ) ).
+    lo_insert->bind(
+      iv_index = 3
+      io_value = zcl_sqlite_value=>integer( 10 ) ).
+    lv_found = lo_insert->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_false
+      msg = 'INSERT returns no result row' ).
+
+    lo_insert->reset( ).
+    lo_insert->bind(
+      iv_index = 1
+      io_value = zcl_sqlite_value=>integer( 2 ) ).
+    lo_insert->bind(
+      iv_index = 2
+      io_value = zcl_sqlite_value=>text( 'two' ) ).
+    lo_insert->bind(
+      iv_index = 3
+      io_value = zcl_sqlite_value=>integer( 20 ) ).
+    lv_found = lo_insert->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_false
+      msg = 'second INSERT returns no result row' ).
+
+    lv_sql = 'SELECT id, name, qty FROM items WHERE qty >= ? ORDER BY id'.
+    lo_select = lo_database->prepare( lv_sql ).
+    lo_select->bind(
+      iv_index = 1
+      io_value = zcl_sqlite_value=>integer( 20 ) ).
+
+    lv_found = lo_select->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'prepared SELECT has a row' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_select->column_count( )
+      exp = 3
+      msg = 'prepared SELECT column count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_select->column_name( 1 )
+      exp = 'id'
+      msg = 'first column name' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_select->column_name( 2 )
+      exp = 'name'
+      msg = 'second column name' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_select->column_type( 1 )
+      exp = zcl_sqlite_value=>c_integer
+      msg = 'first column type' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_select->column_type( 2 )
+      exp = zcl_sqlite_value=>c_text
+      msg = 'second column type' ).
+
+    lo_value = lo_select->column_value( 1 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'first row id' ).
+    lo_value = lo_select->column_value( 2 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'two'
+      msg = 'first row name' ).
+
+    lv_found = lo_select->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_false
+      msg = 'prepared SELECT reaches end' ).
+
+    lo_select->reset( ).
+    lo_select->bind(
+      iv_index = 1
+      io_value = zcl_sqlite_value=>integer( 30 ) ).
+    lv_found = lo_select->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_false
+      msg = 'rebound prepared SELECT has no row' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_select->column_count( )
+      exp = 3
+      msg = 'empty result keeps column count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_select->column_name( 1 )
+      exp = 'id'
+      msg = 'empty result keeps column name' ).
+    TRY.
+        lv_found = boolc( lo_select->column_type( 1 ) >= 0 ).
+        cl_abap_unit_assert=>fail( 'column type needs a current row' ).
+      CATCH zcx_sqlite_error.
+    ENDTRY.
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD prepared_dml.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_update   TYPE REF TO zif_sqlite_statement.
+    DATA lo_delete   TYPE REF TO zif_sqlite_statement.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA lv_name     TYPE string.
+    DATA lv_found    TYPE abap_bool.
+    DATA lv_sql      TYPE string.
+
+    lv_name = 'test/m6_1_prepared_dml.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lv_sql = 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, qty INTEGER)'.
+    lo_database->execute( lv_sql ).
+    lo_database->execute( 'INSERT INTO items VALUES (1, ''one'', 10)' ).
+
+    lv_sql = 'UPDATE items SET qty = qty + ? WHERE id = ?'.
+    lo_update = lo_database->prepare( lv_sql ).
+    lo_update->bind(
+      iv_index = 1
+      io_value = zcl_sqlite_value=>integer( 5 ) ).
+    lo_update->bind(
+      iv_index = 2
+      io_value = zcl_sqlite_value=>integer( 1 ) ).
+    lv_found = lo_update->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_false
+      msg = 'prepared UPDATE returns no result row' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 1
+      msg = 'prepared UPDATE changes one row' ).
+
+    lo_update->reset( ).
+    lo_update->bind(
+      iv_index = 1
+      io_value = zcl_sqlite_value=>integer( 7 ) ).
+    lo_update->bind(
+      iv_index = 2
+      io_value = zcl_sqlite_value=>integer( 1 ) ).
+    lv_found = lo_update->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_false
+      msg = 'rebound UPDATE returns no result row' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 1
+      msg = 'rebound UPDATE changes one row' ).
+
+    lo_delete = lo_database->prepare( 'DELETE FROM items WHERE id = ?' ).
+    lo_delete->bind(
+      iv_index = 1
+      io_value = zcl_sqlite_value=>integer( 1 ) ).
+    lv_found = lo_delete->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_false
+      msg = 'prepared DELETE returns no result row' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 1
+      msg = 'prepared DELETE changes one row' ).
+
+    TRY.
+        lo_delete->bind(
+          iv_name  = 'missing'
+          io_value = zcl_sqlite_value=>integer( 1 ) ).
+        cl_abap_unit_assert=>fail( 'unknown parameter name must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error
+          msg = 'unknown parameter error code' ).
+    ENDTRY.
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD prepared_named.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_select   TYPE REF TO zif_sqlite_statement.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_name     TYPE string.
+    DATA lv_found    TYPE abap_bool.
+    DATA lv_sql      TYPE string.
+
+    lv_name = 'test/m6_1_prepared_named.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lv_sql = 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)'.
+    lo_database->execute( lv_sql ).
+    lo_database->execute( 'INSERT INTO items VALUES (1, ''one''), (2, ''two'')' ).
+
+    lv_sql = 'SELECT name FROM items WHERE id = :id'.
+    lo_select = lo_database->prepare( lv_sql ).
+    lo_select->bind(
+      iv_name  = 'ID'
+      io_value = zcl_sqlite_value=>integer( 2 ) ).
+    lv_found = lo_select->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'named parameter SELECT has a row' ).
+    lo_value = lo_select->column_value( 1 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'two'
+      msg = 'named parameter value' ).
+
+    lv_sql = 'SELECT :value AS a, :value + 1 AS b'.
+    lo_select = lo_database->prepare( lv_sql ).
+    lo_select->bind(
+      iv_name  = 'value'
+      io_value = zcl_sqlite_value=>integer( 5 ) ).
+    lv_found = lo_select->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'constant named parameter SELECT has a row' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_select->column_count( )
+      exp = 2
+      msg = 'constant named parameter column count' ).
+    lo_value = lo_select->column_value( 1 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 5
+      msg = 'constant named parameter first value' ).
+    lo_value = lo_select->column_value( 2 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 6
+      msg = 'constant named parameter second value' ).
+
+    lv_sql = 'SELECT ? AS v, ? AS w'.
+    lo_select = lo_database->prepare( lv_sql ).
+    lo_select->bind(
+      iv_index = 1
+      io_value = zcl_sqlite_value=>text( 'O''Reilly' ) ).
+    lo_select->bind(
+      iv_index = 2
+      io_value = zcl_sqlite_value=>blob( 'DEADBEEF' ) ).
+    lv_found = lo_select->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'text and blob SELECT has a row' ).
+    lo_value = lo_select->column_value( 1 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'O''Reilly'
+      msg = 'quoted text parameter' ).
+    lo_value = lo_select->column_value( 2 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_blob( )
+      exp = 'DEADBEEF'
+      msg = 'blob parameter' ).
+
+    lv_sql = 'SELECT ? AS v'.
+    lo_select = lo_database->prepare( lv_sql ).
+    lv_found = lo_select->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'unbound parameter SELECT has a row' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_select->column_type( 1 )
+      exp = zcl_sqlite_value=>c_null
+      msg = 'unbound parameter is NULL' ).
+
+    lv_sql = 'SELECT ?2 AS v, ?1 AS w'.
+    lo_select = lo_database->prepare( lv_sql ).
+    lo_select->bind(
+      iv_index = 1
+      io_value = zcl_sqlite_value=>text( 'first' ) ).
+    lo_select->bind(
+      iv_index = 2
+      io_value = zcl_sqlite_value=>text( 'second' ) ).
+    lv_found = lo_select->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'explicit parameter indexes have a row' ).
+    lo_value = lo_select->column_value( 1 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'second'
+      msg = 'first explicit parameter index' ).
+    lo_value = lo_select->column_value( 2 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'first'
+      msg = 'second explicit parameter index' ).
+
+    lv_sql = 'SELECT ? AS v'.
+    lo_select = lo_database->prepare( lv_sql ).
+    lo_select->bind(
+      iv_index = 1
+      io_value = zcl_sqlite_value=>real( '1.5' ) ).
+    lv_found = lo_select->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'real parameter SELECT has a row' ).
+    lo_value = lo_select->column_value( 1 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_real( )
+      exp = '1.5'
+      msg = 'real parameter value' ).
+
+    lo_database->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
 
