@@ -1,6 +1,6 @@
-* Minimal read-only database API. It opens a database through the table VFS
-* and executes SELECT statements with the TableScan, Join, Filter, Group and
-* Project operators. Phase 6 replaces this with the polished public API.
+* Public database API. It opens a database through a VFS (the table VFS by
+* default), executes SQL and exposes the statement, transaction and metadata
+* operations used by the rest of the engine.
 CLASS zcl_sqlite_database DEFINITION
   PUBLIC
   FINAL
@@ -18,12 +18,8 @@ CLASS zcl_sqlite_database DEFINITION
 
     CLASS-METHODS open
       IMPORTING iv_name            TYPE string
-      RETURNING VALUE(ro_database) TYPE REF TO zcl_sqlite_database
-      RAISING   zcx_sqlite_error.
-
-* create an empty database with an empty sqlite_schema b-tree on page 1
-    CLASS-METHODS create
-      IMPORTING iv_name            TYPE string
+                io_vfs             TYPE REF TO zif_sqlite_vfs OPTIONAL
+                iv_create          TYPE abap_bool DEFAULT abap_true
       RETURNING VALUE(ro_database) TYPE REF TO zcl_sqlite_database
       RAISING   zcx_sqlite_error.
 
@@ -44,6 +40,20 @@ CLASS zcl_sqlite_database DEFINITION
     METHODS execute
       IMPORTING iv_sql TYPE string
       RAISING   zcx_sqlite_error.
+
+* execute a script with zero or more statements; result rows are discarded
+    METHODS exec
+      IMPORTING iv_sql TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS begin
+      RAISING zcx_sqlite_error.
+
+    METHODS commit
+      RAISING zcx_sqlite_error.
+
+    METHODS rollback
+      RAISING zcx_sqlite_error.
 
 * issue COMMIT WORK after every SQLite commit, instead of leaving the ABAP
 * LUW open so the caller can commit or roll back the bytes
@@ -157,6 +167,13 @@ CLASS zcl_sqlite_database DEFINITION
     METHODS execute_transaction
       IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_transaction
       RAISING   zcx_sqlite_error.
+
+    METHODS check_open
+      RAISING zcx_sqlite_error.
+
+    METHODS split_script
+      IMPORTING iv_sql               TYPE string
+      RETURNING VALUE(rt_statements) TYPE string_table.
 
     METHODS commit_work_if_requested.
 
@@ -381,8 +398,39 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_file   TYPE REF TO zif_sqlite_file.
     DATA lo_pager  TYPE REF TO zcl_sqlite_pager.
     DATA lo_schema TYPE REF TO zcl_sqlite_schema.
+    DATA lv_page   TYPE xstring.
 
-    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    IF io_vfs IS BOUND.
+      lo_vfs = io_vfs.
+    ELSE.
+      lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    ENDIF.
+
+    IF lo_vfs->exists( iv_name ) = abap_false.
+      IF iv_create = abap_false.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_cantopen
+            iv_message = |unable to open database file: { iv_name }|.
+      ENDIF.
+
+      lv_page = empty_page( ).
+      lo_file = lo_vfs->open( iv_name ).
+      TRY.
+          lo_file->write( iv_offset = 0
+                          iv_data   = lv_page ).
+          lo_file->sync( ).
+          lo_file->close( ).
+        CATCH cx_sy_range_out_of_bounds.
+          lo_file->close( ).
+          lo_vfs->delete( iv_name ).
+          RAISE EXCEPTION TYPE zcx_sqlite_error
+            EXPORTING
+              iv_code    = zcx_sqlite_error=>sqlite_ioerr
+              iv_message = |could not write new database { iv_name }|.
+      ENDTRY.
+    ENDIF.
+
     lo_file = lo_vfs->open( iv_name ).
     lo_pager = NEW zcl_sqlite_pager( io_file = lo_file ).
     lo_schema = zcl_sqlite_schema=>read( lo_pager ).
@@ -391,38 +439,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       io_file   = lo_file
       io_pager  = lo_pager
       io_schema = lo_schema ).
-  ENDMETHOD.
-
-  METHOD create.
-    DATA lo_vfs  TYPE REF TO zif_sqlite_vfs.
-    DATA lo_file TYPE REF TO zif_sqlite_file.
-    DATA lv_page TYPE xstring.
-
-    lo_vfs = NEW zcl_sqlite_vfs_table( ).
-    IF lo_vfs->exists( iv_name ) = abap_true.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
-          iv_message = |database { iv_name } already exists|.
-    ENDIF.
-
-    lv_page = empty_page( ).
-    lo_file = lo_vfs->open( iv_name ).
-    TRY.
-        lo_file->write( iv_offset = 0
-                        iv_data   = lv_page ).
-        lo_file->sync( ).
-        lo_file->close( ).
-      CATCH cx_sy_range_out_of_bounds.
-        lo_file->close( ).
-        lo_vfs->delete( iv_name ).
-        RAISE EXCEPTION TYPE zcx_sqlite_error
-          EXPORTING
-            iv_code    = zcx_sqlite_error=>sqlite_ioerr
-            iv_message = |could not write new database { iv_name }|.
-    ENDTRY.
-
-    ro_database = open( iv_name ).
   ENDMETHOD.
 
   METHOD constructor.
@@ -470,6 +486,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     CLEAR mo_file.
     CLEAR mo_pager.
     CLEAR mo_schema.
+    CLEAR mv_last_insert_rowid.
+    CLEAR mv_changes.
+    CLEAR mv_in_transaction.
   ENDMETHOD.
 
   METHOD last_insert_rowid.
@@ -484,11 +503,17 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     mv_auto_commit_work = iv_auto_commit_work.
   ENDMETHOD.
 
-  METHOD prepare.
+  METHOD check_open.
     IF mo_pager IS NOT BOUND OR mo_schema IS NOT BOUND.
       RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING iv_message = 'database is closed'.
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_misuse
+          iv_message = 'database is closed'.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD prepare.
+    check_open( ).
 
     ro_statement = NEW zcl_sqlite_statement(
       io_database = me
@@ -499,6 +524,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_select    TYPE REF TO zcl_sqlite_ast_select.
 
+    check_open( ).
     lo_statement = zcl_sqlite_parser=>parse_statement( iv_sql ).
     IF lo_statement IS NOT INSTANCE OF zcl_sqlite_ast_select.
       RAISE EXCEPTION TYPE zcx_sqlite_error
@@ -532,10 +558,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lv_aggregate       TYPE abap_bool.
 
     lo_select = io_select.
-    IF mo_pager IS NOT BOUND OR mo_schema IS NOT BOUND.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING iv_message = 'database is closed'.
-    ENDIF.
+    check_open( ).
 
     lo_where = lo_select->get_where( ).
     lt_from = lo_select->get_from( ).
@@ -642,11 +665,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
     DATA ls_statement TYPE ty_statement.
 
-    IF mo_pager IS NOT BOUND OR mo_schema IS NOT BOUND.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING iv_message = 'database is closed'.
-    ENDIF.
-
+    check_open( ).
     lo_statement = zcl_sqlite_parser=>parse_statement( iv_sql ).
     ls_statement = classify_statement( lo_statement ).
 
@@ -658,6 +677,61 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     execute_statement(
       is_statement = ls_statement
       iv_sql       = iv_sql ).
+  ENDMETHOD.
+
+  METHOD exec.
+    DATA lt_statements TYPE string_table.
+    DATA lv_sql        TYPE string.
+    DATA lo_statement  TYPE REF TO zcl_sqlite_ast_node.
+
+    check_open( ).
+    lt_statements = split_script( iv_sql ).
+    LOOP AT lt_statements INTO lv_sql.
+      lo_statement = zcl_sqlite_parser=>parse_statement( lv_sql ).
+      IF lo_statement IS INSTANCE OF zcl_sqlite_ast_select.
+        query( lv_sql ).
+      ELSE.
+        execute( lv_sql ).
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD begin.
+    check_open( ).
+    IF mv_in_transaction = abap_true.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'cannot start a transaction within a transaction'.
+    ENDIF.
+    mv_in_transaction = abap_true.
+  ENDMETHOD.
+
+  METHOD commit.
+    check_open( ).
+    IF mv_in_transaction = abap_false.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'cannot commit - no transaction is active'.
+    ENDIF.
+    mo_pager->commit( ).
+    mv_in_transaction = abap_false.
+    commit_work_if_requested( ).
+  ENDMETHOD.
+
+  METHOD rollback.
+    check_open( ).
+    IF mv_in_transaction = abap_false.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'cannot rollback - no transaction is active'.
+    ENDIF.
+    mo_pager->rollback( ).
+    mv_in_transaction = abap_false.
+    mo_schema = zcl_sqlite_schema=>read( mo_pager ).
+    mv_changes = 0.
   ENDMETHOD.
 
   METHOD classify_statement.
@@ -759,23 +833,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
     CASE lv_action.
       WHEN 'BEGIN'.
-        IF mv_in_transaction = abap_true.
-          RAISE EXCEPTION TYPE zcx_sqlite_error
-            EXPORTING
-              iv_code    = zcx_sqlite_error=>sqlite_error
-              iv_message = 'cannot start a transaction within a transaction'.
-        ENDIF.
-        mv_in_transaction = abap_true.
+        begin( ).
       WHEN 'COMMIT' OR 'END'.
-        IF mv_in_transaction = abap_false.
-          RAISE EXCEPTION TYPE zcx_sqlite_error
-            EXPORTING
-              iv_code    = zcx_sqlite_error=>sqlite_error
-              iv_message = 'cannot commit - no transaction is active'.
-        ENDIF.
-        mo_pager->commit( ).
-        mv_in_transaction = abap_false.
-        commit_work_if_requested( ).
+        commit( ).
       WHEN 'ROLLBACK'.
         IF io_statement->get_to( ) IS NOT INITIAL
             OR io_statement->is_savepoint( ) = abap_true.
@@ -784,22 +844,52 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
               iv_code    = zcx_sqlite_error=>sqlite_error
               iv_message = 'ROLLBACK TO SAVEPOINT is not supported'.
         ENDIF.
-        IF mv_in_transaction = abap_false.
-          RAISE EXCEPTION TYPE zcx_sqlite_error
-            EXPORTING
-              iv_code    = zcx_sqlite_error=>sqlite_error
-              iv_message = 'cannot rollback - no transaction is active'.
-        ENDIF.
-        mo_pager->rollback( ).
-        mv_in_transaction = abap_false.
-        mo_schema = zcl_sqlite_schema=>read( mo_pager ).
-        mv_changes = 0.
+        rollback( ).
       WHEN OTHERS.
         RAISE EXCEPTION TYPE zcx_sqlite_error
           EXPORTING
             iv_code    = zcx_sqlite_error=>sqlite_error
             iv_message = 'unknown transaction control statement'.
     ENDCASE.
+  ENDMETHOD.
+
+  METHOD split_script.
+    DATA lt_tokens      TYPE zcl_sqlite_tokenizer=>ty_tokens.
+    DATA ls_token       TYPE zcl_sqlite_tokenizer=>ty_token.
+    DATA lv_start       TYPE i VALUE 1.
+    DATA lv_length      TYPE i.
+    DATA lv_has_content TYPE abap_bool.
+    DATA lv_sql         TYPE string.
+
+    lt_tokens = zcl_sqlite_tokenizer=>tokenize( iv_sql ).
+    LOOP AT lt_tokens INTO ls_token.
+      IF ls_token-kind = zcl_sqlite_tokenizer=>c_semicolon.
+        IF lv_has_content = abap_true.
+          lv_length = ls_token-offset - lv_start.
+          IF lv_length > 0.
+            lv_sql = substring(
+              val = iv_sql
+              off = lv_start - 1
+              len = lv_length ).
+            APPEND lv_sql TO rt_statements.
+          ENDIF.
+        ENDIF.
+        lv_start = ls_token-offset + ls_token-length.
+        CLEAR lv_has_content.
+        CONTINUE.
+      ENDIF.
+      IF ls_token-kind <> zcl_sqlite_tokenizer=>c_eof
+          AND ls_token-kind <> zcl_sqlite_tokenizer=>c_comment.
+        lv_has_content = abap_true.
+      ENDIF.
+    ENDLOOP.
+
+    IF lv_has_content = abap_true.
+      lv_sql = substring(
+        val = iv_sql
+        off = lv_start - 1 ).
+      APPEND lv_sql TO rt_statements.
+    ENDIF.
   ENDMETHOD.
 
   METHOD commit_work_if_requested.
@@ -1594,7 +1684,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         OR lo_value->value_type( ) <> zcl_sqlite_value=>c_integer.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_code    = zcx_sqlite_error=>sqlite_mismatch
           iv_message = 'datatype mismatch'.
     ENDIF.
     rv_rowid = lo_value->as_integer( ).
@@ -1683,7 +1773,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
             AND ls_column-notnull = abap_true.
           RAISE EXCEPTION TYPE zcx_sqlite_error
             EXPORTING
-              iv_code    = zcx_sqlite_error=>sqlite_error
+              iv_code    = zcx_sqlite_error=>sqlite_constraint
               iv_message = |NOT NULL constraint failed: { is_table-name }.{ ls_column-name }|.
         ENDIF.
         MODIFY lt_new_values FROM lo_value INDEX ls_target-column_index.
@@ -1832,7 +1922,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           IF lo_value->value_type( ) <> zcl_sqlite_value=>c_integer.
             RAISE EXCEPTION TYPE zcx_sqlite_error
               EXPORTING
-                iv_code    = zcx_sqlite_error=>sqlite_error
+                iv_code    = zcx_sqlite_error=>sqlite_mismatch
                 iv_message = 'datatype mismatch'.
           ENDIF.
           lv_rowid = lo_value->as_integer( ).
@@ -1847,7 +1937,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
             AND ls_column-notnull = abap_true.
           RAISE EXCEPTION TYPE zcx_sqlite_error
             EXPORTING
-              iv_code    = zcx_sqlite_error=>sqlite_error
+              iv_code    = zcx_sqlite_error=>sqlite_constraint
               iv_message = |NOT NULL constraint failed: { is_table-name }.{ ls_column-name }|.
         ENDIF.
         APPEND lo_value TO lt_record_values.
@@ -1942,11 +2032,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_select    TYPE REF TO zcl_sqlite_ast_select.
     DATA lo_planner   TYPE REF TO zcl_sqlite_planner.
 
-    IF mo_pager IS NOT BOUND OR mo_schema IS NOT BOUND.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING iv_message = 'database is closed'.
-    ENDIF.
-
+    check_open( ).
     lo_statement = zcl_sqlite_parser=>parse_statement( iv_sql ).
     IF lo_statement IS NOT INSTANCE OF zcl_sqlite_ast_select.
       RAISE EXCEPTION TYPE zcx_sqlite_error

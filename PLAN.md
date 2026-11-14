@@ -589,10 +589,10 @@ reference run.
 
 #### M6.2 Database API
 
-- [ ] `ZCL_SQLITE_DATABASE`: `open( name, vfs = table, create = abap_true )`, `close( )`,
+- [x] `ZCL_SQLITE_DATABASE`: `open( name, vfs = table, create = abap_true )`, `close( )`,
       `exec( sql )` for multiple statements with no result, `begin( )`, `commit( )`,
       `rollback( )`, `last_insert_rowid( )`, `changes( )`
-- [ ] Finalize `ZCX_SQLITE_ERROR` result codes (`SQLITE_ERROR`, `SQLITE_CONSTRAINT`,
+- [x] Finalize `ZCX_SQLITE_ERROR` result codes (`SQLITE_ERROR`, `SQLITE_CONSTRAINT`,
       `SQLITE_BUSY`, `SQLITE_CORRUPT`, …) and messages
 
 **Done when:** the minimal API from M4.4 is replaced, and all tests use the final API.

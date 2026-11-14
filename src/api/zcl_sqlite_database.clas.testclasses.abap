@@ -35,6 +35,9 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS prepared_select FOR TESTING RAISING zcx_sqlite_error.
     METHODS prepared_dml FOR TESTING RAISING zcx_sqlite_error.
     METHODS prepared_named FOR TESTING RAISING zcx_sqlite_error.
+    METHODS database_api FOR TESTING RAISING zcx_sqlite_error.
+    METHODS exec_script FOR TESTING RAISING zcx_sqlite_error.
+    METHODS database_error_codes FOR TESTING RAISING zcx_sqlite_error.
 
     METHODS count_rows
       IMPORTING io_database     TYPE REF TO zcl_sqlite_database
@@ -757,7 +760,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lv_sql = 'CREATE TABLE created (id INTEGER PRIMARY KEY, name TEXT NOT NULL, price REAL)'.
     lo_database->execute( lv_sql ).
 
@@ -866,7 +869,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->execute(
       'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL DEFAULT ''anon'',' &&
       ' qty INTEGER DEFAULT 7, price REAL, note TEXT, bin BLOB)' ).
@@ -1080,7 +1083,7 @@ CLASS ltcl_database IMPLEMENTATION.
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code
-          exp = zcx_sqlite_error=>sqlite_error ).
+          exp = zcx_sqlite_error=>sqlite_constraint ).
     ENDTRY.
 
     lo_database->close( ).
@@ -1108,7 +1111,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->execute( 'CREATE TABLE source (id INTEGER PRIMARY KEY, label TEXT, amount NUMERIC)' ).
     lo_database->execute(
       'CREATE TABLE dest (id INTEGER PRIMARY KEY, label TEXT NOT NULL,' &&
@@ -1268,7 +1271,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     rs_result = lo_database->query( 'SELECT 1 + 1' ).
     cl_abap_unit_assert=>assert_equals(
       act = lines( rs_result-rows )
@@ -1342,14 +1345,27 @@ CLASS ltcl_database IMPLEMENTATION.
       msg = 'sqlite_schema is empty' ).
     lo_file->close( ).
 
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    rs_result = lo_database->query( 'SELECT 1' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 1
+      msg = 'reopening an existing database keeps it usable' ).
+    lo_database->close( ).
+
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
     TRY.
-        lo_database = zcl_sqlite_database=>create( lv_name ).
-        cl_abap_unit_assert=>fail( 'creating an existing database must fail' ).
+        lo_database = zcl_sqlite_database=>open(
+          iv_name   = lv_name
+          iv_create = abap_false ).
+        cl_abap_unit_assert=>fail( 'missing database must not open without create' ).
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code
-          exp = zcx_sqlite_error=>sqlite_error
-          msg = 'existing database error code' ).
+          exp = zcx_sqlite_error=>sqlite_cantopen
+          msg = 'missing database error code' ).
     ENDTRY.
 
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
@@ -1370,7 +1386,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->execute(
       'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL,' &&
       ' tag TEXT, bin BLOB)' ).
@@ -1528,7 +1544,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->execute(
       'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL,' &&
       ' amount REAL, note TEXT, bin BLOB)' ).
@@ -1738,7 +1754,7 @@ CLASS ltcl_database IMPLEMENTATION.
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code
-          exp = zcx_sqlite_error=>sqlite_error ).
+          exp = zcx_sqlite_error=>sqlite_constraint ).
     ENDTRY.
 
     TRY.
@@ -1747,7 +1763,7 @@ CLASS ltcl_database IMPLEMENTATION.
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code
-          exp = zcx_sqlite_error=>sqlite_error ).
+          exp = zcx_sqlite_error=>sqlite_mismatch ).
     ENDTRY.
 
     TRY.
@@ -1909,7 +1925,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->execute( 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, tag TEXT)' ).
     DO 600 TIMES.
       IF sy-index > 1.
@@ -2094,7 +2110,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->execute( 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, qty INTEGER)' ).
     DO 120 TIMES.
       IF sy-index > 1.
@@ -2213,7 +2229,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->execute( 'CREATE TABLE delete_all_t (id INTEGER PRIMARY KEY, name TEXT, qty INTEGER)' ).
     DO 120 TIMES.
       IF sy-index > 1.
@@ -2347,7 +2363,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->execute( 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, body TEXT)' ).
     DO 600 TIMES.
       IF sy-index > 1.
@@ -2500,7 +2516,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lv_sql = 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, qty INTEGER)'.
     lo_database->execute( lv_sql ).
 
@@ -2627,7 +2643,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lv_sql = 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, qty INTEGER)'.
     lo_database->execute( lv_sql ).
     lo_database->execute( 'INSERT INTO items VALUES (1, ''one'', 10)' ).
@@ -2689,7 +2705,7 @@ CLASS ltcl_database IMPLEMENTATION.
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
           act = lo_error->code
-          exp = zcx_sqlite_error=>sqlite_error
+          exp = zcx_sqlite_error=>sqlite_range
           msg = 'unknown parameter error code' ).
     ENDTRY.
 
@@ -2710,7 +2726,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lv_sql = 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)'.
     lo_database->execute( lv_sql ).
     lo_database->execute( 'INSERT INTO items VALUES (1, ''one''), (2, ''two'')' ).
@@ -2836,6 +2852,186 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
 
+  METHOD database_api.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_memory.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+
+    lo_vfs = NEW zcl_sqlite_vfs_memory( ).
+
+    TRY.
+        lo_database = zcl_sqlite_database=>open(
+          iv_name   = 'missing.db'
+          io_vfs    = lo_vfs
+          iv_create = abap_false ).
+        cl_abap_unit_assert=>fail( 'missing database must not open without create' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_cantopen
+          msg = 'missing database error code' ).
+    ENDTRY.
+
+    lo_database = zcl_sqlite_database=>open(
+      iv_name = 'api.db'
+      io_vfs  = lo_vfs ).
+    lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)' ).
+    lo_database->execute( 'INSERT INTO t VALUES (1, ''one'')' ).
+    lo_database->close( ).
+    lo_database->close( ).
+
+    lo_database = zcl_sqlite_database=>open(
+      iv_name   = 'api.db'
+      io_vfs    = lo_vfs
+      iv_create = abap_false ).
+    rs_result = lo_database->query( 'SELECT v FROM t WHERE id = 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'reopened database keeps rows' ).
+    lo_database->close( ).
+
+    TRY.
+        lo_database->query( 'SELECT 1' ).
+        cl_abap_unit_assert=>fail( 'query on a closed database must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_misuse
+          msg = 'closed database query error code' ).
+    ENDTRY.
+
+    TRY.
+        lo_database->begin( ).
+        cl_abap_unit_assert=>fail( 'begin on a closed database must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_misuse
+          msg = 'closed database transaction error code' ).
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD exec_script.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lv_name     TYPE string.
+
+    lv_name = 'test/m6_2_exec.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->exec(
+      'CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT);' &&
+      '/* a semicolon ; in a comment */' &&
+      'INSERT INTO t VALUES (1, ''one'');' &&
+      'INSERT INTO t VALUES (2, ''two'');' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t' )
+      exp = 2
+      msg = 'exec runs all statements' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->changes( )
+      exp = 1
+      msg = 'exec keeps the last statement changes' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 2
+      msg = 'exec keeps the last inserted rowid' ).
+
+* result rows are discarded, and empty statements are ignored
+    lo_database->exec( 'SELECT id FROM t ORDER BY id;' ).
+    lo_database->exec( ' ; ; ' ).
+
+* transaction control inside a script
+    lo_database->exec( 'BEGIN; INSERT INTO t VALUES (3, ''three''); END;' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t' )
+      exp = 3
+      msg = 'exec transaction is committed' ).
+
+* a trailing statement without a semicolon still runs
+    lo_database->exec( 'INSERT INTO t VALUES (4, ''four'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t' )
+      exp = 4
+      msg = 'exec runs a trailing statement' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_database->last_insert_rowid( )
+      exp = 4
+      msg = 'exec trailing statement rowid' ).
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD database_error_codes.
+    DATA lo_vfs       TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database  TYPE REF TO zcl_sqlite_database.
+    DATA lo_statement TYPE REF TO zif_sqlite_statement.
+    DATA lo_error     TYPE REF TO zcx_sqlite_error.
+    DATA lv_name      TYPE string.
+
+    lv_name = 'test/m6_2_errors.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT NOT NULL)' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO t (id) VALUES (1)' ).
+        cl_abap_unit_assert=>fail( 'NOT NULL violation must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint
+          msg = 'NOT NULL error code' ).
+    ENDTRY.
+
+    lo_database->execute( 'INSERT INTO t VALUES (1, ''one'')' ).
+    TRY.
+        lo_database->execute( 'UPDATE t SET id = ''not an integer'' WHERE id = 1' ).
+        cl_abap_unit_assert=>fail( 'rowid datatype mismatch must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_mismatch
+          msg = 'datatype mismatch error code' ).
+    ENDTRY.
+
+    TRY.
+        lo_database->query( 'SELECT id FROM missing' ).
+        cl_abap_unit_assert=>fail( 'missing table must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_error
+          msg = 'missing table error code' ).
+    ENDTRY.
+
+    lo_statement = lo_database->prepare( 'SELECT 1' ).
+    TRY.
+        lo_statement->bind(
+          iv_index = 2
+          io_value = zcl_sqlite_value=>null( ) ).
+        cl_abap_unit_assert=>fail( 'parameter index out of range must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_range
+          msg = 'parameter range error code' ).
+    ENDTRY.
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
   METHOD count_rows.
     rv_count = lines( io_database->query( iv_sql )-rows ).
   ENDMETHOD.
@@ -2850,12 +3046,12 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)' ).
     lo_database->execute( 'INSERT INTO t VALUES (1, ''one'')' ).
 
 * an explicit transaction is invisible until it commits
-    lo_database->execute( 'BEGIN' ).
+    lo_database->begin( ).
     lo_database->execute( 'INSERT INTO t VALUES (2, ''two'')' ).
     lo_database->execute( 'INSERT INTO t VALUES (3, ''three'')' ).
     cl_abap_unit_assert=>assert_equals(
@@ -2865,7 +3061,7 @@ CLASS ltcl_database IMPLEMENTATION.
       msg = 'rows are visible inside the transaction' ).
 
     TRY.
-        lo_database->execute( 'BEGIN' ).
+        lo_database->begin( ).
         cl_abap_unit_assert=>fail( 'nested BEGIN must fail' ).
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
@@ -2874,7 +3070,7 @@ CLASS ltcl_database IMPLEMENTATION.
           msg = 'nested BEGIN error code' ).
     ENDTRY.
 
-    lo_database->execute( 'ROLLBACK' ).
+    lo_database->rollback( ).
     cl_abap_unit_assert=>assert_equals(
       act = count_rows( io_database = lo_database
                         iv_sql      = 'SELECT id FROM t WHERE id >= 2' )
@@ -2887,9 +3083,9 @@ CLASS ltcl_database IMPLEMENTATION.
       msg = 'rows from before the transaction survive' ).
 
 * COMMIT makes the transaction durable in the SQLite file
-    lo_database->execute( 'BEGIN' ).
+    lo_database->begin( ).
     lo_database->execute( 'INSERT INTO t VALUES (4, ''four'')' ).
-    lo_database->execute( 'COMMIT' ).
+    lo_database->commit( ).
     cl_abap_unit_assert=>assert_equals(
       act = count_rows( io_database = lo_database
                         iv_sql      = 'SELECT id FROM t WHERE id = 4' )
@@ -2897,7 +3093,7 @@ CLASS ltcl_database IMPLEMENTATION.
       msg = 'COMMIT keeps the transaction' ).
 
     TRY.
-        lo_database->execute( 'COMMIT' ).
+        lo_database->commit( ).
         cl_abap_unit_assert=>fail( 'COMMIT without a transaction must fail' ).
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
@@ -2906,7 +3102,7 @@ CLASS ltcl_database IMPLEMENTATION.
           msg = 'COMMIT error code' ).
     ENDTRY.
     TRY.
-        lo_database->execute( 'ROLLBACK' ).
+        lo_database->rollback( ).
         cl_abap_unit_assert=>fail( 'ROLLBACK without a transaction must fail' ).
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
@@ -2916,7 +3112,7 @@ CLASS ltcl_database IMPLEMENTATION.
     ENDTRY.
 
 * a failed statement rolls back only itself, not the whole transaction
-    lo_database->execute( 'BEGIN' ).
+    lo_database->begin( ).
     lo_database->execute( 'INSERT INTO t VALUES (10, ''ten'')' ).
     TRY.
         lo_database->execute( 'INSERT INTO t VALUES (10, ''duplicate'')' ).
@@ -2928,7 +3124,7 @@ CLASS ltcl_database IMPLEMENTATION.
           msg = 'duplicate key error code' ).
     ENDTRY.
     lo_database->execute( 'INSERT INTO t VALUES (11, ''eleven'')' ).
-    lo_database->execute( 'COMMIT' ).
+    lo_database->commit( ).
 
     cl_abap_unit_assert=>assert_equals(
       act = count_rows( io_database = lo_database
@@ -2946,10 +3142,10 @@ CLASS ltcl_database IMPLEMENTATION.
       exp = 0
       msg = 'failed statement leaves no row behind' ).
 
-* END is a synonym for COMMIT
-    lo_database->execute( 'BEGIN' ).
+* a committed transaction survives the next statement
+    lo_database->begin( ).
     lo_database->execute( 'INSERT INTO t VALUES (12, ''twelve'')' ).
-    lo_database->execute( 'END' ).
+    lo_database->commit( ).
     cl_abap_unit_assert=>assert_equals(
       act = count_rows( io_database = lo_database
                         iv_sql      = 'SELECT id FROM t WHERE id = 12' )
@@ -2957,10 +3153,10 @@ CLASS ltcl_database IMPLEMENTATION.
       msg = 'END commits' ).
 
 * DDL inside a transaction is rolled back with it
-    lo_database->execute( 'BEGIN' ).
+    lo_database->begin( ).
     lo_database->execute( 'CREATE TABLE temp (id INTEGER)' ).
     lo_database->execute( 'INSERT INTO temp VALUES (1)' ).
-    lo_database->execute( 'ROLLBACK' ).
+    lo_database->rollback( ).
     TRY.
         lo_database->query( 'SELECT id FROM temp' ).
         cl_abap_unit_assert=>fail( 'rolled back table must not exist' ).
@@ -2971,9 +3167,9 @@ CLASS ltcl_database IMPLEMENTATION.
           msg = 'rolled back table error code' ).
     ENDTRY.
 
-    lo_database->execute( 'BEGIN' ).
+    lo_database->begin( ).
     TRY.
-        lo_database->execute( 'ROLLBACK TO SAVEPOINT s' ).
+        lo_database->exec( 'ROLLBACK TO SAVEPOINT s' ).
         cl_abap_unit_assert=>fail( 'savepoints must be rejected' ).
       CATCH zcx_sqlite_error INTO lo_error.
         cl_abap_unit_assert=>assert_equals(
@@ -2981,7 +3177,7 @@ CLASS ltcl_database IMPLEMENTATION.
           exp = zcx_sqlite_error=>sqlite_error
           msg = 'savepoint error code' ).
     ENDTRY.
-    lo_database->execute( 'ROLLBACK' ).
+    lo_database->rollback( ).
 
     lo_database->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
@@ -2997,7 +3193,7 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
     COMMIT WORK.
 
-    lo_database = zcl_sqlite_database=>create( lv_name ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY)' ).
     lo_database->close( ).
     COMMIT WORK.
@@ -3005,9 +3201,9 @@ CLASS ltcl_database IMPLEMENTATION.
 * by default a SQLite COMMIT only writes the bytes, it does not end the ABAP
 * LUW. A later ROLLBACK WORK must undo the write.
     lo_database = zcl_sqlite_database=>open( lv_name ).
-    lo_database->execute( 'BEGIN' ).
+    lo_database->begin( ).
     lo_database->execute( 'INSERT INTO t VALUES (1)' ).
-    lo_database->execute( 'COMMIT' ).
+    lo_database->commit( ).
     lo_database->close( ).
     ROLLBACK WORK.
 
@@ -3022,9 +3218,9 @@ CLASS ltcl_database IMPLEMENTATION.
 * auto_commit_work turns the SQLite commit into an ABAP LUW commit
     lo_database = zcl_sqlite_database=>open( lv_name ).
     lo_database->set_auto_commit_work( abap_true ).
-    lo_database->execute( 'BEGIN' ).
+    lo_database->begin( ).
     lo_database->execute( 'INSERT INTO t VALUES (2)' ).
-    lo_database->execute( 'COMMIT' ).
+    lo_database->commit( ).
     lo_database->close( ).
     ROLLBACK WORK.
 

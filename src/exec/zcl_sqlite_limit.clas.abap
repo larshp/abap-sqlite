@@ -106,7 +106,9 @@ CLASS zcl_sqlite_limit IMPLEMENTATION.
     lo_value = zcl_sqlite_expr_eval=>evaluate( io_expression ).
     IF lo_value->is_null( ) = abap_true.
       RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING iv_message = 'datatype mismatch'.
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_mismatch
+          iv_message = 'datatype mismatch'.
     ENDIF.
 
     CASE lo_value->value_type( ).
@@ -117,19 +119,25 @@ CLASS zcl_sqlite_limit IMPLEMENTATION.
         lv_floor = floor( lv_real ).
         IF lv_real <> lv_floor.
           RAISE EXCEPTION TYPE zcx_sqlite_error
-            EXPORTING iv_message = 'datatype mismatch'.
+            EXPORTING
+              iv_code    = zcx_sqlite_error=>sqlite_mismatch
+              iv_message = 'datatype mismatch'.
         ENDIF.
         rv_value = zcl_sqlite_expr_eval=>value_to_integer( lo_value ).
       WHEN zcl_sqlite_value=>c_text.
         lv_text = lo_value->as_text( ).
         IF is_integer_text( lv_text ) = abap_false.
           RAISE EXCEPTION TYPE zcx_sqlite_error
-            EXPORTING iv_message = 'datatype mismatch'.
+            EXPORTING
+              iv_code    = zcx_sqlite_error=>sqlite_mismatch
+              iv_message = 'datatype mismatch'.
         ENDIF.
         rv_value = zcl_sqlite_expr_eval=>value_to_integer( lo_value ).
       WHEN OTHERS.
         RAISE EXCEPTION TYPE zcx_sqlite_error
-          EXPORTING iv_message = 'datatype mismatch'.
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_mismatch
+            iv_message = 'datatype mismatch'.
     ENDCASE.
   ENDMETHOD.
 

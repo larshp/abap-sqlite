@@ -117,7 +117,7 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
           IF lv_slot <= 0.
             RAISE EXCEPTION TYPE zcx_sqlite_error
               EXPORTING
-                iv_code    = zcx_sqlite_error=>sqlite_error
+                iv_code    = zcx_sqlite_error=>sqlite_range
                 iv_message = |invalid parameter index: { lv_text }|.
           ENDIF.
           IF lv_slot >= lv_next_index.
@@ -232,7 +232,7 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
     IF iv_name IS NOT INITIAL AND iv_index > 0.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_code    = zcx_sqlite_error=>sqlite_misuse
           iv_message = 'bind by index or name, not both'.
     ENDIF.
 
@@ -242,7 +242,7 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
       IF sy-subrc <> 0.
         RAISE EXCEPTION TYPE zcx_sqlite_error
           EXPORTING
-            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_code    = zcx_sqlite_error=>sqlite_range
             iv_message = |no such parameter: { iv_name }|.
       ENDIF.
       lv_slot = ls_name_slot-slot.
@@ -250,14 +250,14 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
       IF iv_index > mv_parameter_count.
         RAISE EXCEPTION TYPE zcx_sqlite_error
           EXPORTING
-            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_code    = zcx_sqlite_error=>sqlite_range
             iv_message = |parameter index out of range: { iv_index }|.
       ENDIF.
       lv_slot = iv_index.
     ELSE.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_code    = zcx_sqlite_error=>sqlite_misuse
           iv_message = 'bind requires an index or a name'.
     ENDIF.
 
@@ -307,7 +307,7 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
     IF iv_index < 1 OR iv_index > lines( mt_columns ).
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_code    = zcx_sqlite_error=>sqlite_range
           iv_message = |column index out of range: { iv_index }|.
     ENDIF.
   ENDMETHOD.
@@ -318,7 +318,7 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
     IF mv_current_row = 0 OR mv_current_row > lines( mt_rows ).
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_code    = zcx_sqlite_error=>sqlite_misuse
           iv_message = 'statement has no current row'.
     ENDIF.
 

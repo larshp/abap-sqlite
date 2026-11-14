@@ -98,7 +98,7 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->delete( c_create_table_database ).
 
-    lo_database = zcl_sqlite_database=>create( c_create_table_database ).
+    lo_database = zcl_sqlite_database=>open( c_create_table_database ).
     lo_database->execute( 'CREATE TABLE created (id INTEGER PRIMARY KEY, name TEXT NOT NULL, price REAL)' ).
     lo_database->execute( 'CREATE TABLE IF NOT EXISTS created (id INTEGER)' ).
     lo_database->execute( 'CREATE TABLE notes (body TEXT)' ).
@@ -121,7 +121,7 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->delete( c_empty_database ).
 
-    lo_database = zcl_sqlite_database=>create( c_empty_database ).
+    lo_database = zcl_sqlite_database=>open( c_empty_database ).
     lo_database->close( ).
 
     rv_name = c_empty_database.
@@ -134,7 +134,7 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->delete( c_insert_statements_database ).
 
-    lo_database = zcl_sqlite_database=>create( c_insert_statements_database ).
+    lo_database = zcl_sqlite_database=>open( c_insert_statements_database ).
     lo_database->execute(
       'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL DEFAULT ''anon'',' &&
       ' qty INTEGER DEFAULT 7, price REAL, note TEXT, bin BLOB)' ).
@@ -176,7 +176,7 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->delete( c_delete_database ).
 
-    lo_database = zcl_sqlite_database=>create( c_delete_database ).
+    lo_database = zcl_sqlite_database=>open( c_delete_database ).
     lo_database->execute( 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, amount REAL)' ).
 
     lv_suffix = repeat( val = 'x'
@@ -236,7 +236,7 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( c_freelist_database ).
 
-    lo_database = zcl_sqlite_database=>create( c_freelist_database ).
+    lo_database = zcl_sqlite_database=>open( c_freelist_database ).
     lo_database->close( ).
 
     lo_file = lo_vfs->zif_sqlite_vfs~open( c_freelist_database ).
@@ -280,7 +280,7 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( c_drop_database ).
 
-    lo_database = zcl_sqlite_database=>create( c_drop_database ).
+    lo_database = zcl_sqlite_database=>open( c_drop_database ).
     lo_database->execute( 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, body TEXT)' ).
 
     lv_from = 1.
@@ -342,7 +342,7 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->delete( c_index_database ).
 
-    lo_database = zcl_sqlite_database=>create( c_index_database ).
+    lo_database = zcl_sqlite_database=>open( c_index_database ).
     lo_database->execute(
       'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,' &&
       ' qty INTEGER, tag TEXT)' ).
@@ -566,7 +566,7 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( c_random_database ).
 
-    lo_database = zcl_sqlite_database=>create( c_random_database ).
+    lo_database = zcl_sqlite_database=>open( c_random_database ).
     lo_database->execute(
       'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,' &&
       ' qty INTEGER, tag TEXT)' ).
@@ -759,7 +759,7 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->delete( c_update_database ).
 
-    lo_database = zcl_sqlite_database=>create( c_update_database ).
+    lo_database = zcl_sqlite_database=>open( c_update_database ).
     lo_database->execute(
       'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL,' &&
       ' amount REAL, note TEXT, bin BLOB)' ).
