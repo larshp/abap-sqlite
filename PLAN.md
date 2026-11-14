@@ -599,9 +599,9 @@ reference run.
 
 #### M6.3 ABAP conveniences
 
-- [ ] `select_into( sql, CHANGING ct_table )`. It maps result columns onto any ABAP internal
+- [x] `select_into( sql, CHANGING ct_table )`. It maps result columns onto any ABAP internal
       table by name using RTTI, with type conversion.
-- [ ] `insert_table( table_name, it_data )` for bulk insert from an internal table
+- [x] `insert_table( table_name, it_data )` for bulk insert from an internal table
 
 **Done when:** round trips of internal tables with all common ABAP types are tested.
 

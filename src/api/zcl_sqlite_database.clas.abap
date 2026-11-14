@@ -46,6 +46,18 @@ CLASS zcl_sqlite_database DEFINITION
       IMPORTING iv_sql TYPE string
       RAISING   zcx_sqlite_error.
 
+* run a SELECT and map the result columns onto an internal table by name
+    METHODS select_into
+      IMPORTING iv_sql   TYPE string
+      CHANGING  ct_table TYPE STANDARD TABLE
+      RAISING   zcx_sqlite_error.
+
+* insert all rows of an internal table into an existing table
+    METHODS insert_table
+      IMPORTING iv_table_name TYPE string
+                it_data       TYPE ANY TABLE
+      RAISING   zcx_sqlite_error.
+
     METHODS begin
       RAISING zcx_sqlite_error.
 
@@ -113,6 +125,12 @@ CLASS zcl_sqlite_database DEFINITION
            END OF ty_update_row,
            ty_update_rows TYPE STANDARD TABLE OF ty_update_row WITH DEFAULT KEY.
 
+    TYPES: BEGIN OF ty_insert_mapping,
+             component_index TYPE i,
+             column_name     TYPE string,
+           END OF ty_insert_mapping,
+           ty_insert_mappings TYPE STANDARD TABLE OF ty_insert_mapping WITH DEFAULT KEY.
+
     TYPES ty_source_indexes TYPE STANDARD TABLE OF i WITH DEFAULT KEY.
     TYPES ty_upper_names TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
 
@@ -170,6 +188,30 @@ CLASS zcl_sqlite_database DEFINITION
 
     METHODS check_open
       RAISING zcx_sqlite_error.
+
+    METHODS assign_field
+      IMPORTING io_value TYPE REF TO zcl_sqlite_value
+      CHANGING  cv_field TYPE any
+      RAISING   zcx_sqlite_error.
+
+    METHODS field_to_value
+      IMPORTING io_type         TYPE REF TO cl_abap_typedescr
+                iv_field        TYPE any
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS value_text
+      IMPORTING io_value       TYPE REF TO zcl_sqlite_value
+      RETURNING VALUE(rv_text) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS date_text
+      IMPORTING iv_text        TYPE string
+      RETURNING VALUE(rv_text) TYPE string.
+
+    CLASS-METHODS time_text
+      IMPORTING iv_text        TYPE string
+      RETURNING VALUE(rv_text) TYPE string.
 
     METHODS split_script
       IMPORTING iv_sql               TYPE string
@@ -694,6 +736,293 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         execute( lv_sql ).
       ENDIF.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD select_into.
+    DATA rs_result TYPE ty_result.
+    DATA ls_row    TYPE ty_row.
+    DATA lo_value  TYPE REF TO zcl_sqlite_value.
+    DATA lo_struct TYPE REF TO cl_abap_structdescr.
+    DATA lv_column TYPE string.
+    FIELD-SYMBOLS <ls_row>    TYPE any.
+    FIELD-SYMBOLS <lv_field>  TYPE any.
+
+    rs_result = query( iv_sql ).
+    CLEAR ct_table.
+    LOOP AT rs_result-rows INTO ls_row.
+      APPEND INITIAL LINE TO ct_table ASSIGNING <ls_row>.
+      IF lines( ct_table ) = 1.
+        TRY.
+            lo_struct ?= cl_abap_typedescr=>describe_by_data( <ls_row> ).
+          CATCH cx_sy_move_cast_error.
+            RAISE EXCEPTION TYPE zcx_sqlite_error
+              EXPORTING
+                iv_code    = zcx_sqlite_error=>sqlite_error
+                iv_message = 'result table row type must be a structure'.
+        ENDTRY.
+      ENDIF.
+      LOOP AT rs_result-columns INTO lv_column.
+        READ TABLE ls_row INTO lo_value INDEX sy-tabix.
+        IF lo_value IS NOT BOUND.
+          CONTINUE.
+        ENDIF.
+        ASSIGN COMPONENT lv_column OF STRUCTURE <ls_row> TO <lv_field>.
+        IF sy-subrc = 0.
+          assign_field(
+            EXPORTING io_value = lo_value
+            CHANGING  cv_field = <lv_field> ).
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD insert_table.
+    DATA lt_components TYPE abap_component_tab.
+    DATA ls_component  TYPE abap_componentdescr.
+    DATA lt_mappings   TYPE ty_insert_mappings.
+    DATA ls_mapping    TYPE ty_insert_mapping.
+    DATA ls_table      TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_column     TYPE zcl_sqlite_schema=>ty_column.
+    DATA lo_struct     TYPE REF TO cl_abap_structdescr.
+    DATA lo_statement  TYPE REF TO zif_sqlite_statement.
+    DATA lo_value      TYPE REF TO zcl_sqlite_value.
+    DATA lv_table_name TYPE string.
+    DATA lv_columns    TYPE string.
+    DATA lv_values     TYPE string.
+    DATA lv_sql        TYPE string.
+    DATA lv_found      TYPE abap_bool.
+    DATA lv_component  TYPE i.
+    DATA lv_bind       TYPE i.
+    DATA lv_started    TYPE abap_bool.
+    DATA lo_error      TYPE REF TO zcx_sqlite_error.
+    FIELD-SYMBOLS <lt_data>  TYPE ANY TABLE.
+    FIELD-SYMBOLS <ls_row>   TYPE any.
+    FIELD-SYMBOLS <lv_field> TYPE any.
+
+    check_open( ).
+    lv_table_name = strip_schema_name( iv_table_name ).
+    ls_table = mo_schema->table( lv_table_name ).
+    IF ls_table-name IS INITIAL.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |no such table: { iv_table_name }|.
+    ENDIF.
+
+    IF it_data IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    ASSIGN it_data TO <lt_data>.
+    LOOP AT <lt_data> ASSIGNING <ls_row>.
+      EXIT.
+    ENDLOOP.
+    TRY.
+        lo_struct ?= cl_abap_typedescr=>describe_by_data( <ls_row> ).
+      CATCH cx_sy_move_cast_error.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = 'internal table row type must be a structure'.
+    ENDTRY.
+    lt_components = lo_struct->get_components( ).
+
+    LOOP AT lt_components INTO ls_component.
+      lv_component = sy-tabix.
+      CLEAR lv_found.
+      LOOP AT ls_table-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = to_upper( ls_component-name ).
+          lv_found = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lv_found = abap_false.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = |table { ls_table-name } has no column named { ls_component-name }|.
+      ENDIF.
+      ls_mapping-component_index = lv_component.
+      ls_mapping-column_name = ls_column-name.
+      APPEND ls_mapping TO lt_mappings.
+    ENDLOOP.
+
+    IF lines( lt_mappings ) = 0.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |internal table has no columns for { ls_table-name }|.
+    ENDIF.
+
+    LOOP AT lt_mappings INTO ls_mapping.
+      IF sy-tabix > 1.
+        lv_columns = lv_columns && ', '.
+        lv_values = lv_values && ', '.
+      ENDIF.
+      lv_columns = lv_columns && ls_mapping-column_name.
+      lv_values = lv_values && '?'.
+    ENDLOOP.
+    lv_sql = |INSERT INTO { iv_table_name } ({ lv_columns }) VALUES ({ lv_values })|.
+    lo_statement = prepare( lv_sql ).
+
+    lv_started = boolc( mv_in_transaction = abap_false ).
+    IF lv_started = abap_true.
+      begin( ).
+    ENDIF.
+    TRY.
+        LOOP AT <lt_data> ASSIGNING <ls_row>.
+          LOOP AT lt_mappings INTO ls_mapping.
+            lv_bind = sy-tabix.
+            READ TABLE lt_components INTO ls_component INDEX ls_mapping-component_index.
+            ASSIGN COMPONENT ls_component-name OF STRUCTURE <ls_row> TO <lv_field>.
+            IF sy-subrc <> 0.
+              RAISE EXCEPTION TYPE zcx_sqlite_error
+                EXPORTING
+                  iv_code    = zcx_sqlite_error=>sqlite_internal
+                  iv_message = |could not read component { ls_component-name }|.
+            ENDIF.
+            lo_value = field_to_value(
+              io_type  = ls_component-type
+              iv_field = <lv_field> ).
+            lo_statement->bind(
+              iv_index = lv_bind
+              io_value = lo_value ).
+          ENDLOOP.
+          lo_statement->step( ).
+          lo_statement->reset( ).
+        ENDLOOP.
+        IF lv_started = abap_true.
+          commit( ).
+        ENDIF.
+      CATCH zcx_sqlite_error INTO lo_error.
+        IF lv_started = abap_true AND mv_in_transaction = abap_true.
+          rollback( ).
+        ENDIF.
+        RAISE EXCEPTION lo_error.
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD assign_field.
+    DATA lo_type TYPE REF TO cl_abap_typedescr.
+    DATA lv_text TYPE string.
+
+    IF io_value IS NOT BOUND OR io_value->is_null( ) = abap_true.
+      CLEAR cv_field.
+      RETURN.
+    ENDIF.
+
+    lo_type = cl_abap_typedescr=>describe_by_data( cv_field ).
+    TRY.
+        CASE lo_type->type_kind.
+          WHEN cl_abap_typedescr=>typekind_int
+              OR cl_abap_typedescr=>typekind_int1
+              OR cl_abap_typedescr=>typekind_int2
+              OR cl_abap_typedescr=>typekind_int8.
+            cv_field = zcl_sqlite_expr_eval=>value_to_integer( io_value ).
+          WHEN cl_abap_typedescr=>typekind_packed
+              OR cl_abap_typedescr=>typekind_float
+              OR cl_abap_typedescr=>typekind_decfloat
+              OR cl_abap_typedescr=>typekind_decfloat16
+              OR cl_abap_typedescr=>typekind_decfloat34.
+            cv_field = value_text( io_value ).
+          WHEN cl_abap_typedescr=>typekind_date.
+            cv_field = date_text( value_text( io_value ) ).
+          WHEN cl_abap_typedescr=>typekind_time.
+            cv_field = time_text( value_text( io_value ) ).
+          WHEN cl_abap_typedescr=>typekind_hex
+              OR cl_abap_typedescr=>typekind_xstring.
+            IF io_value->value_type( ) = zcl_sqlite_value=>c_blob.
+              cv_field = io_value->as_blob( ).
+            ELSE.
+              cv_field = value_text( io_value ).
+            ENDIF.
+          WHEN cl_abap_typedescr=>typekind_char
+              OR cl_abap_typedescr=>typekind_string
+              OR cl_abap_typedescr=>typekind_num.
+            cv_field = value_text( io_value ).
+          WHEN OTHERS.
+            RAISE EXCEPTION TYPE zcx_sqlite_error
+              EXPORTING
+                iv_code    = zcx_sqlite_error=>sqlite_error
+                iv_message = |unsupported ABAP type { lo_type->type_kind }|.
+        ENDCASE.
+      CATCH cx_sy_conversion_error.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_mismatch
+            iv_message = 'could not convert SQLite value to ABAP field'.
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD field_to_value.
+    DATA lv_int8 TYPE int8.
+    DATA lv_real TYPE f.
+    DATA lv_text TYPE string.
+    DATA lv_blob TYPE xstring.
+
+    CASE io_type->type_kind.
+      WHEN cl_abap_typedescr=>typekind_int
+          OR cl_abap_typedescr=>typekind_int1
+          OR cl_abap_typedescr=>typekind_int2
+          OR cl_abap_typedescr=>typekind_int8.
+        lv_int8 = iv_field.
+        ro_value = zcl_sqlite_value=>integer( lv_int8 ).
+      WHEN cl_abap_typedescr=>typekind_packed
+          OR cl_abap_typedescr=>typekind_float
+          OR cl_abap_typedescr=>typekind_decfloat
+          OR cl_abap_typedescr=>typekind_decfloat16
+          OR cl_abap_typedescr=>typekind_decfloat34.
+        lv_real = iv_field.
+        ro_value = zcl_sqlite_value=>real( lv_real ).
+      WHEN cl_abap_typedescr=>typekind_date
+          OR cl_abap_typedescr=>typekind_time
+          OR cl_abap_typedescr=>typekind_char
+          OR cl_abap_typedescr=>typekind_string
+          OR cl_abap_typedescr=>typekind_num.
+        lv_text = iv_field.
+        IF io_type->type_kind = cl_abap_typedescr=>typekind_char
+            OR io_type->type_kind = cl_abap_typedescr=>typekind_num.
+          SHIFT lv_text RIGHT DELETING TRAILING space.
+        ENDIF.
+        ro_value = zcl_sqlite_value=>text( lv_text ).
+      WHEN cl_abap_typedescr=>typekind_hex
+          OR cl_abap_typedescr=>typekind_xstring.
+        lv_blob = iv_field.
+        ro_value = zcl_sqlite_value=>blob( lv_blob ).
+      WHEN OTHERS.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = |unsupported ABAP type { io_type->type_kind }|.
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD value_text.
+    rv_text = zcl_sqlite_expr_eval=>value_to_text( io_value )->as_text( ).
+  ENDMETHOD.
+
+  METHOD date_text.
+    IF strlen( iv_text ) >= 10
+        AND iv_text+4(1) = '-'
+        AND iv_text+7(1) = '-'.
+      rv_text = iv_text(4) && iv_text+5(2) && iv_text+8(2).
+    ELSEIF strlen( iv_text ) >= 8.
+      rv_text = iv_text(8).
+    ELSE.
+      rv_text = iv_text.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD time_text.
+    IF strlen( iv_text ) >= 8
+        AND iv_text+2(1) = ':'
+        AND iv_text+5(1) = ':'.
+      rv_text = iv_text(2) && iv_text+3(2) && iv_text+6(2).
+    ELSEIF strlen( iv_text ) >= 6.
+      rv_text = iv_text(6).
+    ELSE.
+      rv_text = iv_text.
+    ENDIF.
   ENDMETHOD.
 
   METHOD begin.

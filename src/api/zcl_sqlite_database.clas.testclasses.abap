@@ -38,6 +38,24 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS database_api FOR TESTING RAISING zcx_sqlite_error.
     METHODS exec_script FOR TESTING RAISING zcx_sqlite_error.
     METHODS database_error_codes FOR TESTING RAISING zcx_sqlite_error.
+    METHODS abap_conveniences FOR TESTING RAISING zcx_sqlite_error.
+
+    TYPES: BEGIN OF ty_abap_row,
+             id      TYPE i,
+             big     TYPE int8,
+             small   TYPE int1,
+             medium  TYPE int2,
+             name    TYPE string,
+             code    TYPE c LENGTH 10,
+             num     TYPE n LENGTH 5,
+             amount  TYPE p LENGTH 8 DECIMALS 2,
+             ratio   TYPE f,
+             created TYPE d,
+             at      TYPE t,
+             payload TYPE xstring,
+             fixed   TYPE x LENGTH 4,
+           END OF ty_abap_row,
+           ty_abap_rows TYPE STANDARD TABLE OF ty_abap_row WITH DEFAULT KEY.
 
     METHODS count_rows
       IMPORTING io_database     TYPE REF TO zcl_sqlite_database
@@ -3027,6 +3045,164 @@ CLASS ltcl_database IMPLEMENTATION.
           exp = zcx_sqlite_error=>sqlite_range
           msg = 'parameter range error code' ).
     ENDTRY.
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD abap_conveniences.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA ls_row      TYPE ty_abap_row.
+    DATA lt_rows     TYPE ty_abap_rows.
+    DATA lt_result   TYPE ty_abap_rows.
+    DATA lv_name     TYPE string.
+    DATA lv_amount   TYPE p LENGTH 8 DECIMALS 2.
+    DATA lv_ratio    TYPE f.
+    DATA lv_date     TYPE d.
+    DATA lv_time     TYPE t.
+    DATA lv_blob     TYPE xstring.
+    DATA lv_fixed    TYPE x LENGTH 4.
+
+    lv_name = 'test/m6_3_abap_types.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute(
+      'CREATE TABLE abap_types (name TEXT, id INTEGER PRIMARY KEY,' &&
+      ' big INTEGER, small INTEGER, medium INTEGER,' &&
+      ' code TEXT, num TEXT, amount REAL, ratio REAL,' &&
+      ' created TEXT, at TEXT, payload BLOB, fixed BLOB)' ).
+
+    ls_row-id = 1.
+    ls_row-big = '1234567890123'.
+    ls_row-small = 42.
+    ls_row-medium = 1234.
+    ls_row-name = 'hello'.
+    ls_row-code = 'ABAP'.
+    ls_row-num = '00042'.
+    ls_row-amount = '1234.56'.
+    ls_row-ratio = '1.25'.
+    ls_row-created = '20240131'.
+    ls_row-at = '235959'.
+    ls_row-payload = '00AB'.
+    ls_row-fixed = '0A0B0C0D'.
+    APPEND ls_row TO lt_rows.
+
+    ls_row-id = 2.
+    ls_row-big = '-1234567890123'.
+    ls_row-small = 255.
+    ls_row-medium = -1234.
+    ls_row-name = 'world'.
+    ls_row-code = 'SQL'.
+    ls_row-num = '00007'.
+    ls_row-amount = '-12.30'.
+    ls_row-ratio = '-0.5'.
+    ls_row-created = '19991231'.
+    ls_row-at = '000001'.
+    ls_row-payload = 'FF'.
+    ls_row-fixed = 'FFFFFFFF'.
+    APPEND ls_row TO lt_rows.
+
+    lo_database->insert_table(
+      iv_table_name = 'abap_types'
+      it_data       = lt_rows ).
+
+    lo_database->select_into(
+      EXPORTING
+        iv_sql   = 'SELECT id, big, small, medium, name, code, num,' &&
+                   ' amount, ratio, created, at, payload, fixed' &&
+                   ' FROM abap_types ORDER BY id'
+      CHANGING
+        ct_table = lt_result ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lt_result )
+      exp = 2
+      msg = 'select_into row count' ).
+
+    READ TABLE lt_result INTO ls_row INDEX 1.
+    lv_amount = '1234.56'.
+    lv_ratio = '1.25'.
+    lv_date = '20240131'.
+    lv_time = '235959'.
+    lv_blob = '00AB'.
+    lv_fixed = '0A0B0C0D'.
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-id = 1 ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-big = '1234567890123' ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-small = 42 ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-medium = 1234 ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-name = 'hello' ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-code = 'ABAP' ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-num = '00042' ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-amount = lv_amount ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-ratio = lv_ratio ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-created = lv_date ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-at = lv_time ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-payload = lv_blob ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-fixed = lv_fixed ) ).
+
+    READ TABLE lt_result INTO ls_row INDEX 2.
+    lv_amount = '-12.30'.
+    lv_ratio = '-0.5'.
+    lv_date = '19991231'.
+    lv_time = '000001'.
+    lv_blob = 'FF'.
+    lv_fixed = 'FFFFFFFF'.
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-id = 2 ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-big = '-1234567890123' ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-small = 255 ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-medium = -1234 ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-name = 'world' ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-code = 'SQL' ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-num = '00007' ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-amount = lv_amount ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-ratio = lv_ratio ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-created = lv_date ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-at = lv_time ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-payload = lv_blob ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-fixed = lv_fixed ) ).
+
+    lo_database->execute( 'INSERT INTO abap_types (id, name) VALUES (3, NULL)' ).
+    lo_database->select_into(
+      EXPORTING
+        iv_sql   = 'SELECT id, name, amount, payload FROM abap_types WHERE id = 3'
+      CHANGING
+        ct_table = lt_result ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( lt_result )
+      exp = 1
+      msg = 'select_into clears the result table' ).
+    READ TABLE lt_result INTO ls_row INDEX 1.
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-id = 3 ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-name IS INITIAL ) ).
+    cl_abap_unit_assert=>assert_true( boolc( ls_row-amount = 0 ) ).
+    cl_abap_unit_assert=>assert_true( boolc( xstrlen( ls_row-payload ) = 0 ) ).
+
+    CLEAR lt_rows.
+    lo_database->insert_table(
+      iv_table_name = 'abap_types'
+      it_data       = lt_rows ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM abap_types' )
+      exp = 3
+      msg = 'insert_table ignores an empty table' ).
+
+    CLEAR ls_row.
+    ls_row-id = 4.
+    ls_row-name = 'rolled back'.
+    APPEND ls_row TO lt_rows.
+    lo_database->begin( ).
+    lo_database->insert_table(
+      iv_table_name = 'abap_types'
+      it_data       = lt_rows ).
+    lo_database->rollback( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM abap_types' )
+      exp = 3
+      msg = 'insert_table uses the caller transaction' ).
 
     lo_database->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
