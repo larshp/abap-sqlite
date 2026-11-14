@@ -1,0 +1,387 @@
+{
+  "pragmas": {
+    "page_size": 4096,
+    "page_count": 3,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "items",
+      "sql": "CREATE TABLE items (id INTEGER NOT NULL, value TEXT NOT NULL)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "value",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "page-04096-001-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          2,
+          "page-04096-002-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          3,
+          "page-04096-003-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          4,
+          "page-04096-004-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          5,
+          "page-04096-005-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          6,
+          "page-04096-006-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          7,
+          "page-04096-007-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          8,
+          "page-04096-008-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          9,
+          "page-04096-009-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          10,
+          "page-04096-010-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          11,
+          "page-04096-011-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          12,
+          "page-04096-012-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          13,
+          "page-04096-013-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          14,
+          "page-04096-014-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          15,
+          "page-04096-015-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          16,
+          "page-04096-016-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          17,
+          "page-04096-017-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          18,
+          "page-04096-018-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          19,
+          "page-04096-019-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          20,
+          "page-04096-020-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          21,
+          "page-04096-021-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          22,
+          "page-04096-022-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          23,
+          "page-04096-023-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          24,
+          "page-04096-024-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          25,
+          "page-04096-025-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          26,
+          "page-04096-026-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          27,
+          "page-04096-027-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          28,
+          "page-04096-028-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          29,
+          "page-04096-029-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          30,
+          "page-04096-030-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          31,
+          "page-04096-031-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          32,
+          "page-04096-032-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          33,
+          "page-04096-033-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          34,
+          "page-04096-034-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          35,
+          "page-04096-035-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          36,
+          "page-04096-036-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          37,
+          "page-04096-037-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          38,
+          "page-04096-038-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          39,
+          "page-04096-039-xxxxxxxxxxxxxxxxxxxx"
+        ],
+        [
+          40,
+          "page-04096-040-xxxxxxxxxxxxxxxxxxxx"
+        ]
+      ]
+    }
+  ],
+  "indexes": [
+    {
+      "name": "items_value",
+      "table": "items",
+      "sql": "CREATE INDEX items_value ON items(value)",
+      "columns": [
+        "value"
+      ],
+      "entries": [
+        [
+          "page-04096-001-xxxxxxxxxxxxxxxxxxxx",
+          1
+        ],
+        [
+          "page-04096-002-xxxxxxxxxxxxxxxxxxxx",
+          2
+        ],
+        [
+          "page-04096-003-xxxxxxxxxxxxxxxxxxxx",
+          3
+        ],
+        [
+          "page-04096-004-xxxxxxxxxxxxxxxxxxxx",
+          4
+        ],
+        [
+          "page-04096-005-xxxxxxxxxxxxxxxxxxxx",
+          5
+        ],
+        [
+          "page-04096-006-xxxxxxxxxxxxxxxxxxxx",
+          6
+        ],
+        [
+          "page-04096-007-xxxxxxxxxxxxxxxxxxxx",
+          7
+        ],
+        [
+          "page-04096-008-xxxxxxxxxxxxxxxxxxxx",
+          8
+        ],
+        [
+          "page-04096-009-xxxxxxxxxxxxxxxxxxxx",
+          9
+        ],
+        [
+          "page-04096-010-xxxxxxxxxxxxxxxxxxxx",
+          10
+        ],
+        [
+          "page-04096-011-xxxxxxxxxxxxxxxxxxxx",
+          11
+        ],
+        [
+          "page-04096-012-xxxxxxxxxxxxxxxxxxxx",
+          12
+        ],
+        [
+          "page-04096-013-xxxxxxxxxxxxxxxxxxxx",
+          13
+        ],
+        [
+          "page-04096-014-xxxxxxxxxxxxxxxxxxxx",
+          14
+        ],
+        [
+          "page-04096-015-xxxxxxxxxxxxxxxxxxxx",
+          15
+        ],
+        [
+          "page-04096-016-xxxxxxxxxxxxxxxxxxxx",
+          16
+        ],
+        [
+          "page-04096-017-xxxxxxxxxxxxxxxxxxxx",
+          17
+        ],
+        [
+          "page-04096-018-xxxxxxxxxxxxxxxxxxxx",
+          18
+        ],
+        [
+          "page-04096-019-xxxxxxxxxxxxxxxxxxxx",
+          19
+        ],
+        [
+          "page-04096-020-xxxxxxxxxxxxxxxxxxxx",
+          20
+        ],
+        [
+          "page-04096-021-xxxxxxxxxxxxxxxxxxxx",
+          21
+        ],
+        [
+          "page-04096-022-xxxxxxxxxxxxxxxxxxxx",
+          22
+        ],
+        [
+          "page-04096-023-xxxxxxxxxxxxxxxxxxxx",
+          23
+        ],
+        [
+          "page-04096-024-xxxxxxxxxxxxxxxxxxxx",
+          24
+        ],
+        [
+          "page-04096-025-xxxxxxxxxxxxxxxxxxxx",
+          25
+        ],
+        [
+          "page-04096-026-xxxxxxxxxxxxxxxxxxxx",
+          26
+        ],
+        [
+          "page-04096-027-xxxxxxxxxxxxxxxxxxxx",
+          27
+        ],
+        [
+          "page-04096-028-xxxxxxxxxxxxxxxxxxxx",
+          28
+        ],
+        [
+          "page-04096-029-xxxxxxxxxxxxxxxxxxxx",
+          29
+        ],
+        [
+          "page-04096-030-xxxxxxxxxxxxxxxxxxxx",
+          30
+        ],
+        [
+          "page-04096-031-xxxxxxxxxxxxxxxxxxxx",
+          31
+        ],
+        [
+          "page-04096-032-xxxxxxxxxxxxxxxxxxxx",
+          32
+        ],
+        [
+          "page-04096-033-xxxxxxxxxxxxxxxxxxxx",
+          33
+        ],
+        [
+          "page-04096-034-xxxxxxxxxxxxxxxxxxxx",
+          34
+        ],
+        [
+          "page-04096-035-xxxxxxxxxxxxxxxxxxxx",
+          35
+        ],
+        [
+          "page-04096-036-xxxxxxxxxxxxxxxxxxxx",
+          36
+        ],
+        [
+          "page-04096-037-xxxxxxxxxxxxxxxxxxxx",
+          37
+        ],
+        [
+          "page-04096-038-xxxxxxxxxxxxxxxxxxxx",
+          38
+        ],
+        [
+          "page-04096-039-xxxxxxxxxxxxxxxxxxxx",
+          39
+        ],
+        [
+          "page-04096-040-xxxxxxxxxxxxxxxxxxxx",
+          40
+        ]
+      ]
+    }
+  ],
+  "schema": [
+    {
+      "type": "table",
+      "name": "items",
+      "tbl_name": "items",
+      "rootpage": 2,
+      "sql": "CREATE TABLE items (id INTEGER NOT NULL, value TEXT NOT NULL)"
+    },
+    {
+      "type": "index",
+      "name": "items_value",
+      "tbl_name": "items",
+      "rootpage": 3,
+      "sql": "CREATE INDEX items_value ON items(value)"
+    }
+  ]
+}
