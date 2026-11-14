@@ -29,6 +29,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_with IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_recursive = iv_recursive.
     mt_ctes = it_ctes.
     mo_statement = io_statement.

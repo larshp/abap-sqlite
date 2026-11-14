@@ -30,6 +30,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_result_column IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_expression = io_expression.
     mv_alias = iv_alias.
   ENDMETHOD.

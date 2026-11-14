@@ -80,6 +80,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_select IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_distinct = iv_distinct.
     mt_columns = it_columns.
     mt_from = it_from.

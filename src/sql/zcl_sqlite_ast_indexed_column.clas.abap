@@ -35,6 +35,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_indexed_column IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_name = iv_name.
     mv_collation = iv_collation.
     mv_order = iv_order.

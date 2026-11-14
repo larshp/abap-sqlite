@@ -33,6 +33,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_drop IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_object_type = iv_object_type.
     mv_name = iv_name.
     mv_if_exists = iv_if_exists.

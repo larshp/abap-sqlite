@@ -38,6 +38,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_between IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_expression = io_expression.
     mo_low = io_low.
     mo_high = io_high.

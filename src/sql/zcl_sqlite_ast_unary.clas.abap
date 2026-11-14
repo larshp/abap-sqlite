@@ -28,6 +28,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_unary IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_operator = iv_operator.
     mo_operand = io_operand.
   ENDMETHOD.

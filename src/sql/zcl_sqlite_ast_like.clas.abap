@@ -43,6 +43,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_like IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_expression = io_expression.
     mo_pattern = io_pattern.
     mo_escape = io_escape.

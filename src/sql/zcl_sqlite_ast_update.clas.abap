@@ -53,6 +53,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_update IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_conflict = iv_conflict.
     mv_table = iv_table.
     mv_alias = iv_alias.

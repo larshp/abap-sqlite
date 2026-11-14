@@ -36,6 +36,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_column_def IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_name = iv_name.
     mv_type_name = iv_type_name.
     mt_constraints = it_constraints.

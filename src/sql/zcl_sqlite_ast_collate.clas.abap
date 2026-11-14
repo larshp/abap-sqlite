@@ -28,6 +28,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_collate IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_expression = io_expression.
     mv_name = iv_name.
   ENDMETHOD.

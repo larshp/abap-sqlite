@@ -56,6 +56,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_create_table IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_name = iv_name.
     mv_temporary = iv_temporary.
     mv_if_not_exists = iv_if_not_exists.

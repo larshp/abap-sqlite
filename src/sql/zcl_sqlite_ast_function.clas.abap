@@ -38,6 +38,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_function IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_name = iv_name.
     mv_distinct = iv_distinct.
     mv_star = iv_star.

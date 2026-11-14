@@ -28,6 +28,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_table_ref IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_name = iv_name.
     mv_alias = iv_alias.
   ENDMETHOD.

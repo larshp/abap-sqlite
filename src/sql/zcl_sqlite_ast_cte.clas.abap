@@ -28,6 +28,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_cte IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_name = iv_name.
     mt_columns = it_columns.
     mo_statement = io_statement.

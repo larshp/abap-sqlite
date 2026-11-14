@@ -43,6 +43,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_compound IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_left = io_left.
     mv_operator = iv_operator.
     mv_all = iv_all.

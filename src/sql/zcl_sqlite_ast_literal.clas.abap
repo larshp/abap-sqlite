@@ -28,6 +28,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_literal IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_kind = iv_kind.
     mv_value = iv_value.
   ENDMETHOD.

@@ -40,6 +40,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_transaction IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_action = iv_action.
     mv_mode = iv_mode.
     mv_transaction = iv_transaction.

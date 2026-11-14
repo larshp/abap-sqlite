@@ -22,6 +22,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_subquery_ref IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_statement = io_statement.
     mv_alias = iv_alias.
   ENDMETHOD.

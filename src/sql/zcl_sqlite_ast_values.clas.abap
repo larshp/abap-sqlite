@@ -41,6 +41,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_values IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mt_rows = it_rows.
     mt_order_by = it_order_by.
     mo_limit = io_limit.

@@ -28,6 +28,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_cast IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_expression = io_expression.
     mv_type = iv_type.
   ENDMETHOD.

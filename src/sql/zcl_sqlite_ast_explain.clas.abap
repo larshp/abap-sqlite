@@ -22,6 +22,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_explain IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_query_plan = iv_query_plan.
     mo_statement = io_statement.
   ENDMETHOD.

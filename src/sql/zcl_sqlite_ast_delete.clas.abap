@@ -33,6 +33,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_delete IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_table = iv_table.
     mv_alias = iv_alias.
     mo_where = io_where.

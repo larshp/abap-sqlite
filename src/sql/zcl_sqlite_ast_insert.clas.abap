@@ -48,6 +48,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_insert IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_conflict = iv_conflict.
     mv_table = iv_table.
     mt_columns = it_columns.

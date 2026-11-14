@@ -50,6 +50,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_join IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_join_type = iv_join_type.
     mo_left = io_left.
     mo_right = io_right.

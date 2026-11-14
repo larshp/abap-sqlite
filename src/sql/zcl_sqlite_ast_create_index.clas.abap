@@ -50,6 +50,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_create_index IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_name = iv_name.
     mv_table_name = iv_table_name.
     mv_unique = iv_unique.

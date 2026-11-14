@@ -35,6 +35,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_order_by IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_expression = io_expression.
     mv_direction = iv_direction.
     mv_nulls = iv_nulls.

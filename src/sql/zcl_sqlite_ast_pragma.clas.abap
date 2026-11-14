@@ -24,6 +24,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_pragma IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_name = iv_name.
     mv_separator = iv_separator.
     mv_value = iv_value.

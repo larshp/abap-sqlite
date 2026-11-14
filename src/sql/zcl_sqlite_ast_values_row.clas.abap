@@ -25,6 +25,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_values_row IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mt_values = it_values.
   ENDMETHOD.
 

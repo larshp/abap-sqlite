@@ -20,6 +20,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_subquery IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_statement = io_statement.
   ENDMETHOD.
 

@@ -34,6 +34,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_binary IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mv_operator = iv_operator.
     mo_left = io_left.
     mo_right = io_right.

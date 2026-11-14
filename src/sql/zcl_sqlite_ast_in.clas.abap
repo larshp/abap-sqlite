@@ -38,6 +38,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_in IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_expression = io_expression.
     mt_values = it_values.
     mv_negated = iv_negated.

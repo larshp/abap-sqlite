@@ -40,6 +40,7 @@ ENDCLASS.
 CLASS zcl_sqlite_ast_case IMPLEMENTATION.
 
   METHOD constructor.
+    super->constructor( ).
     mo_base = io_base.
     mt_whens = it_whens.
     mo_else = io_else.
