@@ -276,7 +276,7 @@ CLASS ltcl_fixture IMPLEMENTATION.
 * setup.mjs checks that these blocks reassemble to the committed .db file
     lv_name = iv_name.
     SELECT data FROM zsqlite_files INTO TABLE @lt_blocks
-      WHERE mandt = @sy-mandt AND filename = @lv_name
+      WHERE filename = @lv_name
       ORDER BY blockno.
     LOOP AT lt_blocks INTO lv_data.
       rv_data = rv_data && lv_data.

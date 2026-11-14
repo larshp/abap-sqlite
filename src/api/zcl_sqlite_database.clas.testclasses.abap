@@ -3472,10 +3472,10 @@ CLASS ltcl_query_harness IMPLEMENTATION.
     DATA lv_column_count TYPE i.
 
     SELECT * FROM zsqlite_queries INTO TABLE @lt_queries
-      WHERE mandt = @sy-mandt AND row_no = 0
+      WHERE row_no = 0
       ORDER BY query_name.
     SELECT * FROM zsqlite_queries INTO TABLE @lt_cells
-      WHERE mandt = @sy-mandt AND row_no > 0
+      WHERE row_no > 0
       ORDER BY query_name, row_no, col_no.
 
     IF lines( lt_queries ) = 0.

@@ -176,7 +176,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
 
     lv_name = db_name( iv_name ).
     SELECT COUNT(*) FROM zsqlite_files INTO @lv_count
-      WHERE mandt = @sy-mandt AND filename = @lv_name.
+      WHERE filename = @lv_name.
     rv_exists = boolc( lv_count > 0 ).
   ENDMETHOD.
 
@@ -192,7 +192,6 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     DATA lv_name TYPE zsqlite_files-filename.
 
     SELECT DISTINCT filename FROM zsqlite_files INTO TABLE @lt_names
-      WHERE mandt = @sy-mandt
       ORDER BY filename.
 
     LOOP AT lt_names INTO lv_name.
@@ -218,7 +217,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     lv_old_name = db_name( iv_name ).
     lv_new_name = db_name( iv_new_name ).
     UPDATE zsqlite_files SET filename = @lv_new_name
-      WHERE mandt = @sy-mandt AND filename = @lv_old_name.
+      WHERE filename = @lv_old_name.
 
     DELETE mt_blocks WHERE name = iv_name.
     DELETE mt_blocks WHERE name = iv_new_name.
@@ -429,13 +428,13 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
 
     lv_name = db_name( iv_name ).
     SELECT MAX( blockno ) FROM zsqlite_files INTO @lv_blockno
-      WHERE mandt = @sy-mandt AND filename = @lv_name.
+      WHERE filename = @lv_name.
     IF sy-subrc <> 0.
       RETURN.
     ENDIF.
 
     SELECT SINGLE data FROM zsqlite_files INTO @lv_data
-      WHERE mandt = @sy-mandt AND filename = @lv_name AND blockno = @lv_blockno.
+      WHERE filename = @lv_name AND blockno = @lv_blockno.
     rv_size = lv_blockno * c_block_size + xstrlen( lv_data ).
   ENDMETHOD.
 
@@ -478,8 +477,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     SELECT SINGLE FOR UPDATE mandt, filename, blockno, data
       FROM zsqlite_files
       INTO @ls_file
-      WHERE mandt = @sy-mandt
-        AND filename = @lv_name
+      WHERE filename = @lv_name
         AND blockno = 0.
   ENDMETHOD.
 
@@ -555,7 +553,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
 
     lv_name = db_name( iv_name ).
     SELECT SINGLE data FROM zsqlite_files INTO @lv_data
-      WHERE mandt = @sy-mandt AND filename = @lv_name AND blockno = @iv_blockno.
+      WHERE filename = @lv_name AND blockno = @iv_blockno.
     IF sy-subrc = 0.
       rv_data = lv_data.
       ls_block-exists = abap_true.
@@ -646,7 +644,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
 
     lv_name = db_name( iv_name ).
     DELETE FROM zsqlite_files
-      WHERE mandt = @sy-mandt AND filename = @lv_name AND blockno >= @iv_from.
+      WHERE filename = @lv_name AND blockno >= @iv_from.
     DELETE mt_blocks WHERE name = iv_name AND blockno >= iv_from.
   ENDMETHOD.
 

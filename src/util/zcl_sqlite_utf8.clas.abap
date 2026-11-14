@@ -32,14 +32,14 @@ CLASS zcl_sqlite_utf8 IMPLEMENTATION.
 
   METHOD encode.
     IF go_out IS INITIAL.
-      go_out = cl_abap_conv_codepage=>create_out( 'UTF-8' ).
+      go_out = cl_abap_conv_codepage=>create_out( codepage = 'UTF-8' ).
     ENDIF.
     rv_data = go_out->convert( iv_text ).
   ENDMETHOD.
 
   METHOD decode.
     IF go_in IS INITIAL.
-      go_in = cl_abap_conv_codepage=>create_in( 'UTF-8' ).
+      go_in = cl_abap_conv_codepage=>create_in( codepage = 'UTF-8' ).
     ENDIF.
     rv_text = go_in->convert( iv_data ).
   ENDMETHOD.

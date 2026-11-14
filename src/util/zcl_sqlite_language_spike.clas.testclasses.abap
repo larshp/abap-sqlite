@@ -219,8 +219,8 @@ CLASS ltcl_language IMPLEMENTATION.
     DATA lv_text TYPE string.
 
     TRY.
-        lo_out = cl_abap_conv_codepage=>create_out( 'UTF-8' ).
-        lo_in = cl_abap_conv_codepage=>create_in( 'UTF-8' ).
+        lo_out = cl_abap_conv_codepage=>create_out( codepage = 'UTF-8' ).
+        lo_in = cl_abap_conv_codepage=>create_in( codepage = 'UTF-8' ).
 
         lv_bytes = lo_out->convert( 'Hello' ).
         cl_abap_unit_assert=>assert_equals( act = lv_bytes

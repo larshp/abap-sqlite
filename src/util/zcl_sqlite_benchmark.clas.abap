@@ -73,7 +73,7 @@ CLASS zcl_sqlite_benchmark IMPLEMENTATION.
 
     GET RUN TIME FIELD lv_start.
     SELECT mandt, filename, blockno, data FROM zsqlite_files INTO TABLE @lt_read
-      WHERE mandt = @sy-mandt AND filename = @c_filename
+      WHERE filename = @c_filename
       ORDER BY blockno.
     GET RUN TIME FIELD lv_end.
     rs_result-read_count = lines( lt_read ).
