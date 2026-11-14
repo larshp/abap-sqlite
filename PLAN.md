@@ -607,7 +607,7 @@ reference run.
 
 #### M6.4 Demo and docs
 
-- [ ] A demo program `ZSQLITE_DEMO` and a usage section in the README
+- [x] A demo program `ZSQLITE_DEMO` and a usage section in the README
 
 **Done when:** the README examples match the tests, and the demo runs in the transpiler.
 

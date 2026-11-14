@@ -7,6 +7,7 @@
   "scripts": {
     "lint": "abaplint",
     "unit": "rimraf output && abap_transpile && node output/index.mjs",
+    "demo": "rimraf output && abap_transpile && node output/project/zsqlite_demo.prog.mjs",
     "benchmark": "rimraf output && abap_transpile && node test/benchmark.mjs",
     "fixtures": "node test/tools/make-fixtures.mjs",
     "verify": "node test/tools/export-and-verify.mjs",
