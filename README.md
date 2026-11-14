@@ -147,13 +147,28 @@ npm test
 | Command | What it does |
 |---------|--------------|
 | `npm run lint` | abaplint with the rule set in `abaplint.jsonc`, using open-abap syntax |
-| `npm run unit` | transpiles `src/` to JavaScript in `output/` and runs the ABAP Unit tests on Node |
+| `npm run unit` | transpiles `src/` and `test/abap/` to JavaScript in `output/` and runs the ABAP Unit tests on Node |
 
 Both layers can also be run on their own. `npm run unit` empties `output/` first, so run it
 again after every ABAP change; the result is only as fresh as the last transpile.
 
 The first `npm run unit` additionally clones open-abap-core and therefore takes longer than
 later runs.
+
+### Where the unit tests live
+
+| Folder | Deployed by abapGit | Runs on |
+|--------|---------------------|---------|
+| `src/` | yes | a real SAP system and the transpiled run |
+| `test/abap/` | no | the transpiled run only |
+
+Tests in `src/` build their own data and need no setup, so they also pass in ABAP Unit or
+Code Inspector on a real system. Tests that read the committed SQLite files in
+`test/fixtures/` live in `test/abap/`, in holder classes named after the class under test plus `_FIXT`, for example
+`ZCL_SQLITE_PAGER_FIXT`. Before the transpiled
+tests run, `test/setup.mjs` loads those files into `ZSQLITE_FILES` as `fixtures/<name>.db`
+and `queries.json` into `ZSQLITE_QUERIES`. A new test that opens a `fixtures/` file belongs
+in the matching `_FIXT` class. Nothing in `src/` may refer to a class in `test/abap/`.
 
 ## Debugging
 

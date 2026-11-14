@@ -1,6 +1,6 @@
 {
   "global": {
-    "files": "/{src,test}/**/*.*",
+    "files": "/{src,test/abap}/**/*.*",
     "errorOnDuplicateFilenames": true
   },
   "syntax": {
