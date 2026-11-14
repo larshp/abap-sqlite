@@ -121,6 +121,7 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
     DATA lt_keys      TYPE ty_values.
     DATA lv_index     TYPE i.
     DATA ls_group     TYPE ty_group.
+    FIELD-SYMBOLS <ls_group> TYPE ty_group.
 
     CLEAR mt_groups.
 
@@ -136,7 +137,8 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
           APPEND lo_row TO ls_group-rows.
           APPEND ls_group TO mt_groups.
         ELSE.
-          APPEND lo_row TO mt_groups[ lv_index ]-rows.
+          READ TABLE mt_groups ASSIGNING <ls_group> INDEX lv_index.
+          APPEND lo_row TO <ls_group>-rows.
         ENDIF.
       ENDWHILE.
     ELSE.

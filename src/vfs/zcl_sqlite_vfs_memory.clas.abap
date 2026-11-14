@@ -139,12 +139,12 @@ CLASS zcl_sqlite_vfs_memory IMPLEMENTATION.
 
     READ TABLE mt_files INTO ls_file WITH KEY name = iv_name.
     IF sy-subrc <> 0.
-      RAISE EXCEPTION TYPE cx_sy_file_access_error.
+      RAISE EXCEPTION TYPE cx_sy_file_open.
     ENDIF.
 
     READ TABLE mt_files TRANSPORTING NO FIELDS WITH KEY name = iv_new_name.
     IF sy-subrc = 0.
-      RAISE EXCEPTION TYPE cx_sy_file_access_error.
+      RAISE EXCEPTION TYPE cx_sy_file_open.
     ENDIF.
 
     DELETE mt_files WHERE name = iv_name.

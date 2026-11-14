@@ -208,10 +208,10 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     DATA lv_old_name TYPE zsqlite_files-filename.
 
     IF zif_sqlite_vfs~exists( iv_name ) = abap_false.
-      RAISE EXCEPTION TYPE cx_sy_file_access_error.
+      RAISE EXCEPTION TYPE cx_sy_file_open.
     ENDIF.
     IF zif_sqlite_vfs~exists( iv_new_name ) = abap_true.
-      RAISE EXCEPTION TYPE cx_sy_file_access_error.
+      RAISE EXCEPTION TYPE cx_sy_file_open.
     ENDIF.
 
     lv_old_name = db_name( iv_name ).
@@ -519,7 +519,7 @@ CLASS zcl_sqlite_vfs_table IMPLEMENTATION.
     DATA lv_size TYPE i.
 
     IF zif_sqlite_vfs~exists( iv_name ) = abap_false.
-      RAISE EXCEPTION TYPE cx_sy_file_access_error.
+      RAISE EXCEPTION TYPE cx_sy_file_open.
     ENDIF.
 
     lv_size = file_size( iv_name ).

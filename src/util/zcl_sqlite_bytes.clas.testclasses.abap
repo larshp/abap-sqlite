@@ -616,16 +616,16 @@ CLASS ltcl_bytes IMPLEMENTATION.
     DATA ls_bits TYPE zcl_sqlite_bytes=>ty_float64.
 
     lt_hex = VALUE #(
-      ( '0000000000000000' )
-      ( '3FF0000000000000' )
-      ( 'BFF0000000000000' )
-      ( '3FF8000000000000' )
-      ( '4000000000000000' )
-      ( '3FB999999999999A' )
-      ( '7FEFFFFFFFFFFFFF' )
-      ( '0010000000000000' )
-      ( '7E37E43C8800759C' )
-      ( '01A56E1FC2F8F359' ) ).
+      ( CONV #( '0000000000000000' ) )
+      ( CONV #( '3FF0000000000000' ) )
+      ( CONV #( 'BFF0000000000000' ) )
+      ( CONV #( '3FF8000000000000' ) )
+      ( CONV #( '4000000000000000' ) )
+      ( CONV #( '3FB999999999999A' ) )
+      ( CONV #( '7FEFFFFFFFFFFFFF' ) )
+      ( CONV #( '0010000000000000' ) )
+      ( CONV #( '7E37E43C8800759C' ) )
+      ( CONV #( '01A56E1FC2F8F359' ) ) ).
 
     LOOP AT lt_hex INTO lv_hex.
       ls_bits = zcl_sqlite_bytes=>read_f64( iv_data   = lv_hex
@@ -735,8 +735,8 @@ CLASS ltcl_bytes IMPLEMENTATION.
     DATA lv_value TYPE f.
 
     lt_hex = VALUE #(
-      ( '0000000000000001' )
-      ( '000FFFFFFFFFFFFF' ) ).
+      ( CONV #( '0000000000000001' ) )
+      ( CONV #( '000FFFFFFFFFFFFF' ) ) ).
 
     LOOP AT lt_hex INTO lv_hex.
       ls_bits = zcl_sqlite_bytes=>read_f64( iv_data   = lv_hex
