@@ -486,8 +486,33 @@ function joinsDatabase() {
   return db;
 }
 
-function manyIndexesDatabase() {
+function constraintsDatabase() {
   const db = new SQL.Database();
+  db.run("PRAGMA page_size = 1024");
+  db.run(`
+    CREATE TABLE constrained (
+      id INTEGER PRIMARY KEY,
+      code TEXT NOT NULL COLLATE NOCASE,
+      rcode TEXT COLLATE RTRIM,
+      qty INTEGER DEFAULT (1 + 2) CHECK (qty > 0),
+      label TEXT DEFAULT (lower('MiXeD')),
+      amount INTEGER,
+      CONSTRAINT amount_ok CHECK (amount >= 0)
+    )`);
+  db.run(`
+    INSERT INTO constrained (id, code, rcode, qty, label, amount) VALUES
+      (1, 'alpha', 'x ', 1, 'one', 10),
+      (2, 'Beta', 'y  ', 2, 'two', 0)`);
+  db.run(`
+    INSERT INTO constrained (id, code, rcode, amount) VALUES
+      (3, 'ALPHA', 'z', 5)`);
+  db.run(`
+    INSERT INTO constrained (id, code, rcode, qty, label, amount) VALUES
+      (4, 'aLpHa', NULL, 4, 'last', 7)`);
+  return db;
+}
+
+function manyIndexesDatabase() {  const db = new SQL.Database();
   db.run("PRAGMA page_size = 512");
   db.run(`
     CREATE TABLE m (
@@ -1265,6 +1290,46 @@ const queryDefinitions = [
     database: "joins.db",
     sql: "SELECT shipments.carrier FROM orders NATURAL JOIN shipments ORDER BY order_id",
   },
+  {
+    name: "constraints.where_nocase",
+    database: "constraints.db",
+    sql: "SELECT id FROM constrained WHERE code = 'ALPHA' ORDER BY id",
+  },
+  {
+    name: "constraints.order_nocase",
+    database: "constraints.db",
+    sql: "SELECT id FROM constrained ORDER BY code, id",
+  },
+  {
+    name: "constraints.group_nocase",
+    database: "constraints.db",
+    sql: "SELECT code, count(*) FROM constrained GROUP BY code ORDER BY code",
+  },
+  {
+    name: "constraints.distinct_nocase",
+    database: "constraints.db",
+    sql: "SELECT DISTINCT code FROM constrained ORDER BY code",
+  },
+  {
+    name: "constraints.in_nocase",
+    database: "constraints.db",
+    sql: "SELECT id FROM constrained WHERE code IN ('ALPHA') ORDER BY id",
+  },
+  {
+    name: "constraints.between_nocase",
+    database: "constraints.db",
+    sql: "SELECT id FROM constrained WHERE code BETWEEN 'alpha' AND 'ALPHA' ORDER BY id",
+  },
+  {
+    name: "constraints.where_rtrim",
+    database: "constraints.db",
+    sql: "SELECT id FROM constrained WHERE rcode = 'x' ORDER BY id",
+  },
+  {
+    name: "constraints.defaults",
+    database: "constraints.db",
+    sql: "SELECT id, qty, label FROM constrained WHERE id = 3",
+  },
 ];
 
 // Deterministic bulk cases keep the differential corpus broad enough to catch
@@ -1632,5 +1697,6 @@ await writeFixture("many_indexes", manyIndexesDatabase());
 await writeFixture("ordering", orderingDatabase());
 await writeFixture("aggregates", aggregatesDatabase());
 await writeFixture("joins", joinsDatabase());
+await writeFixture("constraints", constraintsDatabase());
 
 await writeQueries();

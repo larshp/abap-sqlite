@@ -510,7 +510,8 @@ CLASS zcl_sqlite_table_scan IMPLEMENTATION.
       lo_row->add_cell(
         iv_name       = ls_column-name
         iv_table_name = lv_table_name
-        io_value      = lo_value ).
+        io_value      = lo_value
+        iv_collation  = ls_column-collation ).
     ENDLOOP.
 
     IF ms_table-without_rowid = abap_false.

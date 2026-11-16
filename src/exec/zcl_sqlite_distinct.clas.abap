@@ -67,31 +67,32 @@ CLASS zcl_sqlite_distinct IMPLEMENTATION.
 
   METHOD is_duplicate.
     DATA lo_existing TYPE REF TO zcl_sqlite_row.
-    DATA lt_existing TYPE zcl_sqlite_row=>ty_values.
-    DATA lt_current  TYPE zcl_sqlite_row=>ty_values.
-    DATA lo_left     TYPE REF TO zcl_sqlite_value.
-    DATA lo_right    TYPE REF TO zcl_sqlite_value.
+    DATA lt_existing TYPE zcl_sqlite_row=>ty_cells.
+    DATA lt_current  TYPE zcl_sqlite_row=>ty_cells.
+    DATA ls_left     TYPE zcl_sqlite_row=>ty_cell.
+    DATA ls_right    TYPE zcl_sqlite_row=>ty_cell.
     DATA lv_index    TYPE i.
 
-    lt_current = io_row->values( ).
+    lt_current = io_row->cells( ).
     LOOP AT mt_rows INTO lo_existing.
-      lt_existing = lo_existing->values( ).
+      lt_existing = lo_existing->cells( ).
       rv_duplicate = abap_true.
       DO mv_visible_count TIMES.
         lv_index = sy-index.
-        READ TABLE lt_existing INTO lo_left INDEX lv_index.
-        READ TABLE lt_current INTO lo_right INDEX lv_index.
+        READ TABLE lt_existing INTO ls_left INDEX lv_index.
+        READ TABLE lt_current INTO ls_right INDEX lv_index.
 
-        IF lo_left->is_null( ) = abap_true AND lo_right->is_null( ) = abap_true.
+        IF ls_left-value->is_null( ) = abap_true AND ls_right-value->is_null( ) = abap_true.
           CONTINUE.
         ENDIF.
-        IF lo_left->is_null( ) = abap_true OR lo_right->is_null( ) = abap_true.
+        IF ls_left-value->is_null( ) = abap_true OR ls_right-value->is_null( ) = abap_true.
           rv_duplicate = abap_false.
           EXIT.
         ENDIF.
         IF zcl_sqlite_expr_eval=>compare_values(
-            io_left  = lo_left
-            io_right = lo_right ) <> 0.
+            io_left      = ls_left-value
+            io_right     = ls_right-value
+            iv_collation = ls_left-collation ) <> 0.
           rv_duplicate = abap_false.
           EXIT.
         ENDIF.

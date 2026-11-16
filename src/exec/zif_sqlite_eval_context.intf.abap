@@ -7,6 +7,11 @@ INTERFACE zif_sqlite_eval_context
     RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
     RAISING   zcx_sqlite_error.
 
+  METHODS collation_of
+    IMPORTING iv_name             TYPE string
+    RETURNING VALUE(rv_collation) TYPE string
+    RAISING   zcx_sqlite_error.
+
   METHODS aggregate
     IMPORTING io_function     TYPE REF TO zcl_sqlite_ast_function
     RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value

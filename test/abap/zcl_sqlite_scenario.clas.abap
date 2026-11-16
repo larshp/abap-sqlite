@@ -7,6 +7,7 @@ CLASS zcl_sqlite_scenario DEFINITION
   CREATE PUBLIC.
 
   PUBLIC SECTION.
+    CONSTANTS c_constraints_database TYPE string VALUE 'compat/constraints.db'.
     CONSTANTS c_create_table_database TYPE string VALUE 'compat/create-table.db'.
     CONSTANTS c_delete_database TYPE string VALUE 'compat/delete.db'.
     CONSTANTS c_drop_database TYPE string VALUE 'compat/drop.db'.
@@ -27,6 +28,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS create_table
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS column_constraints
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -125,6 +130,40 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_database->close( ).
 
     rv_name = c_empty_database.
+  ENDMETHOD.
+
+  METHOD column_constraints.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_constraints_database ).
+
+    lo_database = zcl_sqlite_database=>open( c_constraints_database ).
+    lo_database->execute(
+      'CREATE TABLE constrained (id INTEGER PRIMARY KEY,' &&
+      ' code TEXT NOT NULL COLLATE NOCASE,' &&
+      ' rcode TEXT COLLATE RTRIM,' &&
+      ' qty INTEGER DEFAULT (1 + 2) CHECK (qty > 0),' &&
+      ' label TEXT DEFAULT (lower(''MiXeD'')),' &&
+      ' amount INTEGER,' &&
+      ' CONSTRAINT amount_ok CHECK (amount >= 0))' ).
+    lo_database->execute(
+      'INSERT INTO constrained (id, code, rcode, qty, label, amount) ' &&
+      'VALUES (1, ''alpha'', ''x '', 1, ''one'', 10)' ).
+    lo_database->execute(
+      'INSERT INTO constrained (id, code, rcode, qty, label, amount) ' &&
+      'VALUES (2, ''Beta'', ''y  '', 2, ''two'', 0)' ).
+    lo_database->execute(
+      'INSERT INTO constrained (id, code, rcode, amount) ' &&
+      'VALUES (3, ''ALPHA'', ''z'', 5)' ).
+    lo_database->execute(
+      'INSERT INTO constrained (id, code, rcode, qty, label, amount) ' &&
+      'VALUES (4, ''aLpHa'', NULL, 4, ''last'', 7)' ).
+    lo_database->execute( 'UPDATE constrained SET amount = amount + 1 WHERE id = 2' ).
+    lo_database->close( ).
+
+    rv_name = c_constraints_database.
   ENDMETHOD.
 
   METHOD insert_statements.

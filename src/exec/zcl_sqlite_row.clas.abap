@@ -14,6 +14,7 @@ CLASS zcl_sqlite_row DEFINITION
              name       TYPE string,
              table_name TYPE string,
              value      TYPE REF TO zcl_sqlite_value,
+             collation  TYPE string,
              hidden     TYPE abap_bool,
            END OF ty_cell.
     TYPES ty_cells TYPE STANDARD TABLE OF ty_cell WITH DEFAULT KEY.
@@ -23,6 +24,7 @@ CLASS zcl_sqlite_row DEFINITION
       IMPORTING iv_name       TYPE string
                 iv_table_name TYPE string OPTIONAL
                 io_value      TYPE REF TO zcl_sqlite_value
+                iv_collation  TYPE string OPTIONAL
                 iv_hidden     TYPE abap_bool DEFAULT abap_false.
 
     METHODS cells
@@ -50,6 +52,7 @@ CLASS zcl_sqlite_row IMPLEMENTATION.
     ls_cell-name = iv_name.
     ls_cell-table_name = iv_table_name.
     ls_cell-value = io_value.
+    ls_cell-collation = iv_collation.
     ls_cell-hidden = iv_hidden.
     APPEND ls_cell TO mt_cells.
   ENDMETHOD.
@@ -125,6 +128,41 @@ CLASS zcl_sqlite_row IMPLEMENTATION.
 
     RAISE EXCEPTION TYPE zcx_sqlite_error
       EXPORTING iv_message = |no such column: { iv_name }|.
+  ENDMETHOD.
+
+  METHOD zif_sqlite_eval_context~collation_of.
+    DATA ls_cell        TYPE ty_cell.
+    DATA lv_match_table TYPE string.
+    DATA lv_matches     TYPE i.
+
+    LOOP AT mt_cells INTO ls_cell.
+      IF ls_cell-hidden = abap_true.
+        CONTINUE.
+      ENDIF.
+      IF to_upper( ls_cell-name ) <> to_upper( iv_name ).
+        CONTINUE.
+      ENDIF.
+      IF lv_matches = 0.
+        rv_collation = ls_cell-collation.
+        lv_match_table = ls_cell-table_name.
+      ELSEIF to_upper( ls_cell-table_name ) <> to_upper( lv_match_table ).
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING iv_message = |ambiguous column name: { iv_name }|.
+      ENDIF.
+      lv_matches = lv_matches + 1.
+    ENDLOOP.
+
+    IF lv_matches > 0.
+      RETURN.
+    ENDIF.
+
+    LOOP AT mt_cells INTO ls_cell.
+      IF ls_cell-table_name IS NOT INITIAL
+          AND to_upper( |{ ls_cell-table_name }.{ ls_cell-name }| ) = to_upper( iv_name ).
+        rv_collation = ls_cell-collation.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD zif_sqlite_eval_context~aggregate.

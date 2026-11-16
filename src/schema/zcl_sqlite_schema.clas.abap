@@ -17,6 +17,14 @@ CLASS zcl_sqlite_schema DEFINITION
       c_affinity_numeric TYPE string VALUE 'NUMERIC'.
 
     TYPES:
+      BEGIN OF ty_check,
+        name       TYPE string,
+        expression TYPE REF TO zcl_sqlite_ast_node,
+        text       TYPE string,
+      END OF ty_check,
+      ty_checks TYPE STANDARD TABLE OF ty_check WITH DEFAULT KEY.
+
+    TYPES:
       BEGIN OF ty_column,
         cid                TYPE i,
         name               TYPE string,
@@ -24,6 +32,9 @@ CLASS zcl_sqlite_schema DEFINITION
         notnull            TYPE abap_bool,
         dflt_value         TYPE string,
         dflt_value_is_null TYPE abap_bool,
+        default_expression TYPE REF TO zcl_sqlite_ast_node,
+        collation          TYPE string,
+        checks             TYPE ty_checks,
         pk                 TYPE i,
         affinity           TYPE string,
         rowid_alias        TYPE abap_bool,
@@ -58,6 +69,7 @@ CLASS zcl_sqlite_schema DEFINITION
         without_rowid TYPE abap_bool,
         strict        TYPE abap_bool,
         columns       TYPE ty_columns,
+        checks        TYPE ty_checks,
         indexes       TYPE ty_indexes,
       END OF ty_table,
       ty_tables TYPE STANDARD TABLE OF ty_table WITH DEFAULT KEY.
@@ -125,7 +137,18 @@ CLASS zcl_sqlite_schema DEFINITION
 
     METHODS build_columns
       IMPORTING io_statement      TYPE REF TO zcl_sqlite_ast_create_table
-      RETURNING VALUE(rt_columns) TYPE ty_columns.
+      RETURNING VALUE(rt_columns) TYPE ty_columns
+      RAISING   zcx_sqlite_error.
+
+    METHODS build_table_checks
+      IMPORTING io_statement     TYPE REF TO zcl_sqlite_ast_create_table
+      RETURNING VALUE(rt_checks) TYPE ty_checks
+      RAISING   zcx_sqlite_error.
+
+    METHODS append_check
+      IMPORTING io_constraint TYPE REF TO zcl_sqlite_ast_constraint
+      CHANGING  ct_checks     TYPE ty_checks
+      RAISING   zcx_sqlite_error.
 
     METHODS find_primary_key
       IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_create_table
@@ -362,6 +385,7 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
     ls_table-without_rowid = io_statement->is_without_rowid( ).
     ls_table-strict = io_statement->is_strict( ).
     ls_table-columns = build_columns( io_statement ).
+    ls_table-checks = build_table_checks( io_statement ).
 
     ls_pk = find_primary_key( io_statement ).
     ls_table-columns = apply_primary_key(
@@ -419,11 +443,46 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
           WHEN 'DEFAULT'.
             ls_column-dflt_value_is_null = abap_false.
             ls_column-dflt_value = default_text( lo_constraint->get_expression( ) ).
+            ls_column-default_expression = lo_constraint->get_expression( ).
+          WHEN 'COLLATE'.
+            ls_column-collation = zcl_sqlite_expr_eval=>supported_collation(
+              lo_constraint->get_collation( ) ).
+          WHEN 'CHECK'.
+            append_check(
+              EXPORTING io_constraint = lo_constraint
+              CHANGING  ct_checks     = ls_column-checks ).
         ENDCASE.
       ENDLOOP.
 
       APPEND ls_column TO rt_columns.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD build_table_checks.
+    DATA lt_constraints TYPE zcl_sqlite_ast_create_table=>ty_constraints.
+    DATA lo_constraint TYPE REF TO zcl_sqlite_ast_constraint.
+
+    lt_constraints = io_statement->get_constraints( ).
+    LOOP AT lt_constraints INTO lo_constraint.
+      IF lo_constraint->get_kind( ) = 'CHECK'.
+        append_check(
+          EXPORTING io_constraint = lo_constraint
+          CHANGING  ct_checks     = rt_checks ).
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD append_check.
+    DATA ls_check TYPE ty_check.
+
+    IF io_constraint->get_expression( ) IS NOT BOUND.
+      RETURN.
+    ENDIF.
+
+    ls_check-name = io_constraint->get_name( ).
+    ls_check-expression = io_constraint->get_expression( ).
+    ls_check-text = expression_text( io_constraint->get_expression( ) ).
+    APPEND ls_check TO ct_checks.
   ENDMETHOD.
 
   METHOD find_primary_key.
@@ -871,6 +930,7 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
     DATA lo_literal TYPE REF TO zcl_sqlite_ast_literal.
     DATA lo_unary TYPE REF TO zcl_sqlite_ast_unary.
     DATA lo_binary TYPE REF TO zcl_sqlite_ast_binary.
+    DATA lo_name TYPE REF TO zcl_sqlite_ast_name.
     DATA lv_operator TYPE string.
 
     IF io_expression IS NOT BOUND.
@@ -906,6 +966,9 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
       rv_text = |{ expression_text( lo_binary->get_left( ) ) } |.
       rv_text = rv_text && lo_binary->get_operator( ).
       rv_text = rv_text && | { expression_text( lo_binary->get_right( ) ) }|.
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_name.
+      lo_name ?= io_expression.
+      rv_text = lo_name->get_text( ).
     ELSE.
       rv_text = io_expression->dump( ).
     ENDIF.

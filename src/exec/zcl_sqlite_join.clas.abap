@@ -11,6 +11,7 @@ CLASS zcl_sqlite_join DEFINITION
     TYPES: BEGIN OF ty_column,
              name       TYPE string,
              table_name TYPE string,
+             collation  TYPE string,
              hidden     TYPE abap_bool,
            END OF ty_column.
     TYPES ty_columns TYPE STANDARD TABLE OF ty_column WITH DEFAULT KEY.
@@ -180,10 +181,15 @@ CLASS zcl_sqlite_join IMPLEMENTATION.
     DATA lo_left_value TYPE REF TO zcl_sqlite_value.
     DATA lo_right_value TYPE REF TO zcl_sqlite_value.
     DATA lv_name       TYPE string.
+    DATA lv_collation  TYPE string.
 
     LOOP AT mt_using INTO lv_name.
       lo_context = io_left.
       lo_left_value = lo_context->value_of( lv_name ).
+      lv_collation = lo_context->collation_of( lv_name ).
+      IF lv_collation IS INITIAL.
+        lv_collation = 'BINARY'.
+      ENDIF.
       lo_context = io_right.
       lo_right_value = lo_context->value_of( lv_name ).
 
@@ -194,7 +200,7 @@ CLASS zcl_sqlite_join IMPLEMENTATION.
       IF zcl_sqlite_expr_eval=>compare_values(
           io_left      = lo_left_value
           io_right     = lo_right_value
-          iv_collation = 'BINARY' ) <> 0.
+          iv_collation = lv_collation ) <> 0.
         RETURN.
       ENDIF.
     ENDLOOP.

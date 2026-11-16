@@ -1,0 +1,113 @@
+{
+  "pragmas": {
+    "page_size": 1024,
+    "page_count": 2,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "constrained",
+      "sql": "CREATE TABLE constrained (\n      id INTEGER PRIMARY KEY,\n      code TEXT NOT NULL COLLATE NOCASE,\n      rcode TEXT COLLATE RTRIM,\n      qty INTEGER DEFAULT (1 + 2) CHECK (qty > 0),\n      label TEXT DEFAULT (lower('MiXeD')),\n      amount INTEGER,\n      CONSTRAINT amount_ok CHECK (amount >= 0)\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 1
+        },
+        {
+          "cid": 1,
+          "name": "code",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "rcode",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 3,
+          "name": "qty",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": "1 + 2",
+          "primary_key": 0
+        },
+        {
+          "cid": 4,
+          "name": "label",
+          "type": "TEXT",
+          "notnull": false,
+          "default": "lower('MiXeD')",
+          "primary_key": 0
+        },
+        {
+          "cid": 5,
+          "name": "amount",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "alpha",
+          "x ",
+          1,
+          "one",
+          10
+        ],
+        [
+          2,
+          "Beta",
+          "y  ",
+          2,
+          "two",
+          0
+        ],
+        [
+          3,
+          "ALPHA",
+          "z",
+          3,
+          "mixed",
+          5
+        ],
+        [
+          4,
+          "aLpHa",
+          null,
+          4,
+          "last",
+          7
+        ]
+      ]
+    }
+  ],
+  "indexes": [],
+  "schema": [
+    {
+      "type": "table",
+      "name": "constrained",
+      "tbl_name": "constrained",
+      "rootpage": 2,
+      "sql": "CREATE TABLE constrained (\n      id INTEGER PRIMARY KEY,\n      code TEXT NOT NULL COLLATE NOCASE,\n      rcode TEXT COLLATE RTRIM,\n      qty INTEGER DEFAULT (1 + 2) CHECK (qty > 0),\n      label TEXT DEFAULT (lower('MiXeD')),\n      amount INTEGER,\n      CONSTRAINT amount_ok CHECK (amount >= 0)\n    )"
+    }
+  ]
+}

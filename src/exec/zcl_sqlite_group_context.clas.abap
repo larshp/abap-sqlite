@@ -12,8 +12,9 @@ CLASS zcl_sqlite_group_context DEFINITION
     TYPES ty_values TYPE STANDARD TABLE OF REF TO zcl_sqlite_value WITH DEFAULT KEY.
 
     TYPES: BEGIN OF ty_alias,
-             name  TYPE string,
-             value TYPE REF TO zcl_sqlite_value,
+             name      TYPE string,
+             value     TYPE REF TO zcl_sqlite_value,
+             collation TYPE string,
            END OF ty_alias.
     TYPES ty_aliases TYPE STANDARD TABLE OF ty_alias WITH DEFAULT KEY.
 
@@ -70,6 +71,11 @@ CLASS zcl_sqlite_group_context DEFINITION
       RETURNING VALUE(rv_seen) TYPE abap_bool
       RAISING   zcx_sqlite_error.
 
+    METHODS argument_collation
+      IMPORTING io_argument         TYPE REF TO zcl_sqlite_ast_node
+      RETURNING VALUE(rv_collation) TYPE string
+      RAISING   zcx_sqlite_error.
+
     METHODS add_overflow
       IMPORTING iv_left            TYPE int8
                 iv_right           TYPE int8
@@ -103,6 +109,25 @@ CLASS zcl_sqlite_group_context IMPLEMENTATION.
 
     lo_context = mt_rows[ 1 ].
     ro_value = lo_context->value_of( iv_name ).
+  ENDMETHOD.
+
+  METHOD zif_sqlite_eval_context~collation_of.
+    DATA lo_context TYPE REF TO zif_sqlite_eval_context.
+    DATA ls_alias   TYPE ty_alias.
+
+    LOOP AT mt_aliases INTO ls_alias.
+      IF to_upper( ls_alias-name ) = to_upper( iv_name ).
+        rv_collation = ls_alias-collation.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+    IF lines( mt_rows ) = 0.
+      RETURN.
+    ENDIF.
+
+    lo_context = mt_rows[ 1 ].
+    rv_collation = lo_context->collation_of( iv_name ).
   ENDMETHOD.
 
   METHOD zif_sqlite_eval_context~aggregate.
@@ -142,10 +167,7 @@ CLASS zcl_sqlite_group_context IMPLEMENTATION.
     ENDIF.
 
     lv_argument = lt_arguments[ 1 ].
-    lv_collation = zcl_sqlite_expr_eval=>collation_of_expression( lv_argument ).
-    IF lv_collation IS INITIAL.
-      lv_collation = 'BINARY'.
-    ENDIF.
+    lv_collation = argument_collation( lv_argument ).
 
     LOOP AT mt_rows INTO lo_row.
       lo_context = lo_row.
@@ -295,10 +317,7 @@ CLASS zcl_sqlite_group_context IMPLEMENTATION.
 
     lt_arguments = io_function->get_arguments( ).
     lv_argument = lt_arguments[ 1 ].
-    lv_collation = zcl_sqlite_expr_eval=>collation_of_expression( lv_argument ).
-    IF lv_collation IS INITIAL.
-      lv_collation = 'BINARY'.
-    ENDIF.
+    lv_collation = argument_collation( lv_argument ).
 
     lo_result = lt_values[ 1 ].
     LOOP AT lt_values INTO lo_value FROM 2.
@@ -340,10 +359,7 @@ CLASS zcl_sqlite_group_context IMPLEMENTATION.
       iv_max      = 2 ).
 
     lv_argument = lt_arguments[ 1 ].
-    lv_collation = zcl_sqlite_expr_eval=>collation_of_expression( lv_argument ).
-    IF lv_collation IS INITIAL.
-      lv_collation = 'BINARY'.
-    ENDIF.
+    lv_collation = argument_collation( lv_argument ).
     lv_first = abap_true.
 
     LOOP AT mt_rows INTO lo_row.
@@ -414,6 +430,20 @@ CLASS zcl_sqlite_group_context IMPLEMENTATION.
         RETURN.
       ENDIF.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD argument_collation.
+    DATA lo_context TYPE REF TO zif_sqlite_eval_context.
+
+    IF lines( mt_rows ) > 0.
+      lo_context = mt_rows[ 1 ].
+      rv_collation = zcl_sqlite_expr_eval=>collation_of_expression(
+        io_expression = io_argument
+        io_context    = lo_context ).
+    ENDIF.
+    IF rv_collation IS INITIAL.
+      rv_collation = 'BINARY'.
+    ENDIF.
   ENDMETHOD.
 
   METHOD add_overflow.

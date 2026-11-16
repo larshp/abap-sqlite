@@ -6365,6 +6365,219 @@
       ]
     },
     {
+      "name": "constraints.where_nocase",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id FROM constrained WHERE code = 'ALPHA' ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "constraints.order_nocase",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id FROM constrained ORDER BY code, id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "constraints.group_nocase",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT code, count(*) FROM constrained GROUP BY code ORDER BY code",
+      "columns": [
+        "code",
+        "count(*)"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "alpha"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Beta"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "constraints.distinct_nocase",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT DISTINCT code FROM constrained ORDER BY code",
+      "columns": [
+        "code"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "constraints.in_nocase",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id FROM constrained WHERE code IN ('ALPHA') ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "constraints.between_nocase",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id FROM constrained WHERE code BETWEEN 'alpha' AND 'ALPHA' ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "constraints.where_rtrim",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id FROM constrained WHERE rcode = 'x' ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "constraints.defaults",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id, qty, label FROM constrained WHERE id = 3",
+      "columns": [
+        "id",
+        "qty",
+        "label"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "mixed"
+          }
+        ]
+      ]
+    },
+    {
       "name": "generated.many_a_0_0",
       "database": "fixtures/many_indexes.db",
       "sql": "SELECT id, a, b, c FROM m WHERE a = 'a' ORDER BY id",

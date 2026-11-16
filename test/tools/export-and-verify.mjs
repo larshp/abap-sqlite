@@ -437,8 +437,48 @@ async function verifyInsertStatements(SQL, tempDir) {
   );
 }
 
-async function verifyFreelist(SQL, tempDir) {
-  const fileName = (await zcl_sqlite_scenario.freelist_cycle({rv_name: 1})).get();
+async function verifyColumnConstraints(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.column_constraints({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "constraints.db");
+  const reference = new SQL.Database();
+  const statements = [
+    "CREATE TABLE constrained (id INTEGER PRIMARY KEY, code TEXT NOT NULL COLLATE NOCASE, rcode TEXT COLLATE RTRIM, qty INTEGER DEFAULT (1 + 2) CHECK (qty > 0), label TEXT DEFAULT (lower('MiXeD')), amount INTEGER, CONSTRAINT amount_ok CHECK (amount >= 0))",
+    "INSERT INTO constrained (id, code, rcode, qty, label, amount) VALUES (1, 'alpha', 'x ', 1, 'one', 10)",
+    "INSERT INTO constrained (id, code, rcode, qty, label, amount) VALUES (2, 'Beta', 'y  ', 2, 'two', 0)",
+    "INSERT INTO constrained (id, code, rcode, amount) VALUES (3, 'ALPHA', 'z', 5)",
+    "INSERT INTO constrained (id, code, rcode, qty, label, amount) VALUES (4, 'aLpHa', NULL, 4, 'last', 7)",
+    "UPDATE constrained SET amount = amount + 1 WHERE id = 2",
+  ];
+  const columns = ["id", "code", "rcode", "qty", "label", "amount"];
+
+  try {
+    for (const sql of statements) {
+      reference.run(sql);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.deepEqual(
+      rows(exported.db, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      rows(reference, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      "sqlite_schema rows differ",
+    );
+    assert.equal(scalar(exported.db, "SELECT COUNT(*) FROM constrained"), 4, "row count mismatch");
+    assert.deepEqual(
+      typedRows(exported.db, "constrained", columns),
+      typedRows(reference, "constrained", columns),
+      "constrained typed rows differ",
+    );
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, column constraints)`,
+  );
+}
+
+async function verifyFreelist(SQL, tempDir) {  const fileName = (await zcl_sqlite_scenario.freelist_cycle({rv_name: 1})).get();
   const exported = await openExported(SQL, tempDir, fileName, "freelist.db");
 
   try {
@@ -885,6 +925,7 @@ try {
     ["empty", verifyEmpty],
     ["insert", verifyInsert],
     ["insert-statements", verifyInsertStatements],
+    ["constraints", verifyColumnConstraints],
     ["index", verifyIndex],
     ["drop", verifyDrop],
     ["freelist", verifyFreelist],

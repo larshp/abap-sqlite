@@ -22,6 +22,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS exec_script FOR TESTING RAISING zcx_sqlite_error.
     METHODS database_error_codes FOR TESTING RAISING zcx_sqlite_error.
     METHODS abap_conveniences FOR TESTING RAISING zcx_sqlite_error.
+    METHODS column_constraints FOR TESTING RAISING zcx_sqlite_error.
 
     TYPES: BEGIN OF ty_abap_row,
              id      TYPE i,
@@ -2490,6 +2491,186 @@ CLASS ltcl_database IMPLEMENTATION.
 
   METHOD count_rows.
     rv_count = lines( io_database->query( iv_sql )-rows ).
+  ENDMETHOD.
+
+  METHOD column_constraints.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lv_name     TYPE string.
+
+    lv_name = 'test/m7_1_column_constraints.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute(
+      'CREATE TABLE t (id INTEGER PRIMARY KEY,' &&
+      ' code TEXT COLLATE NOCASE,' &&
+      ' qty INTEGER CHECK (qty > 0),' &&
+      ' amount INTEGER DEFAULT (1 + 2),' &&
+      ' name TEXT DEFAULT (lower(''ABC'')),' &&
+      ' CONSTRAINT amount_ok CHECK (amount >= 0))' ).
+
+    lo_database->execute( 'INSERT INTO t (id, code, qty) VALUES (1, ''alpha'', 1)' ).
+    lo_database->execute( 'INSERT INTO t (id, code, qty) VALUES (2, ''Beta'', 2)' ).
+    lo_database->execute( 'INSERT INTO t (id, code, qty) VALUES (3, ''ALPHA'', 3)' ).
+
+    rs_result = lo_database->query( 'SELECT amount, name FROM t WHERE id = 1' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 3
+      msg = 'default expression (1 + 2)' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'abc'
+      msg = 'default function lower(''ABC'')' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE code = ''ALPHA''' )
+      exp = 2
+      msg = 'column collation applies to comparisons' ).
+
+    rs_result = lo_database->query( 'SELECT id FROM t ORDER BY code, id' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 1
+      msg = 'column collation applies to ordering' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 3.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'column collation ordering tie' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT DISTINCT code FROM t' )
+      exp = 2
+      msg = 'column collation applies to distinct' ).
+
+    rs_result = lo_database->query( 'SELECT code, count(*) AS n FROM t GROUP BY code ORDER BY code' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'column collation applies to grouping' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'case variants grouped together' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO t (id, code, qty) VALUES (4, ''gamma'', 0)' ).
+        cl_abap_unit_assert=>fail( 'column CHECK must be enforced on insert' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint
+          msg = 'column CHECK error code' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'CHECK constraint failed: qty > 0'
+          msg = 'column CHECK error message' ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'UPDATE t SET qty = 0 WHERE id = 1' ).
+        cl_abap_unit_assert=>fail( 'column CHECK must be enforced on update' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint
+          msg = 'column CHECK update error code' ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'INSERT INTO t (id, code, qty, amount) VALUES (4, ''gamma'', 1, -1)' ).
+        cl_abap_unit_assert=>fail( 'table CHECK must be enforced' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'CHECK constraint failed: amount_ok'
+          msg = 'table CHECK error message' ).
+    ENDTRY.
+
+    lo_database->execute( 'INSERT INTO t (id, code) VALUES (4, ''delta'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 4' )
+      exp = 1
+      msg = 'NULL passes a CHECK constraint' ).
+
+    lo_database->execute( 'CREATE TABLE named (v INTEGER CONSTRAINT positive CHECK (v > 0))' ).
+    TRY.
+        lo_database->execute( 'INSERT INTO named VALUES (0)' ).
+        cl_abap_unit_assert=>fail( 'named column CHECK must be enforced' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'CHECK constraint failed: positive'
+          msg = 'named column CHECK uses the constraint name' ).
+    ENDTRY.
+
+    lo_database->execute( 'CREATE TABLE stamp (created TEXT DEFAULT CURRENT_TIMESTAMP)' ).
+    lo_database->execute( 'INSERT INTO stamp DEFAULT VALUES' ).
+    rs_result = lo_database->query( 'SELECT typeof(created), length(created) FROM stamp' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'text'
+      msg = 'CURRENT_TIMESTAMP default type' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 19
+      msg = 'CURRENT_TIMESTAMP default format' ).
+
+    lo_database->close( ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE code = ''ALPHA''' )
+      exp = 2
+      msg = 'column collation survives reopen' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO t (id, code, qty) VALUES (5, ''zeta'', 0)' ).
+        cl_abap_unit_assert=>fail( 'reopened column CHECK must be enforced' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'CHECK constraint failed: qty > 0'
+          msg = 'reopened column CHECK message' ).
+    ENDTRY.
+
+    lo_database->execute( 'INSERT INTO t (id, code) VALUES (5, ''zeta'')' ).
+    rs_result = lo_database->query( 'SELECT amount, name FROM t WHERE id = 5' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 3
+      msg = 'default expression survives reopen' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'abc'
+      msg = 'default function survives reopen' ).
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
 
   METHOD transactions.

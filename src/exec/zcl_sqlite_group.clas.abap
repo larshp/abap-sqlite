@@ -22,6 +22,7 @@ CLASS zcl_sqlite_group DEFINITION
   PRIVATE SECTION.
     TYPES ty_rows TYPE zcl_sqlite_group_context=>ty_rows.
     TYPES ty_values TYPE zcl_sqlite_group_context=>ty_values.
+    TYPES ty_collations TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
 
     TYPES: BEGIN OF ty_group,
              keys TYPE ty_values,
@@ -34,7 +35,6 @@ CLASS zcl_sqlite_group DEFINITION
     DATA mt_columns     TYPE ty_columns.
     DATA mv_visible_count TYPE i.
     DATA mo_having      TYPE REF TO zcl_sqlite_ast_node.
-    DATA mt_collations  TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
     DATA mt_groups      TYPE ty_groups.
     DATA mv_index       TYPE i.
     DATA mo_row         TYPE REF TO zcl_sqlite_row.
@@ -47,8 +47,14 @@ CLASS zcl_sqlite_group DEFINITION
       RETURNING VALUE(rt_keys) TYPE ty_values
       RAISING   zcx_sqlite_error.
 
+    METHODS group_collations
+      IMPORTING io_context           TYPE REF TO zif_sqlite_eval_context
+      RETURNING VALUE(rt_collations) TYPE ty_collations
+      RAISING   zcx_sqlite_error.
+
     METHODS find_group
       IMPORTING it_keys         TYPE ty_values
+                it_collations   TYPE ty_collations
       RETURNING VALUE(rv_index) TYPE i
       RAISING   zcx_sqlite_error.
 
@@ -64,22 +70,11 @@ ENDCLASS.
 CLASS zcl_sqlite_group IMPLEMENTATION.
 
   METHOD constructor.
-    DATA lo_expression TYPE REF TO zcl_sqlite_ast_node.
-    DATA lv_collation  TYPE string.
-
     mo_source = io_source.
     mt_group_by = it_group_by.
     mt_columns = it_columns.
     mv_visible_count = iv_visible_count.
     mo_having = io_having.
-
-    LOOP AT mt_group_by INTO lo_expression.
-      lv_collation = zcl_sqlite_expr_eval=>collation_of_expression( lo_expression ).
-      IF lv_collation IS INITIAL.
-        lv_collation = 'BINARY'.
-      ENDIF.
-      APPEND lv_collation TO mt_collations.
-    ENDLOOP.
   ENDMETHOD.
 
   METHOD zif_sqlite_operator~open.
@@ -119,6 +114,7 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
     DATA lo_row       TYPE REF TO zcl_sqlite_row.
     DATA lo_context   TYPE REF TO zif_sqlite_eval_context.
     DATA lt_keys      TYPE ty_values.
+    DATA lt_collations TYPE ty_collations.
     DATA lv_index     TYPE i.
     DATA ls_group     TYPE ty_group.
     FIELD-SYMBOLS <ls_group> TYPE ty_group.
@@ -130,7 +126,10 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
         lo_row = mo_source->row( ).
         lo_context = lo_row.
         lt_keys = group_keys( lo_context ).
-        lv_index = find_group( lt_keys ).
+        lt_collations = group_collations( lo_context ).
+        lv_index = find_group(
+          it_keys       = lt_keys
+          it_collations = lt_collations ).
         IF lv_index = 0.
           CLEAR ls_group.
           ls_group-keys = lt_keys.
@@ -145,6 +144,7 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
       lo_row = NEW zcl_sqlite_row( ).
       lo_context = lo_row.
       lt_keys = group_keys( lo_context ).
+      lt_collations = group_collations( lo_context ).
       ls_group-keys = lt_keys.
       APPEND lo_row TO ls_group-rows.
       APPEND ls_group TO mt_groups.
@@ -168,6 +168,21 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
     ENDLOOP.
   ENDMETHOD.
 
+  METHOD group_collations.
+    DATA lo_expression TYPE REF TO zcl_sqlite_ast_node.
+    DATA lv_collation  TYPE string.
+
+    LOOP AT mt_group_by INTO lo_expression.
+      lv_collation = zcl_sqlite_expr_eval=>collation_of_expression(
+        io_expression = lo_expression
+        io_context    = io_context ).
+      IF lv_collation IS INITIAL.
+        lv_collation = 'BINARY'.
+      ENDIF.
+      APPEND lv_collation TO rt_collations.
+    ENDLOOP.
+  ENDMETHOD.
+
   METHOD find_group.
     DATA ls_group   TYPE ty_group.
     DATA lo_left    TYPE REF TO zcl_sqlite_value.
@@ -184,7 +199,7 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
         lv_position = sy-index.
         READ TABLE ls_group-keys INTO lo_left INDEX lv_position.
         READ TABLE it_keys INTO lo_right INDEX lv_position.
-        READ TABLE mt_collations INTO lv_collation INDEX lv_position.
+        READ TABLE it_collations INTO lv_collation INDEX lv_position.
         IF zcl_sqlite_expr_eval=>compare_values(
             io_left      = lo_left
             io_right     = lo_right
@@ -223,6 +238,7 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
           io_context    = io_context ).
         ls_alias-name = ls_column-name.
         ls_alias-value = lo_value.
+        ls_alias-collation = ls_column-collation.
         APPEND ls_alias TO lt_aliases.
       ENDLOOP.
 
@@ -245,8 +261,9 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
         io_expression = ls_column-expression
         io_context    = lo_context ).
       lo_row->add_cell(
-        iv_name  = ls_column-name
-        io_value = lo_value ).
+        iv_name      = ls_column-name
+        io_value     = lo_value
+        iv_collation = ls_column-collation ).
     ENDLOOP.
 
     mo_row = lo_row.

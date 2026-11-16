@@ -32,7 +32,13 @@ CLASS zcl_sqlite_expr_eval DEFINITION
 
     CLASS-METHODS collation_of_expression
       IMPORTING io_expression       TYPE REF TO zcl_sqlite_ast_node
+                io_context          TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(rv_collation) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS supported_collation
+      IMPORTING iv_name        TYPE string
+      RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS value_to_integer
@@ -268,15 +274,17 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       RETURNING VALUE(rv_collation) TYPE string
       RAISING   zcx_sqlite_error.
 
-    CLASS-METHODS effective_collation
-      IMPORTING io_left             TYPE REF TO zcl_sqlite_ast_node
-                io_right            TYPE REF TO zcl_sqlite_ast_node
+    CLASS-METHODS collation_of_context
+      IMPORTING io_expression       TYPE REF TO zcl_sqlite_ast_node
+                io_context          TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(rv_collation) TYPE string
       RAISING   zcx_sqlite_error.
 
-    CLASS-METHODS supported_collation
-      IMPORTING iv_name        TYPE string
-      RETURNING VALUE(rv_name) TYPE string
+    CLASS-METHODS effective_collation
+      IMPORTING io_left             TYPE REF TO zcl_sqlite_ast_node
+                io_right            TYPE REF TO zcl_sqlite_ast_node
+                io_context          TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(rv_collation) TYPE string
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS evaluate_logic
@@ -1015,8 +1023,10 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         ro_value = zcl_sqlite_value=>null( ).
         RETURN.
       ENDIF.
-      lv_collation = effective_collation( io_left  = io_left
-                                          io_right = io_right ).
+      lv_collation = effective_collation(
+        io_left    = io_left
+        io_right   = io_right
+        io_context = io_context ).
       lv_compare = compare_non_null(
         io_left      = lo_left
         io_right     = lo_right
@@ -1068,8 +1078,10 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ELSEIF lo_left->is_null( ) = abap_true OR lo_right->is_null( ) = abap_true.
       lv_result = 0.
     ELSE.
-      lv_collation = effective_collation( io_left  = io_left
-                                          io_right = io_right ).
+      lv_collation = effective_collation(
+        io_left    = io_left
+        io_right   = io_right
+        io_context = io_context ).
       lv_result = bool_to_int( boolc( compare_non_null(
         io_left      = lo_left
         io_right     = lo_right
@@ -1279,8 +1291,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_first = c_truth_null.
     ELSE.
       lv_collation = effective_collation(
-        io_left  = io_between->get_expression( )
-        io_right = io_between->get_low( ) ).
+        io_left    = io_between->get_expression( )
+        io_right   = io_between->get_low( )
+        io_context = io_context ).
       lv_first = bool_to_int( boolc( compare_non_null(
         io_left      = lo_value
         io_right     = lo_low
@@ -1300,8 +1313,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
           lv_second = c_truth_null.
         ELSE.
           lv_collation = effective_collation(
-            io_left  = io_between->get_expression( )
-            io_right = io_between->get_high( ) ).
+            io_left    = io_between->get_expression( )
+            io_right   = io_between->get_high( )
+            io_context = io_context ).
           lv_second = bool_to_int( boolc( compare_non_null(
             io_left      = lo_value
             io_right     = lo_high
@@ -1339,7 +1353,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       io_expression = io_in->get_expression( )
       io_context    = io_context ).
     lt_values = io_in->get_values( ).
-    lv_collation = collation_of( io_in->get_expression( ) ).
+    lv_collation = collation_of_context(
+      io_expression = io_in->get_expression( )
+      io_context    = io_context ).
     IF lv_collation IS INITIAL.
       lv_collation = 'BINARY'.
     ENDIF.
@@ -2423,11 +2439,16 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD collation_of.
+    rv_collation = collation_of_context( io_expression ).
+  ENDMETHOD.
+
+  METHOD collation_of_context.
     DATA lo_binary  TYPE REF TO zcl_sqlite_ast_binary.
     DATA lo_unary   TYPE REF TO zcl_sqlite_ast_unary.
     DATA lo_cast    TYPE REF TO zcl_sqlite_ast_cast.
     DATA lo_case    TYPE REF TO zcl_sqlite_ast_case.
     DATA lo_collate TYPE REF TO zcl_sqlite_ast_collate.
+    DATA lo_name    TYPE REF TO zcl_sqlite_ast_name.
     DATA lt_whens   TYPE zcl_sqlite_ast_case=>ty_whens.
     DATA ls_when    TYPE zcl_sqlite_ast_case=>ty_when.
 
@@ -2441,34 +2462,56 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_binary.
       lo_binary ?= io_expression.
       IF lo_binary->get_operator( ) = '||'.
-        rv_collation = collation_of( lo_binary->get_left( ) ).
+        rv_collation = collation_of_context(
+          io_expression = lo_binary->get_left( )
+          io_context    = io_context ).
         IF rv_collation IS INITIAL.
-          rv_collation = collation_of( lo_binary->get_right( ) ).
+          rv_collation = collation_of_context(
+            io_expression = lo_binary->get_right( )
+            io_context    = io_context ).
         ENDIF.
       ENDIF.
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_unary.
       lo_unary ?= io_expression.
-      rv_collation = collation_of( lo_unary->get_operand( ) ).
+      rv_collation = collation_of_context(
+        io_expression = lo_unary->get_operand( )
+        io_context    = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_cast.
       lo_cast ?= io_expression.
-      rv_collation = collation_of( lo_cast->get_expression( ) ).
+      rv_collation = collation_of_context(
+        io_expression = lo_cast->get_expression( )
+        io_context    = io_context ).
     ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_case.
       lo_case ?= io_expression.
       lt_whens = lo_case->get_whens( ).
       LOOP AT lt_whens INTO ls_when.
-        rv_collation = collation_of( ls_when-result ).
+        rv_collation = collation_of_context(
+          io_expression = ls_when-result
+          io_context    = io_context ).
         IF rv_collation IS NOT INITIAL.
           RETURN.
         ENDIF.
       ENDLOOP.
-      rv_collation = collation_of( lo_case->get_else( ) ).
+      rv_collation = collation_of_context(
+        io_expression = lo_case->get_else( )
+        io_context    = io_context ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_name
+        AND io_context IS BOUND.
+      lo_name ?= io_expression.
+      IF lo_name->get_kind( ) = zcl_sqlite_ast_name=>c_column.
+        rv_collation = io_context->collation_of( lo_name->get_text( ) ).
+      ENDIF.
     ENDIF.
   ENDMETHOD.
 
   METHOD effective_collation.
-    rv_collation = collation_of( io_left ).
+    rv_collation = collation_of_context(
+      io_expression = io_left
+      io_context    = io_context ).
     IF rv_collation IS INITIAL.
-      rv_collation = collation_of( io_right ).
+      rv_collation = collation_of_context(
+        io_expression = io_right
+        io_context    = io_context ).
     ENDIF.
     IF rv_collation IS INITIAL.
       rv_collation = 'BINARY'.
@@ -2840,8 +2883,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
             CONTINUE.
           ENDIF.
           lv_collation = effective_collation(
-            io_left  = lo_base
-            io_right = ls_when-condition ).
+            io_left    = lo_base
+            io_right   = ls_when-condition
+            io_context = io_context ).
           IF compare_non_null(
               io_left      = lo_base_value
               io_right     = lo_result
@@ -2958,7 +3002,9 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD collation_of_expression.
-    rv_collation = collation_of( io_expression ).
+    rv_collation = collation_of_context(
+      io_expression = io_expression
+      io_context    = io_context ).
   ENDMETHOD.
 
   METHOD value_to_integer.

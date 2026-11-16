@@ -15,6 +15,7 @@ CLASS ltcl_schema DEFINITION FINAL FOR TESTING
     METHODS rowid_alias_rules FOR TESTING RAISING zcx_sqlite_error.
     METHODS unique_index_rules FOR TESTING RAISING zcx_sqlite_error.
     METHODS default_values FOR TESTING RAISING zcx_sqlite_error.
+    METHODS column_constraints FOR TESTING RAISING zcx_sqlite_error.
     METHODS strict_without_rowid_not_null
       FOR TESTING RAISING zcx_sqlite_error.
 
@@ -364,6 +365,56 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_dflt_value   = 'X''AB'''
       iv_dflt_is_null = abap_false
       iv_context      = 'default blob' ).
+  ENDMETHOD.
+
+  METHOD column_constraints.
+    DATA lo_schema TYPE REF TO zcl_sqlite_schema.
+    DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA ls_check TYPE zcl_sqlite_schema=>ty_check.
+
+    lo_schema = build_from_sql(
+      |CREATE TABLE t (| &&
+      |a TEXT COLLATE NOCASE CHECK (a <> ''),| &&
+      |b INTEGER CONSTRAINT positive CHECK (b > 0),| &&
+      |CONSTRAINT table_ok CHECK (b < 100))| ).
+    ls_table = lo_schema->table( 't' ).
+
+    READ TABLE ls_table-columns INTO ls_column INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_column-collation
+      exp = 'NOCASE'
+      msg = 'column collation' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( ls_column-checks )
+      exp = 1
+      msg = 'column check count' ).
+    READ TABLE ls_column-checks INTO ls_check INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_check-text
+      exp = 'a <> '''''
+      msg = 'column check text' ).
+
+    READ TABLE ls_table-columns INTO ls_column INDEX 2.
+    READ TABLE ls_column-checks INTO ls_check INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_check-name
+      exp = 'positive'
+      msg = 'named column check' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( ls_table-checks )
+      exp = 1
+      msg = 'table check count' ).
+    READ TABLE ls_table-checks INTO ls_check INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_check-name
+      exp = 'table_ok'
+      msg = 'named table check' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_check-text
+      exp = 'b < 100'
+      msg = 'table check text' ).
   ENDMETHOD.
 
   METHOD strict_without_rowid_not_null.

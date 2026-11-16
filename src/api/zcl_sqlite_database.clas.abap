@@ -411,6 +411,7 @@ CLASS zcl_sqlite_database DEFINITION
     METHODS resolve_order_terms
       IMPORTING it_order_by        TYPE zcl_sqlite_ast_order_by=>ty_list
                 it_project_columns TYPE zcl_sqlite_project=>ty_columns
+                it_table_columns   TYPE ty_from_columns OPTIONAL
                 iv_visible_count   TYPE i
       RETURNING VALUE(rs_result)   TYPE ty_order_result
       RAISING   zcx_sqlite_error.
@@ -429,6 +430,33 @@ CLASS zcl_sqlite_database DEFINITION
     METHODS simple_column_name
       IMPORTING iv_name        TYPE string
       RETURNING VALUE(rv_name) TYPE string.
+
+    METHODS expression_collation
+      IMPORTING io_expression       TYPE REF TO zcl_sqlite_ast_node
+                it_table_columns    TYPE ty_from_columns OPTIONAL
+      RETURNING VALUE(rv_collation) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS from_column_collation
+      IMPORTING it_columns          TYPE ty_from_columns
+                iv_name             TYPE string
+      RETURNING VALUE(rv_collation) TYPE string.
+
+    METHODS row_context
+      IMPORTING is_table          TYPE zcl_sqlite_schema=>ty_table
+                iv_table_name     TYPE string OPTIONAL
+                it_values         TYPE zcl_sqlite_record=>ty_values
+                iv_rowid          TYPE int8
+      RETURNING VALUE(ro_context) TYPE REF TO zcl_sqlite_row.
+
+    METHODS check_row
+      IMPORTING is_table   TYPE zcl_sqlite_schema=>ty_table
+                io_context TYPE REF TO zif_sqlite_eval_context
+      RAISING   zcx_sqlite_error.
+
+    METHODS check_failed
+      IMPORTING is_check TYPE zcl_sqlite_schema=>ty_check
+      RAISING   zcx_sqlite_error.
 
 ENDCLASS.
 
@@ -627,6 +655,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ls_order_result = resolve_order_terms(
       it_order_by        = lt_order_by
       it_project_columns = lt_project_columns
+      it_table_columns   = ls_from_plan-columns
       iv_visible_count   = lv_visible_count ).
     lt_project_columns = ls_order_result-columns.
     lt_order_terms = ls_order_result-terms.
@@ -1669,6 +1698,14 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
             iv_code    = zcx_sqlite_error=>sqlite_error
             iv_message = |no such column: { lo_column->get_name( ) }|.
       ENDIF.
+      IF lv_found = abap_true
+          AND ls_column-collation IS NOT INITIAL
+          AND to_upper( ls_column-collation ) <> 'BINARY'.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = |collation { ls_column-collation } is not supported yet|.
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
 
@@ -2036,7 +2073,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       ro_context->add_cell(
         iv_name       = ls_column-name
         iv_table_name = iv_table_name
-        io_value      = lo_value ).
+        io_value      = lo_value
+        iv_collation  = ls_column-collation ).
     ENDLOOP.
 
     ro_context->add_cell(
@@ -2061,6 +2099,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA ls_target TYPE ty_update_target.
     DATA lv_new_rowid TYPE int8.
     DATA lv_type TYPE string.
+    DATA lo_context TYPE REF TO zcl_sqlite_row.
 
     LOOP AT is_table-columns INTO ls_column.
       IF ls_column-rowid_alias = abap_true.
@@ -2109,9 +2148,102 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
 
+    lo_context = row_context(
+      is_table      = is_table
+      iv_table_name = is_table-name
+      it_values     = lt_new_values
+      iv_rowid      = lv_new_rowid ).
+    check_row(
+      is_table   = is_table
+      io_context = lo_context ).
+
     rs_row-old_rowid = iv_rowid.
     rs_row-new_rowid = lv_new_rowid.
     rs_row-payload = zcl_sqlite_record=>encode( lt_new_values ).
+  ENDMETHOD.
+
+  METHOD row_context.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA lo_value  TYPE REF TO zcl_sqlite_value.
+    DATA lv_name   TYPE string.
+
+    lv_name = iv_table_name.
+    IF lv_name IS INITIAL.
+      lv_name = is_table-name.
+    ENDIF.
+
+    ro_context = NEW zcl_sqlite_row( ).
+    LOOP AT is_table-columns INTO ls_column.
+      READ TABLE it_values INTO lo_value INDEX sy-tabix.
+      IF sy-subrc <> 0.
+        lo_value = zcl_sqlite_value=>null( ).
+      ENDIF.
+      IF ls_column-rowid_alias = abap_true
+          AND lo_value->is_null( ) = abap_true.
+        lo_value = zcl_sqlite_value=>integer( iv_rowid ).
+      ENDIF.
+      ro_context->add_cell(
+        iv_name       = ls_column-name
+        iv_table_name = lv_name
+        io_value      = lo_value
+        iv_collation  = ls_column-collation ).
+    ENDLOOP.
+
+    IF is_table-without_rowid = abap_false.
+      ro_context->add_cell(
+        iv_name       = 'rowid'
+        iv_table_name = lv_name
+        io_value      = zcl_sqlite_value=>integer( iv_rowid ) ).
+      ro_context->add_cell(
+        iv_name       = '_rowid_'
+        iv_table_name = lv_name
+        io_value      = zcl_sqlite_value=>integer( iv_rowid ) ).
+      ro_context->add_cell(
+        iv_name       = 'oid'
+        iv_table_name = lv_name
+        io_value      = zcl_sqlite_value=>integer( iv_rowid ) ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD check_row.
+    DATA ls_check TYPE zcl_sqlite_schema=>ty_check.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+
+    LOOP AT is_table-columns INTO DATA(ls_column).
+      LOOP AT ls_column-checks INTO ls_check.
+        lo_value = zcl_sqlite_expr_eval=>evaluate(
+          io_expression = ls_check-expression
+          io_context    = io_context ).
+        IF lo_value->is_null( ) = abap_false
+            AND zcl_sqlite_expr_eval=>is_true( lo_value ) = abap_false.
+          check_failed( ls_check ).
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
+
+    LOOP AT is_table-checks INTO ls_check.
+      lo_value = zcl_sqlite_expr_eval=>evaluate(
+        io_expression = ls_check-expression
+        io_context    = io_context ).
+      IF lo_value->is_null( ) = abap_false
+          AND zcl_sqlite_expr_eval=>is_true( lo_value ) = abap_false.
+        check_failed( ls_check ).
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD check_failed.
+    DATA lv_text TYPE string.
+
+    lv_text = is_check-name.
+    IF lv_text IS INITIAL.
+      lv_text = is_check-text.
+    ENDIF.
+
+    RAISE EXCEPTION TYPE zcx_sqlite_error
+      EXPORTING
+        iv_code    = zcx_sqlite_error=>sqlite_constraint
+        iv_message = |CHECK constraint failed: { lv_text }|.
   ENDMETHOD.
 
   METHOD rowid_select_name.
@@ -2225,6 +2357,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lv_rowid_set TYPE abap_bool.
     DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
     DATA lv_root_page TYPE i.
+    DATA lo_context TYPE REF TO zcl_sqlite_row.
 
     LOOP AT it_columns INTO ls_insert_column.
       ls_column = ls_insert_column-column.
@@ -2238,8 +2371,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       ELSE.
         lo_value = zcl_sqlite_value=>null( ).
         IF ls_column-rowid_alias = abap_false
-            AND ls_column-dflt_value_is_null = abap_false.
-          lo_value = zcl_sqlite_expr_eval=>evaluate_sql( |SELECT { ls_column-dflt_value }| ).
+            AND ls_column-default_expression IS BOUND.
+          lo_value = zcl_sqlite_expr_eval=>evaluate( ls_column-default_expression ).
         ENDIF.
       ENDIF.
 
@@ -2291,6 +2424,15 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     lo_writer = NEW zcl_sqlite_btree_writer(
       io_pager     = mo_pager
       iv_root_page = lv_root_page ).
+    lo_context = row_context(
+      is_table      = is_table
+      iv_table_name = is_table-name
+      it_values     = lt_record_values
+      iv_rowid      = lv_rowid ).
+    check_row(
+      is_table   = is_table
+      io_context = lo_context ).
+
     lo_writer->insert_row(
       iv_rowid   = lv_rowid
       iv_payload = zcl_sqlite_record=>encode( lt_record_values ) ).
@@ -2426,17 +2568,25 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         ENDIF.
       ENDIF.
 
-      lv_collation = zcl_sqlite_expr_eval=>collation_of_expression( lo_expression ).
+      lv_collation = expression_collation(
+        io_expression    = lo_expression
+        it_table_columns = it_table_columns ).
       IF lv_position = 0.
         lv_hidden = lv_hidden + 1.
         ls_project-expression = lo_expression.
         ls_project-name = |__order_{ lv_hidden }|.
+        ls_project-collation = lv_collation.
         APPEND ls_project TO rs_result-columns.
         lv_position = lines( rs_result-columns ).
-      ELSEIF lv_collation IS INITIAL.
+      ELSE.
         READ TABLE rs_result-columns INTO ls_project INDEX lv_position.
         IF sy-subrc = 0.
-          lv_collation = zcl_sqlite_expr_eval=>collation_of_expression( ls_project-expression ).
+          lv_collation = ls_project-collation.
+          IF lv_collation IS INITIAL.
+            lv_collation = expression_collation(
+              io_expression    = ls_project-expression
+              it_table_columns = it_table_columns ).
+          ENDIF.
         ENDIF.
       ENDIF.
 
@@ -2586,6 +2736,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     LOOP AT ls_table-columns INTO ls_table_column.
       ls_from_column-name = ls_table_column-name.
       ls_from_column-table_name = lv_table_name.
+      ls_from_column-collation = ls_table_column-collation.
       ls_from_column-hidden = abap_false.
       APPEND ls_from_column TO rs_plan-columns.
     ENDLOOP.
@@ -2762,6 +2913,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
               iv_text = |{ ls_from_column-table_name }.{ ls_from_column-name }| ).
           ENDIF.
           ls_project_column-name = ls_from_column-name.
+          ls_project_column-collation = ls_from_column-collation.
           APPEND ls_project_column TO rt_columns.
         ENDLOOP.
         IF lv_qualifier IS NOT INITIAL AND lv_found = abap_false.
@@ -2772,6 +2924,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       ENDIF.
 
       ls_project_column-expression = lo_expression.
+      ls_project_column-collation = expression_collation(
+        io_expression    = lo_expression
+        it_table_columns = it_table_columns ).
       lv_alias = lo_result_column->get_alias( ).
       IF lv_alias IS NOT INITIAL.
         ls_project_column-name = lv_alias.
@@ -2787,6 +2942,45 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       ENDIF.
       APPEND ls_project_column TO rt_columns.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD expression_collation.
+    DATA lo_name TYPE REF TO zcl_sqlite_ast_name.
+
+    rv_collation = zcl_sqlite_expr_eval=>collation_of_expression( io_expression ).
+    IF rv_collation IS NOT INITIAL
+        OR io_expression IS NOT INSTANCE OF zcl_sqlite_ast_name.
+      RETURN.
+    ENDIF.
+
+    lo_name ?= io_expression.
+    IF lo_name->get_kind( ) <> zcl_sqlite_ast_name=>c_column.
+      RETURN.
+    ENDIF.
+    rv_collation = from_column_collation(
+      it_columns = it_table_columns
+      iv_name    = lo_name->get_text( ) ).
+  ENDMETHOD.
+
+  METHOD from_column_collation.
+    DATA ls_column TYPE zcl_sqlite_join=>ty_column.
+    DATA lv_name   TYPE string.
+    DATA lv_matches TYPE i.
+
+    LOOP AT it_columns INTO ls_column.
+      IF to_upper( ls_column-name ) = to_upper( iv_name )
+          OR ( ls_column-table_name IS NOT INITIAL
+            AND to_upper( |{ ls_column-table_name }.{ ls_column-name }| ) = to_upper( iv_name ) ).
+        IF lv_matches = 0.
+          rv_collation = ls_column-collation.
+        ENDIF.
+        lv_matches = lv_matches + 1.
+      ENDIF.
+    ENDLOOP.
+
+    IF lv_matches <> 1.
+      CLEAR rv_collation.
+    ENDIF.
   ENDMETHOD.
 
   METHOD star_qualifier.
