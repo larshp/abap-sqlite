@@ -6578,6 +6578,143 @@
       ]
     },
     {
+      "name": "unique.basic_scan",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id, code FROM unique_basic ORDER BY id",
+      "columns": [
+        "id",
+        "code"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "gamma"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "delta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "unique.basic_where",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id FROM unique_basic WHERE code = 'Beta' ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "unique.composite_where",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id FROM unique_basic WHERE part_a = 'x' AND part_b = 'z' ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "unique.null_composite",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id FROM unique_basic WHERE part_a IS NULL ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "unique.nocase_where",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id FROM unique_nocase WHERE code = 'ALPHA' ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "unique.nocase_composite",
+      "database": "fixtures/constraints.db",
+      "sql": "SELECT id FROM unique_nocase WHERE tag = 'x' AND code = 'alpha' ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
       "name": "generated.many_a_0_0",
       "database": "fixtures/many_indexes.db",
       "sql": "SELECT id, a, b, c FROM m WHERE a = 'a' ORDER BY id",

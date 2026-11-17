@@ -224,9 +224,8 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
           ENDIF.
           RETURN.
         WHEN zcl_sqlite_page=>c_table_interior.
-          IF ls_page-cell_count = 0.
-            fail( 'table interior page has no cells' ).
-          ENDIF.
+* SQLite can leave a balanced root interior page with no divider cells and
+* only a rightmost child, so descend to the rightmost child in that case.
           ls_frame-page_number = lv_page.
           ls_frame-data = ls_raw-data.
           ls_frame-page = ls_page.
@@ -297,10 +296,6 @@ CLASS zcl_sqlite_cursor IMPLEMENTATION.
           rv_found = next( ).
           RETURN.
         WHEN zcl_sqlite_page=>c_table_interior.
-          IF ls_page-cell_count = 0.
-            fail( 'table interior page has no cells' ).
-          ENDIF.
-
           ls_frame-page_number = lv_page.
           ls_frame-data = ls_raw-data.
           ls_frame-page = ls_page.

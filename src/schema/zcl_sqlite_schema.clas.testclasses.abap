@@ -248,6 +248,23 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_columns  = '0:a'
       iv_context  = 'unique on rowid alias' ).
 
+    lo_schema = build_from_sql( 'CREATE TABLE t (a TEXT, b INTEGER, PRIMARY KEY(a,b))' ).
+    ls_table = lo_schema->table( 't' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( ls_table-indexes )
+      exp = 1
+      msg = 'composite primary key index count' ).
+    READ TABLE ls_table-indexes INTO ls_index INDEX 1.
+    assert_index(
+      is_index    = ls_index
+      iv_name     = 'sqlite_autoindex_t_1'
+      iv_tbl_name = 't'
+      iv_unique   = abap_true
+      iv_origin   = 'pk'
+      iv_partial  = abap_false
+      iv_columns  = '0:a,1:b'
+      iv_context  = 'composite primary key index' ).
+
     lo_schema = build_from_sql( 'CREATE TABLE t (a TEXT PRIMARY KEY, UNIQUE(a))' ).
     ls_table = lo_schema->table( 't' ).
     cl_abap_unit_assert=>assert_equals(

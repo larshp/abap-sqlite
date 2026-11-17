@@ -23,6 +23,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS database_error_codes FOR TESTING RAISING zcx_sqlite_error.
     METHODS abap_conveniences FOR TESTING RAISING zcx_sqlite_error.
     METHODS column_constraints FOR TESTING RAISING zcx_sqlite_error.
+    METHODS unique_keys FOR TESTING RAISING zcx_sqlite_error.
 
     TYPES: BEGIN OF ty_abap_row,
              id      TYPE i,
@@ -2668,6 +2669,183 @@ CLASS ltcl_database IMPLEMENTATION.
       act = lo_value->as_text( )
       exp = 'abc'
       msg = 'default function survives reopen' ).
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD unique_keys.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA lv_name     TYPE string.
+
+    lv_name = 'test/m7_2_unique_keys.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+
+* a column UNIQUE constraint uses an autoindex
+    lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE)' ).
+    lo_database->execute( 'INSERT INTO t (id, code) VALUES (1, ''alpha'')' ).
+    lo_database->execute( 'INSERT INTO t (id, code) VALUES (2, ''beta'')' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO t (id, code) VALUES (3, ''alpha'')' ).
+        cl_abap_unit_assert=>fail( 'duplicate UNIQUE value was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint
+          msg = 'duplicate UNIQUE error code' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: t.code'
+          msg = 'duplicate UNIQUE error message' ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t' )
+      exp = 2
+      msg = 'failed UNIQUE insert leaves no row behind' ).
+
+* an INTEGER PRIMARY KEY is a rowid alias and reports a UNIQUE failure
+    TRY.
+        lo_database->execute( 'INSERT INTO t (id, code) VALUES (1, ''delta'')' ).
+        cl_abap_unit_assert=>fail( 'duplicate primary key was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint
+          msg = 'duplicate primary key error code' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: t.id'
+          msg = 'duplicate primary key error message' ).
+    ENDTRY.
+
+* NULLs are distinct for UNIQUE constraints
+    lo_database->execute( 'CREATE TABLE nullable (id INTEGER PRIMARY KEY, value TEXT UNIQUE)' ).
+    lo_database->execute( 'INSERT INTO nullable (id, value) VALUES (1, NULL)' ).
+    lo_database->execute( 'INSERT INTO nullable (id, value) VALUES (2, NULL)' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM nullable' )
+      exp = 2
+      msg = 'multiple NULL values satisfy UNIQUE' ).
+
+* composite table-level UNIQUE constraint
+    lo_database->execute(
+      'CREATE TABLE composite (id INTEGER PRIMARY KEY, a TEXT, b TEXT,' &&
+      ' UNIQUE (a, b))' ).
+    lo_database->execute( 'INSERT INTO composite VALUES (1, ''x'', ''y'')' ).
+    lo_database->execute( 'INSERT INTO composite VALUES (2, ''x'', ''z'')' ).
+    lo_database->execute( 'INSERT INTO composite VALUES (3, ''y'', ''y'')' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO composite VALUES (4, ''x'', ''y'')' ).
+        cl_abap_unit_assert=>fail( 'duplicate composite UNIQUE was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: composite.a, composite.b'
+          msg = 'composite UNIQUE error message' ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM composite' )
+      exp = 3
+      msg = 'failed composite UNIQUE insert leaves no row behind' ).
+
+* a NULL in a composite UNIQUE key makes the rows distinct
+    lo_database->execute( 'INSERT INTO composite VALUES (5, NULL, ''z'')' ).
+    lo_database->execute( 'INSERT INTO composite VALUES (6, NULL, ''z'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM composite' )
+      exp = 5
+      msg = 'NULL composite UNIQUE values are distinct' ).
+
+* composite PRIMARY KEY constraint
+    lo_database->execute( 'CREATE TABLE cpk (a TEXT, b INTEGER, value TEXT, PRIMARY KEY (a, b))' ).
+    lo_database->execute( 'INSERT INTO cpk VALUES (''x'', 1, ''one'')' ).
+    lo_database->execute( 'INSERT INTO cpk VALUES (''x'', 2, ''two'')' ).
+    lo_database->execute( 'INSERT INTO cpk VALUES (NULL, 1, ''null one'')' ).
+    lo_database->execute( 'INSERT INTO cpk VALUES (NULL, 1, ''null two'')' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO cpk VALUES (''x'', 1, ''again'')' ).
+        cl_abap_unit_assert=>fail( 'duplicate composite primary key was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: cpk.a, cpk.b'
+          msg = 'composite primary key error message' ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT b FROM cpk' )
+      exp = 4
+      msg = 'composite primary key row count' ).
+
+* a column collation participates in UNIQUE comparisons
+    lo_database->execute( 'CREATE TABLE nocase (id INTEGER PRIMARY KEY, code TEXT COLLATE NOCASE UNIQUE)' ).
+    lo_database->execute( 'INSERT INTO nocase VALUES (1, ''Alpha'')' ).
+    lo_database->execute( 'INSERT INTO nocase VALUES (2, NULL)' ).
+    lo_database->execute( 'INSERT INTO nocase VALUES (3, NULL)' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO nocase VALUES (4, ''alpha'')' ).
+        cl_abap_unit_assert=>fail( 'NOCASE duplicate was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: nocase.code'
+          msg = 'NOCASE UNIQUE error message' ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'UPDATE nocase SET code = ''ALPHA'' WHERE id = 2' ).
+        cl_abap_unit_assert=>fail( 'NOCASE update duplicate was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: nocase.code'
+          msg = 'NOCASE UNIQUE update error message' ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM nocase WHERE code IS NULL' )
+      exp = 2
+      msg = 'failed UNIQUE update leaves the old values' ).
+
+* manual unique indexes use the same error text
+    lo_database->execute( 'CREATE TABLE manual (id INTEGER PRIMARY KEY, tag TEXT)' ).
+    lo_database->execute( 'INSERT INTO manual VALUES (1, ''a'')' ).
+    lo_database->execute( 'CREATE UNIQUE INDEX manual_tag ON manual (tag)' ).
+    TRY.
+        lo_database->execute( 'INSERT INTO manual VALUES (2, ''a'')' ).
+        cl_abap_unit_assert=>fail( 'duplicate unique index value was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: manual.tag'
+          msg = 'unique index error message' ).
+    ENDTRY.
+
+* constraints survive close and reopen
+    lo_database->close( ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    TRY.
+        lo_database->execute( 'INSERT INTO t (id, code) VALUES (4, ''beta'')' ).
+        cl_abap_unit_assert=>fail( 'reopened UNIQUE constraint was not enforced' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: t.code'
+          msg = 'reopened UNIQUE error message' ).
+    ENDTRY.
 
     lo_database->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).

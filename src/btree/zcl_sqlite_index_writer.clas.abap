@@ -24,6 +24,8 @@ CLASS zcl_sqlite_index_writer DEFINITION
       IMPORTING it_values        TYPE ty_values
                 iv_unique        TYPE abap_bool DEFAULT abap_false
                 iv_prefix_length TYPE i DEFAULT 0
+                it_collations    TYPE string_table OPTIONAL
+                iv_constraint    TYPE string OPTIONAL
       RAISING   zcx_sqlite_error.
 
     METHODS clear_tree
@@ -124,7 +126,21 @@ CLASS zcl_sqlite_index_writer DEFINITION
     METHODS contains_prefix
       IMPORTING it_values        TYPE ty_values
                 iv_prefix_length TYPE i
+                it_collations    TYPE string_table OPTIONAL
       RETURNING VALUE(rv_found)  TYPE abap_bool
+      RAISING   zcx_sqlite_error.
+
+    METHODS contains_prefix_collated
+      IMPORTING it_prefix       TYPE ty_values
+                it_collations   TYPE string_table
+      RETURNING VALUE(rv_found) TYPE abap_bool
+      RAISING   zcx_sqlite_error.
+
+    METHODS prefix_matches
+      IMPORTING it_record         TYPE ty_values
+                it_prefix         TYPE ty_values
+                it_collations     TYPE string_table
+      RETURNING VALUE(rv_matches) TYPE abap_bool
       RAISING   zcx_sqlite_error.
 
     METHODS build_cell
@@ -273,15 +289,21 @@ CLASS zcl_sqlite_index_writer IMPLEMENTATION.
     DATA lt_pages TYPE ty_pages.
     DATA lv_cell TYPE xstring.
     DATA lv_page TYPE i.
+    DATA lv_message TYPE string.
     DATA lo_error TYPE REF TO zcx_sqlite_error.
 
     IF iv_unique = abap_true
         AND iv_prefix_length > 0
         AND contains_prefix(
           it_values        = it_values
-          iv_prefix_length = iv_prefix_length ) = abap_true.
+          iv_prefix_length = iv_prefix_length
+          it_collations    = it_collations ) = abap_true.
+      lv_message = 'UNIQUE constraint failed'.
+      IF iv_constraint IS NOT INITIAL.
+        lv_message = |{ lv_message }: { iv_constraint }|.
+      ENDIF.
       fail( iv_code    = zcx_sqlite_error=>sqlite_constraint
-            iv_message = 'UNIQUE constraint failed' ).
+            iv_message = lv_message ).
     ENDIF.
 
     build_cell(
@@ -830,8 +852,6 @@ CLASS zcl_sqlite_index_writer IMPLEMENTATION.
   METHOD contains_prefix.
     DATA lt_prefix TYPE ty_values.
     DATA lo_value TYPE REF TO zcl_sqlite_value.
-    DATA lo_record TYPE REF TO zcl_sqlite_value.
-    DATA lo_prefix TYPE REF TO zcl_sqlite_value.
     DATA ls_raw TYPE zcl_sqlite_pager=>ty_page.
     DATA ls_page TYPE zcl_sqlite_page=>ty_page.
     DATA lt_cells TYPE ty_cells.
@@ -840,6 +860,7 @@ CLASS zcl_sqlite_index_writer IMPLEMENTATION.
     DATA lv_child TYPE i.
     DATA lv_compare TYPE i.
     DATA lv_iterations TYPE i.
+    DATA lv_collation TYPE string.
 
     LOOP AT it_values INTO lo_value.
       IF sy-tabix > iv_prefix_length.
@@ -853,6 +874,19 @@ CLASS zcl_sqlite_index_writer IMPLEMENTATION.
     IF lines( lt_prefix ) <> iv_prefix_length.
       RETURN.
     ENDIF.
+
+* Non-BINARY collations can order and compare keys differently from the
+* physical BINARY order of the index b-tree. Scan every entry instead; the
+* planner avoids these indexes, so this path only serves constraint checks.
+    LOOP AT it_collations INTO lv_collation.
+      IF to_upper( lv_collation ) <> 'BINARY'
+          AND lv_collation IS NOT INITIAL.
+        rv_found = contains_prefix_collated(
+          it_prefix     = lt_prefix
+          it_collations = it_collations ).
+        RETURN.
+      ENDIF.
+    ENDLOOP.
 
     lv_page = mv_root_page.
     WHILE lv_page > 0.
@@ -907,6 +941,60 @@ CLASS zcl_sqlite_index_writer IMPLEMENTATION.
                 iv_message = 'index tree contains a non-index page' ).
       ENDCASE.
     ENDWHILE.
+  ENDMETHOD.
+
+  METHOD contains_prefix_collated.
+    DATA lo_cursor TYPE REF TO zcl_sqlite_index_cursor.
+    DATA lt_record TYPE ty_values.
+
+    lo_cursor = NEW zcl_sqlite_index_cursor(
+      io_pager     = mo_pager
+      iv_root_page = mv_root_page ).
+    IF lo_cursor->first( ) = abap_false.
+      RETURN.
+    ENDIF.
+
+    DO.
+      lt_record = lo_cursor->values( ).
+      IF prefix_matches(
+          it_record     = lt_record
+          it_prefix     = it_prefix
+          it_collations = it_collations ) = abap_true.
+        rv_found = abap_true.
+        RETURN.
+      ENDIF.
+      IF lo_cursor->next( ) = abap_false.
+        EXIT.
+      ENDIF.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD prefix_matches.
+    DATA lo_record TYPE REF TO zcl_sqlite_value.
+    DATA lo_prefix TYPE REF TO zcl_sqlite_value.
+    DATA lv_collation TYPE string.
+
+    LOOP AT it_prefix INTO lo_prefix.
+      READ TABLE it_record INTO lo_record INDEX sy-tabix.
+      IF sy-subrc <> 0 OR lo_record->is_null( ) = abap_true.
+        RETURN.
+      ENDIF.
+
+      lv_collation = 'BINARY'.
+      READ TABLE it_collations INTO lv_collation INDEX sy-tabix.
+      IF sy-subrc <> 0 OR lv_collation IS INITIAL.
+        lv_collation = 'BINARY'.
+      ENDIF.
+
+      IF zcl_sqlite_expr_eval=>compare_values(
+          io_left      = lo_record
+          io_right     = lo_prefix
+          iv_collation = lv_collation ) <> 0.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+    rv_matches = abap_true.
   ENDMETHOD.
 
   METHOD build_cell.

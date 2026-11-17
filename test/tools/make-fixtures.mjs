@@ -509,6 +509,33 @@ function constraintsDatabase() {
   db.run(`
     INSERT INTO constrained (id, code, rcode, qty, label, amount) VALUES
       (4, 'aLpHa', NULL, 4, 'last', 7)`);
+  db.run(`
+    CREATE TABLE unique_basic (
+      id INTEGER PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      part_a TEXT,
+      part_b TEXT,
+      UNIQUE (part_a, part_b)
+    )`);
+  db.run(`
+    INSERT INTO unique_basic VALUES
+      (1, 'alpha', 'x', 'y'),
+      (2, 'Beta', 'x', 'z'),
+      (3, 'gamma', NULL, 'y'),
+      (4, 'delta', NULL, 'y')`);
+  db.run(`
+    CREATE TABLE unique_nocase (
+      id INTEGER PRIMARY KEY,
+      code TEXT COLLATE NOCASE UNIQUE,
+      tag TEXT COLLATE RTRIM,
+      UNIQUE (tag, code)
+    )`);
+  db.run(`
+    INSERT INTO unique_nocase VALUES
+      (1, 'Alpha', 'x '),
+      (2, 'Beta', 'y'),
+      (3, 'Gamma', NULL),
+      (4, 'Delta', NULL)`);
   return db;
 }
 
@@ -1329,6 +1356,36 @@ const queryDefinitions = [
     name: "constraints.defaults",
     database: "constraints.db",
     sql: "SELECT id, qty, label FROM constrained WHERE id = 3",
+  },
+  {
+    name: "unique.basic_scan",
+    database: "constraints.db",
+    sql: "SELECT id, code FROM unique_basic ORDER BY id",
+  },
+  {
+    name: "unique.basic_where",
+    database: "constraints.db",
+    sql: "SELECT id FROM unique_basic WHERE code = 'Beta' ORDER BY id",
+  },
+  {
+    name: "unique.composite_where",
+    database: "constraints.db",
+    sql: "SELECT id FROM unique_basic WHERE part_a = 'x' AND part_b = 'z' ORDER BY id",
+  },
+  {
+    name: "unique.null_composite",
+    database: "constraints.db",
+    sql: "SELECT id FROM unique_basic WHERE part_a IS NULL ORDER BY id",
+  },
+  {
+    name: "unique.nocase_where",
+    database: "constraints.db",
+    sql: "SELECT id FROM unique_nocase WHERE code = 'ALPHA' ORDER BY id",
+  },
+  {
+    name: "unique.nocase_composite",
+    database: "constraints.db",
+    sql: "SELECT id FROM unique_nocase WHERE tag = 'x' AND code = 'alpha' ORDER BY id",
   },
 ];
 

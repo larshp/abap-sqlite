@@ -478,6 +478,113 @@ async function verifyColumnConstraints(SQL, tempDir) {
   );
 }
 
+async function verifyUniqueKeys(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.unique_keys({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "unique.db");
+  const reference = new SQL.Database();
+  const statements = [
+    [
+      "CREATE TABLE unique_basic (id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, part_a TEXT, part_b TEXT, UNIQUE (part_a, part_b))",
+      false,
+    ],
+    [
+      "INSERT INTO unique_basic VALUES (1, 'alpha', 'x', 'y'), (2, 'Beta', 'x', 'z'), (3, 'gamma', NULL, 'y'), (4, 'delta', NULL, 'y')",
+      false,
+    ],
+    ["INSERT INTO unique_basic VALUES (5, 'alpha', 'n', 'm')", true],
+    ["INSERT INTO unique_basic VALUES (6, 'epsilon', 'x', 'y')", true],
+    ["INSERT INTO unique_basic VALUES (7, 'zeta', 'n', 'm')", false],
+    [
+      "CREATE TABLE unique_nocase (id INTEGER PRIMARY KEY, code TEXT COLLATE NOCASE UNIQUE, tag TEXT COLLATE RTRIM, UNIQUE (tag, code))",
+      false,
+    ],
+    [
+      "INSERT INTO unique_nocase VALUES (1, 'Alpha', 'x '), (2, 'Beta', 'y'), (3, 'Gamma', NULL), (4, 'Delta', NULL)",
+      false,
+    ],
+    ["INSERT INTO unique_nocase VALUES (5, 'alpha', 'z')", true],
+    ["UPDATE unique_nocase SET code = 'ALPHA' WHERE id = 3", true],
+    ["UPDATE unique_basic SET code = 'eta' WHERE id = 1", false],
+    ["UPDATE unique_nocase SET tag = 'z' WHERE id = 3", false],
+  ];
+
+  function indexShape(db, table) {
+    return rows(db, `PRAGMA index_list(${quoteIdentifier(table)})`)
+      .map(([, name, unique, origin, partial]) => [name, unique, origin, partial])
+      .sort((left, right) => String(left[0]).localeCompare(String(right[0])));
+  }
+
+  function indexColumns(db, name) {
+    return rows(db, `PRAGMA index_info(${quoteIdentifier(name)})`).map(([, , column]) => column);
+  }
+
+  try {
+    for (const [sql, shouldFail] of statements) {
+      let failed = false;
+      try {
+        reference.run(sql);
+      } catch (error) {
+        failed = true;
+        if (shouldFail === false) {
+          throw error;
+        }
+        assert.match(String(error.message), /UNIQUE constraint failed/, `unexpected error: ${sql}`);
+      }
+      assert.equal(failed, shouldFail, `statement failure mismatch: ${sql}`);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.deepEqual(
+      rows(exported.db, "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name"),
+      rows(reference, "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name"),
+      "sqlite_schema rows differ",
+    );
+
+    for (const table of ["unique_basic", "unique_nocase"]) {
+      assert.deepEqual(indexShape(exported.db, table), indexShape(reference, table), `index list differs for ${table}`);
+      assert.deepEqual(
+        typedRows(exported.db, table, table === "unique_basic"
+          ? ["id", "code", "part_a", "part_b"]
+          : ["id", "code", "tag"]),
+        typedRows(reference, table, table === "unique_basic"
+          ? ["id", "code", "part_a", "part_b"]
+          : ["id", "code", "tag"]),
+        `rows differ for ${table}`,
+      );
+    }
+
+    for (const name of [
+      "sqlite_autoindex_unique_basic_1",
+      "sqlite_autoindex_unique_basic_2",
+      "sqlite_autoindex_unique_nocase_1",
+      "sqlite_autoindex_unique_nocase_2",
+    ]) {
+      assert.deepEqual(
+        indexColumns(exported.db, name),
+        indexColumns(reference, name),
+        `index columns differ for ${name}`,
+      );
+    }
+
+    const queries = [
+      "SELECT id, code FROM unique_basic WHERE code = 'zeta' ORDER BY id",
+      "SELECT id FROM unique_basic WHERE part_a = 'x' AND part_b = 'z' ORDER BY id",
+      "SELECT id, code FROM unique_nocase WHERE code = 'alpha' ORDER BY id",
+      "SELECT id, code, tag FROM unique_nocase ORDER BY id",
+    ];
+    for (const sql of queries) {
+      assert.deepEqual(rows(exported.db, sql), rows(reference, sql), `unique query differs: ${sql}`);
+    }
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, unique keys)`,
+  );
+}
+
 async function verifyFreelist(SQL, tempDir) {  const fileName = (await zcl_sqlite_scenario.freelist_cycle({rv_name: 1})).get();
   const exported = await openExported(SQL, tempDir, fileName, "freelist.db");
 
@@ -926,6 +1033,7 @@ try {
     ["insert", verifyInsert],
     ["insert-statements", verifyInsertStatements],
     ["constraints", verifyColumnConstraints],
+    ["unique", verifyUniqueKeys],
     ["index", verifyIndex],
     ["drop", verifyDrop],
     ["freelist", verifyFreelist],

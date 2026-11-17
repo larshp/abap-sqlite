@@ -22,6 +22,7 @@ CLASS zcl_sqlite_scenario DEFINITION
     CONSTANTS c_random_operations TYPE i VALUE 12000.
     CONSTANTS c_split_database TYPE string VALUE 'compat/split.db'.
     CONSTANTS c_update_database TYPE string VALUE 'compat/update.db'.
+    CONSTANTS c_unique_database TYPE string VALUE 'compat/unique.db'.
 
     CLASS-METHODS create_empty
       RETURNING VALUE(rv_name) TYPE string
@@ -75,7 +76,16 @@ CLASS zcl_sqlite_scenario DEFINITION
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
+    CLASS-METHODS unique_keys
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
   PRIVATE SECTION.
+    CLASS-METHODS expect_constraint_error
+      IMPORTING io_database TYPE REF TO zcl_sqlite_database
+                iv_sql      TYPE string
+      RAISING   zcx_sqlite_error.
+
     CLASS-METHODS make_freeblock
       IMPORTING io_pager         TYPE REF TO zcl_sqlite_pager
                 iv_page          TYPE i
@@ -164,6 +174,74 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_database->close( ).
 
     rv_name = c_constraints_database.
+  ENDMETHOD.
+
+  METHOD unique_keys.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_unique_database ).
+
+    lo_database = zcl_sqlite_database=>open( c_unique_database ).
+    lo_database->execute(
+      'CREATE TABLE unique_basic (id INTEGER PRIMARY KEY,' &&
+      ' code TEXT NOT NULL UNIQUE, part_a TEXT, part_b TEXT,' &&
+      ' UNIQUE (part_a, part_b))' ).
+    lo_database->execute(
+      'INSERT INTO unique_basic VALUES' &&
+      ' (1, ''alpha'', ''x'', ''y''),' &&
+      ' (2, ''Beta'', ''x'', ''z''),' &&
+      ' (3, ''gamma'', NULL, ''y''),' &&
+      ' (4, ''delta'', NULL, ''y'')' ).
+    expect_constraint_error(
+      io_database = lo_database
+      iv_sql      = 'INSERT INTO unique_basic VALUES (5, ''alpha'', ''n'', ''m'')' ).
+    expect_constraint_error(
+      io_database = lo_database
+      iv_sql      = 'INSERT INTO unique_basic VALUES (6, ''epsilon'', ''x'', ''y'')' ).
+    lo_database->execute( 'INSERT INTO unique_basic VALUES (7, ''zeta'', ''n'', ''m'')' ).
+
+    lo_database->execute(
+      'CREATE TABLE unique_nocase (id INTEGER PRIMARY KEY,' &&
+      ' code TEXT COLLATE NOCASE UNIQUE, tag TEXT COLLATE RTRIM,' &&
+      ' UNIQUE (tag, code))' ).
+    lo_database->execute(
+      'INSERT INTO unique_nocase VALUES' &&
+      ' (1, ''Alpha'', ''x ''),' &&
+      ' (2, ''Beta'', ''y''),' &&
+      ' (3, ''Gamma'', NULL),' &&
+      ' (4, ''Delta'', NULL)' ).
+    expect_constraint_error(
+      io_database = lo_database
+      iv_sql      = 'INSERT INTO unique_nocase VALUES (5, ''alpha'', ''z'')' ).
+    expect_constraint_error(
+      io_database = lo_database
+      iv_sql      = 'UPDATE unique_nocase SET code = ''ALPHA'' WHERE id = 3' ).
+
+    lo_database->execute( 'UPDATE unique_basic SET code = ''eta'' WHERE id = 1' ).
+    lo_database->execute( 'UPDATE unique_nocase SET tag = ''z'' WHERE id = 3' ).
+    lo_database->close( ).
+
+    rv_name = c_unique_database.
+  ENDMETHOD.
+
+  METHOD expect_constraint_error.
+    DATA lo_error TYPE REF TO zcx_sqlite_error.
+
+    TRY.
+        io_database->execute( iv_sql ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        IF lo_error->code = zcx_sqlite_error=>sqlite_constraint.
+          RETURN.
+        ENDIF.
+        RAISE EXCEPTION lo_error.
+    ENDTRY.
+
+    RAISE EXCEPTION TYPE zcx_sqlite_error
+      EXPORTING
+        iv_code    = zcx_sqlite_error=>sqlite_constraint
+        iv_message = |expected a constraint error from { iv_sql }|.
   ENDMETHOD.
 
   METHOD insert_statements.

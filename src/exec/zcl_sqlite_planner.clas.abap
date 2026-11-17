@@ -831,6 +831,12 @@ CLASS zcl_sqlite_planner IMPLEMENTATION.
       IF ls_column-name IS INITIAL OR ls_column-rowid_alias = abap_true.
         RETURN.
       ENDIF.
+* The index writer and cursor use BINARY ordering. Until they carry index
+* collations, a collated index cannot be used for seeks or range scans.
+      IF ls_column-collation IS NOT INITIAL
+          AND to_upper( ls_column-collation ) <> 'BINARY'.
+        RETURN.
+      ENDIF.
     ENDLOOP.
 
     rv_usable = abap_true.

@@ -458,6 +458,20 @@ CLASS zcl_sqlite_database DEFINITION
       IMPORTING is_check TYPE zcl_sqlite_schema=>ty_check
       RAISING   zcx_sqlite_error.
 
+    METHODS index_collations
+      IMPORTING is_table             TYPE zcl_sqlite_schema=>ty_table
+                is_index             TYPE zcl_sqlite_schema=>ty_index
+      RETURNING VALUE(rt_collations) TYPE string_table.
+
+    METHODS unique_constraint_text
+      IMPORTING is_table       TYPE zcl_sqlite_schema=>ty_table
+                is_index       TYPE zcl_sqlite_schema=>ty_index
+      RETURNING VALUE(rv_text) TYPE string.
+
+    METHODS primary_key_constraint_text
+      IMPORTING is_table       TYPE zcl_sqlite_schema=>ty_table
+      RETURNING VALUE(rv_text) TYPE string.
+
 ENDCLASS.
 
 
@@ -1534,6 +1548,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_writer TYPE REF TO zcl_sqlite_index_writer.
     DATA lt_values TYPE zcl_sqlite_record=>ty_values.
     DATA lt_key TYPE zcl_sqlite_record=>ty_values.
+    DATA lt_collations TYPE string_table.
+    DATA lv_constraint TYPE string.
     DATA lv_root_page TYPE i.
 
     lv_root_page = is_index-rootpage.
@@ -1541,6 +1557,13 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       io_pager     = mo_pager
       iv_root_page = lv_root_page ).
     lo_writer->clear_tree( ).
+
+    lt_collations = index_collations(
+      is_table = is_table
+      is_index = is_index ).
+    lv_constraint = unique_constraint_text(
+      is_table = is_table
+      is_index = is_index ).
 
     lv_root_page = is_table-rootpage.
     lo_cursor = NEW zcl_sqlite_cursor(
@@ -1560,7 +1583,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       lo_writer->insert_entry(
         it_values        = lt_key
         iv_unique        = is_index-is_unique
-        iv_prefix_length = lines( is_index-columns ) ).
+        iv_prefix_length = lines( is_index-columns )
+        it_collations    = lt_collations
+        iv_constraint    = lv_constraint ).
       IF lo_cursor->next( ) = abap_false.
         EXIT.
       ENDIF.
@@ -1584,6 +1609,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA ls_index TYPE zcl_sqlite_schema=>ty_index.
     DATA lo_writer TYPE REF TO zcl_sqlite_index_writer.
     DATA lt_key TYPE zcl_sqlite_record=>ty_values.
+    DATA lt_collations TYPE string_table.
+    DATA lv_constraint TYPE string.
     DATA lv_root_page TYPE i.
 
     LOOP AT is_table-indexes INTO ls_index.
@@ -1599,11 +1626,60 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         is_index  = ls_index
         it_values = it_values
         iv_rowid  = iv_rowid ).
+      lt_collations = index_collations(
+        is_table = is_table
+        is_index = ls_index ).
+      lv_constraint = unique_constraint_text(
+        is_table = is_table
+        is_index = ls_index ).
       lo_writer->insert_entry(
         it_values        = lt_key
         iv_unique        = ls_index-is_unique
-        iv_prefix_length = lines( ls_index-columns ) ).
+        iv_prefix_length = lines( ls_index-columns )
+        it_collations    = lt_collations
+        iv_constraint    = lv_constraint ).
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD index_collations.
+    DATA ls_index_column TYPE zcl_sqlite_schema=>ty_index_column.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA lv_collation TYPE string.
+
+    LOOP AT is_index-columns INTO ls_index_column.
+      CLEAR lv_collation.
+      LOOP AT is_table-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = to_upper( ls_index_column-name ).
+          lv_collation = ls_column-collation.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      APPEND lv_collation TO rt_collations.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD unique_constraint_text.
+    DATA ls_index_column TYPE zcl_sqlite_schema=>ty_index_column.
+
+    LOOP AT is_index-columns INTO ls_index_column.
+      IF sy-tabix > 1.
+        rv_text = |{ rv_text }, |.
+      ENDIF.
+      rv_text = |{ rv_text }{ is_table-name }.{ ls_index_column-name }|.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD primary_key_constraint_text.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+
+    LOOP AT is_table-columns INTO ls_column.
+      IF ls_column-rowid_alias = abap_true.
+        rv_text = |{ is_table-name }.{ ls_column-name }|.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+    rv_text = |{ is_table-name }.rowid|.
   ENDMETHOD.
 
   METHOD index_key.
@@ -1921,6 +1997,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lv_table_name TYPE string.
     DATA lv_matches_where TYPE abap_bool.
     DATA lv_root_page TYPE i.
+    DATA lv_constraint TYPE string.
+    DATA lo_error TYPE REF TO zcx_sqlite_error.
 
     IF io_statement->get_conflict( ) IS NOT INITIAL.
       RAISE EXCEPTION TYPE zcx_sqlite_error
@@ -2004,11 +2082,23 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     lo_writer = NEW zcl_sqlite_btree_writer(
       io_pager     = mo_pager
       iv_root_page = lv_root_page ).
+    lv_constraint = primary_key_constraint_text( ls_table ).
     LOOP AT lt_pending INTO ls_pending.
       lo_writer->delete_row( ls_pending-old_rowid ).
-      lo_writer->insert_row(
-        iv_rowid   = ls_pending-new_rowid
-        iv_payload = ls_pending-payload ).
+      TRY.
+          lo_writer->insert_row(
+            iv_rowid   = ls_pending-new_rowid
+            iv_payload = ls_pending-payload ).
+        CATCH zcx_sqlite_error INTO lo_error.
+          IF lo_error->code = zcx_sqlite_error=>sqlite_constraint
+              AND lo_error->message = 'table rowid already exists'.
+            RAISE EXCEPTION TYPE zcx_sqlite_error
+              EXPORTING
+                iv_code    = zcx_sqlite_error=>sqlite_constraint
+                iv_message = |UNIQUE constraint failed: { lv_constraint }|.
+          ENDIF.
+          RAISE EXCEPTION lo_error.
+      ENDTRY.
     ENDLOOP.
 
     rebuild_table_indexes( ls_table ).
@@ -2358,6 +2448,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
     DATA lv_root_page TYPE i.
     DATA lo_context TYPE REF TO zcl_sqlite_row.
+    DATA lv_constraint TYPE string.
+    DATA lo_error TYPE REF TO zcx_sqlite_error.
 
     LOOP AT it_columns INTO ls_insert_column.
       ls_column = ls_insert_column-column.
@@ -2433,9 +2525,21 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       is_table   = is_table
       io_context = lo_context ).
 
-    lo_writer->insert_row(
-      iv_rowid   = lv_rowid
-      iv_payload = zcl_sqlite_record=>encode( lt_record_values ) ).
+    lv_constraint = primary_key_constraint_text( is_table ).
+    TRY.
+        lo_writer->insert_row(
+          iv_rowid   = lv_rowid
+          iv_payload = zcl_sqlite_record=>encode( lt_record_values ) ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        IF lo_error->code = zcx_sqlite_error=>sqlite_constraint
+            AND lo_error->message = 'table rowid already exists'.
+          RAISE EXCEPTION TYPE zcx_sqlite_error
+            EXPORTING
+              iv_code    = zcx_sqlite_error=>sqlite_constraint
+              iv_message = |UNIQUE constraint failed: { lv_constraint }|.
+        ENDIF.
+        RAISE EXCEPTION lo_error.
+    ENDTRY.
 
     insert_index_entries(
       is_table  = is_table
