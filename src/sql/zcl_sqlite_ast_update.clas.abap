@@ -7,6 +7,7 @@ CLASS zcl_sqlite_ast_update DEFINITION
 
   PUBLIC SECTION.
     TYPES ty_assignments TYPE zcl_sqlite_ast_assignment=>ty_list.
+    TYPES ty_returning TYPE zcl_sqlite_ast_result_column=>ty_list.
 
     METHODS constructor
       IMPORTING iv_conflict    TYPE string OPTIONAL
@@ -14,7 +15,8 @@ CLASS zcl_sqlite_ast_update DEFINITION
                 iv_alias       TYPE string OPTIONAL
                 it_assignments TYPE ty_assignments
                 it_from        TYPE zcl_sqlite_ast_node=>ty_nodes OPTIONAL
-                io_where       TYPE REF TO zcl_sqlite_ast_node OPTIONAL.
+                io_where       TYPE REF TO zcl_sqlite_ast_node OPTIONAL
+                it_returning   TYPE ty_returning OPTIONAL.
 
     METHODS dump REDEFINITION.
 
@@ -36,6 +38,9 @@ CLASS zcl_sqlite_ast_update DEFINITION
     METHODS get_where
       RETURNING VALUE(ro_where) TYPE REF TO zcl_sqlite_ast_node.
 
+    METHODS get_returning
+      RETURNING VALUE(rt_returning) TYPE ty_returning.
+
   PRIVATE SECTION.
     DATA mv_conflict    TYPE string.
     DATA mv_table       TYPE string.
@@ -43,6 +48,7 @@ CLASS zcl_sqlite_ast_update DEFINITION
     DATA mt_assignments TYPE ty_assignments.
     DATA mt_from        TYPE zcl_sqlite_ast_node=>ty_nodes.
     DATA mo_where       TYPE REF TO zcl_sqlite_ast_node.
+    DATA mt_returning   TYPE ty_returning.
 
     METHODS dump_assignments
       RETURNING VALUE(rv_text) TYPE string.
@@ -60,6 +66,7 @@ CLASS zcl_sqlite_ast_update IMPLEMENTATION.
     mt_assignments = it_assignments.
     mt_from = it_from.
     mo_where = io_where.
+    mt_returning = it_returning.
   ENDMETHOD.
 
   METHOD dump.
@@ -78,6 +85,16 @@ CLASS zcl_sqlite_ast_update IMPLEMENTATION.
     ENDIF.
     IF mo_where IS BOUND.
       rv_text = rv_text && | WHERE | && mo_where->dump( ).
+    ENDIF.
+
+    IF lines( mt_returning ) > 0.
+      rv_text = rv_text && | RETURNING |.
+      LOOP AT mt_returning INTO DATA(lo_returning).
+        IF sy-tabix > 1.
+          rv_text = rv_text && |, |.
+        ENDIF.
+        rv_text = rv_text && lo_returning->dump( ).
+      ENDLOOP.
     ENDIF.
   ENDMETHOD.
 
@@ -115,6 +132,10 @@ CLASS zcl_sqlite_ast_update IMPLEMENTATION.
 
   METHOD get_where.
     ro_where = mo_where.
+  ENDMETHOD.
+
+  METHOD get_returning.
+    rt_returning = mt_returning.
   ENDMETHOD.
 
 ENDCLASS.

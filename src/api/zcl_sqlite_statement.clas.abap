@@ -70,6 +70,10 @@ CLASS zcl_sqlite_statement DEFINITION
       IMPORTING iv_index TYPE i
       RAISING   zcx_sqlite_error.
 
+    METHODS statement_returns_rows
+      IMPORTING io_statement   TYPE REF TO zcl_sqlite_ast_node
+      RETURNING VALUE(rv_rows) TYPE abap_bool.
+
 ENDCLASS.
 
 
@@ -82,9 +86,28 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
     mv_sql = iv_sql.
 
     lo_statement = zcl_sqlite_parser=>parse_statement( iv_sql ).
-    mv_is_query = boolc( lo_statement IS INSTANCE OF zcl_sqlite_ast_select ).
+    mv_is_query = statement_returns_rows( lo_statement ).
 
     collect_parameters( iv_sql ).
+  ENDMETHOD.
+
+  METHOD statement_returns_rows.
+    DATA lo_insert TYPE REF TO zcl_sqlite_ast_insert.
+    DATA lo_update TYPE REF TO zcl_sqlite_ast_update.
+    DATA lo_delete TYPE REF TO zcl_sqlite_ast_delete.
+
+    IF io_statement IS INSTANCE OF zcl_sqlite_ast_select.
+      rv_rows = abap_true.
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_insert.
+      lo_insert ?= io_statement.
+      rv_rows = boolc( lines( lo_insert->get_returning( ) ) > 0 ).
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_update.
+      lo_update ?= io_statement.
+      rv_rows = boolc( lines( lo_update->get_returning( ) ) > 0 ).
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_delete.
+      lo_delete ?= io_statement.
+      rv_rows = boolc( lines( lo_delete->get_returning( ) ) > 0 ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD collect_parameters.

@@ -539,6 +539,38 @@ function constraintsDatabase() {
   return db;
 }
 
+function conflictDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 1024");
+  db.run(`
+    CREATE TABLE conflict_rows (
+      id INTEGER PRIMARY KEY,
+      code TEXT UNIQUE,
+      amount INTEGER
+    )`);
+  db.run(`
+    INSERT INTO conflict_rows VALUES
+      (1, 'alpha', 10),
+      (2, 'beta', 20)`);
+  db.run("INSERT OR IGNORE INTO conflict_rows VALUES (1, 'ignored', 99)");
+  db.run("INSERT OR REPLACE INTO conflict_rows VALUES (3, 'beta', 30)");
+  db.run("INSERT INTO conflict_rows VALUES (4, 'gamma', 40)");
+  db.run(`
+    INSERT INTO conflict_rows VALUES (6, 'alpha', 5)
+    ON CONFLICT (code) DO UPDATE SET amount = amount + excluded.amount`);
+  db.run(`
+    INSERT INTO conflict_rows VALUES (7, 'beta', 7)
+    ON CONFLICT (code) DO NOTHING`);
+  db.run("INSERT INTO conflict_rows VALUES (8, 'eta', 80)");
+  db.run("UPDATE OR IGNORE conflict_rows SET code = 'alpha' WHERE id = 4");
+  db.run("UPDATE OR REPLACE conflict_rows SET code = 'alpha' WHERE id = 4");
+  db.run("UPDATE conflict_rows SET amount = amount + 1 WHERE id = 4");
+  db.run("INSERT INTO conflict_rows VALUES (9, 'theta', 90)");
+  db.run("UPDATE conflict_rows SET amount = amount + 2 WHERE id = 9");
+  db.run("DELETE FROM conflict_rows WHERE id = 9");
+  return db;
+}
+
 function manyIndexesDatabase() {  const db = new SQL.Database();
   db.run("PRAGMA page_size = 512");
   db.run(`
@@ -1387,6 +1419,26 @@ const queryDefinitions = [
     database: "constraints.db",
     sql: "SELECT id FROM unique_nocase WHERE tag = 'x' AND code = 'alpha' ORDER BY id",
   },
+  {
+    name: "conflict.scan",
+    database: "conflict.db",
+    sql: "SELECT id, code, amount FROM conflict_rows ORDER BY id",
+  },
+  {
+    name: "conflict.unique_where",
+    database: "conflict.db",
+    sql: "SELECT id FROM conflict_rows WHERE code = 'alpha' ORDER BY id",
+  },
+  {
+    name: "conflict.amount_range",
+    database: "conflict.db",
+    sql: "SELECT code, amount FROM conflict_rows WHERE amount >= 30 ORDER BY amount, code",
+  },
+  {
+    name: "conflict.upsert_excluded",
+    database: "conflict.db",
+    sql: "SELECT id, code, amount FROM conflict_rows WHERE amount = 30 ORDER BY id",
+  },
 ];
 
 // Deterministic bulk cases keep the differential corpus broad enough to catch
@@ -1755,5 +1807,6 @@ await writeFixture("ordering", orderingDatabase());
 await writeFixture("aggregates", aggregatesDatabase());
 await writeFixture("joins", joinsDatabase());
 await writeFixture("constraints", constraintsDatabase());
+await writeFixture("conflict", conflictDatabase());
 
 await writeQueries();

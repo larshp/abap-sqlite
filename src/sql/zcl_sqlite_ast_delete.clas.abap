@@ -6,10 +6,13 @@ CLASS zcl_sqlite_ast_delete DEFINITION
   INHERITING FROM zcl_sqlite_ast_node.
 
   PUBLIC SECTION.
+    TYPES ty_returning TYPE zcl_sqlite_ast_result_column=>ty_list.
+
     METHODS constructor
-      IMPORTING iv_table TYPE string
-                iv_alias TYPE string OPTIONAL
-                io_where TYPE REF TO zcl_sqlite_ast_node OPTIONAL.
+      IMPORTING iv_table     TYPE string
+                iv_alias     TYPE string OPTIONAL
+                io_where     TYPE REF TO zcl_sqlite_ast_node OPTIONAL
+                it_returning TYPE ty_returning OPTIONAL.
 
     METHODS dump REDEFINITION.
 
@@ -22,10 +25,14 @@ CLASS zcl_sqlite_ast_delete DEFINITION
     METHODS get_where
       RETURNING VALUE(ro_where) TYPE REF TO zcl_sqlite_ast_node.
 
+    METHODS get_returning
+      RETURNING VALUE(rt_returning) TYPE ty_returning.
+
   PRIVATE SECTION.
-    DATA mv_table TYPE string.
-    DATA mv_alias TYPE string.
-    DATA mo_where TYPE REF TO zcl_sqlite_ast_node.
+    DATA mv_table     TYPE string.
+    DATA mv_alias     TYPE string.
+    DATA mo_where     TYPE REF TO zcl_sqlite_ast_node.
+    DATA mt_returning TYPE ty_returning.
 
 ENDCLASS.
 
@@ -37,6 +44,7 @@ CLASS zcl_sqlite_ast_delete IMPLEMENTATION.
     mv_table = iv_table.
     mv_alias = iv_alias.
     mo_where = io_where.
+    mt_returning = it_returning.
   ENDMETHOD.
 
   METHOD dump.
@@ -46,6 +54,15 @@ CLASS zcl_sqlite_ast_delete IMPLEMENTATION.
     ENDIF.
     IF mo_where IS BOUND.
       rv_text = rv_text && | WHERE | && mo_where->dump( ).
+    ENDIF.
+    IF lines( mt_returning ) > 0.
+      rv_text = rv_text && | RETURNING |.
+      LOOP AT mt_returning INTO DATA(lo_returning).
+        IF sy-tabix > 1.
+          rv_text = rv_text && |, |.
+        ENDIF.
+        rv_text = rv_text && lo_returning->dump( ).
+      ENDLOOP.
     ENDIF.
   ENDMETHOD.
 
@@ -59,6 +76,10 @@ CLASS zcl_sqlite_ast_delete IMPLEMENTATION.
 
   METHOD get_where.
     ro_where = mo_where.
+  ENDMETHOD.
+
+  METHOD get_returning.
+    rt_returning = mt_returning.
   ENDMETHOD.
 
 ENDCLASS.

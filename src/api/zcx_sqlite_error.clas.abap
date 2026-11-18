@@ -44,6 +44,8 @@ CLASS zcx_sqlite_error DEFINITION
     DATA position TYPE i READ-ONLY.
     DATA line TYPE i READ-ONLY.
     DATA column TYPE i READ-ONLY.
+    DATA suppress_rollback TYPE abap_bool READ-ONLY.
+    DATA force_rollback TYPE abap_bool READ-ONLY.
 
     METHODS constructor
       IMPORTING iv_code     TYPE i DEFAULT sqlite_error
@@ -52,7 +54,9 @@ CLASS zcx_sqlite_error DEFINITION
                 previous    LIKE previous OPTIONAL
                 iv_position TYPE i DEFAULT 0
                 iv_line     TYPE i DEFAULT 0
-                iv_column   TYPE i DEFAULT 0.
+                iv_column   TYPE i DEFAULT 0
+                iv_suppress_rollback TYPE abap_bool DEFAULT abap_false
+                iv_force_rollback    TYPE abap_bool DEFAULT abap_false.
 ENDCLASS.
 
 
@@ -65,5 +69,7 @@ CLASS zcx_sqlite_error IMPLEMENTATION.
     position = iv_position.
     line = iv_line.
     column = iv_column.
+    suppress_rollback = iv_suppress_rollback.
+    force_rollback = iv_force_rollback.
   ENDMETHOD.
 ENDCLASS.

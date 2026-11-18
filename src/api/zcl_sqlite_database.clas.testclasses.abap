@@ -24,6 +24,9 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS abap_conveniences FOR TESTING RAISING zcx_sqlite_error.
     METHODS column_constraints FOR TESTING RAISING zcx_sqlite_error.
     METHODS unique_keys FOR TESTING RAISING zcx_sqlite_error.
+    METHODS conflict_actions FOR TESTING RAISING zcx_sqlite_error.
+    METHODS upsert_actions FOR TESTING RAISING zcx_sqlite_error.
+    METHODS dml_returning FOR TESTING RAISING zcx_sqlite_error.
 
     TYPES: BEGIN OF ty_abap_row,
              id      TYPE i,
@@ -2846,6 +2849,307 @@ CLASS ltcl_database IMPLEMENTATION.
           exp = 'UNIQUE constraint failed: t.code'
           msg = 'reopened UNIQUE error message' ).
     ENDTRY.
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD conflict_actions.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA lv_name     TYPE string.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+
+    lv_name = 'test/m7_3_conflict_actions.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY, k TEXT UNIQUE, v INTEGER)' ).
+    lo_database->execute( 'INSERT INTO t VALUES (1, ''a'', 10)' ).
+
+* INSERT OR IGNORE keeps the existing row
+    lo_database->execute( 'INSERT OR IGNORE INTO t VALUES (1, ''b'', 20)' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t' )
+      exp = 1
+      msg = 'INSERT OR IGNORE row count' ).
+    rs_result = lo_database->query( 'SELECT k, v FROM t WHERE id = 1' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'a'
+      msg = 'INSERT OR IGNORE keeps the old value' ).
+
+* INSERT OR REPLACE overwrites the conflicting row
+    lo_database->execute( 'INSERT OR REPLACE INTO t VALUES (1, ''b'', 20)' ).
+    rs_result = lo_database->query( 'SELECT k, v FROM t WHERE id = 1' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 20
+      msg = 'INSERT OR REPLACE overwrites the row' ).
+
+* REPLACE resolves a secondary unique conflict by deleting the old row
+    lo_database->execute( 'INSERT OR REPLACE INTO t VALUES (2, ''b'', 30)' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t' )
+      exp = 1
+      msg = 'INSERT OR REPLACE deletes the conflicting row' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 2 AND k = ''b''' )
+      exp = 1
+      msg = 'INSERT OR REPLACE inserts the new row' ).
+
+* FAIL keeps the rows inserted earlier in the same statement
+    TRY.
+        lo_database->execute( 'INSERT OR FAIL INTO t VALUES (3, ''c'', 40), (2, ''d'', 50)' ).
+        cl_abap_unit_assert=>fail( 'INSERT OR FAIL must report the conflict' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: t.id'
+          msg = 'INSERT OR FAIL error message' ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 3 AND k = ''c''' )
+      exp = 1
+      msg = 'INSERT OR FAIL keeps earlier rows' ).
+
+* ABORT discards all rows of the failed statement
+    TRY.
+        lo_database->execute( 'INSERT INTO t VALUES (4, ''e'', 60), (2, ''f'', 70)' ).
+        cl_abap_unit_assert=>fail( 'INSERT ABORT must report the conflict' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: t.id'
+          msg = 'INSERT ABORT error message' ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 4' )
+      exp = 0
+      msg = 'INSERT ABORT leaves no partial rows' ).
+
+* ROLLBACK ends the transaction and discards its earlier work
+    lo_database->begin( ).
+    lo_database->execute( 'INSERT INTO t VALUES (5, ''g'', 80)' ).
+    TRY.
+        lo_database->execute( 'INSERT OR ROLLBACK INTO t VALUES (2, ''h'', 90)' ).
+        cl_abap_unit_assert=>fail( 'INSERT OR ROLLBACK must report the conflict' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: t.id'
+          msg = 'INSERT OR ROLLBACK error message' ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 5' )
+      exp = 0
+      msg = 'INSERT OR ROLLBACK discards the transaction' ).
+    lo_database->begin( ).
+    lo_database->rollback( ).
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD upsert_actions.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA lv_name     TYPE string.
+
+    lv_name = 'test/m7_3_upsert_actions.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY, k TEXT UNIQUE, v INTEGER)' ).
+    lo_database->execute( 'INSERT INTO t VALUES (1, ''a'', 10)' ).
+    lo_database->execute( 'INSERT INTO t VALUES (2, ''b'', 20)' ).
+
+* DO NOTHING leaves the conflicting row untouched
+    lo_database->execute( 'INSERT INTO t VALUES (9, ''b'', 99) ON CONFLICT (k) DO NOTHING' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 2 AND v = 20' )
+      exp = 1
+      msg = 'DO NOTHING keeps the existing row' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t' )
+      exp = 2
+      msg = 'DO NOTHING does not insert a row' ).
+
+* DO UPDATE can read the existing row and excluded values
+    lo_database->execute( 'INSERT INTO t VALUES (9, ''b'', 5) ON CONFLICT (k) DO UPDATE SET v = v + excluded.v' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 2 AND v = 25' )
+      exp = 1
+      msg = 'DO UPDATE uses existing and excluded values' ).
+
+* a false DO UPDATE WHERE skips the update
+    lo_database->execute(
+      'INSERT INTO t VALUES (9, ''b'', 5) ON CONFLICT (k) DO UPDATE SET v = 0 WHERE v > 1000' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 2 AND v = 25' )
+      exp = 1
+      msg = 'false DO UPDATE WHERE skips the update' ).
+
+* a target WHERE restricts the matching conflict target
+    lo_database->execute(
+      'INSERT INTO t VALUES (9, ''b'', 5) ON CONFLICT (k) WHERE v = 25 DO UPDATE SET v = 30' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 2 AND v = 30' )
+      exp = 1
+      msg = 'ON CONFLICT target WHERE matches' ).
+
+    TRY.
+        lo_database->execute(
+          'INSERT INTO t VALUES (9, ''b'', 5) ON CONFLICT (k) WHERE v = 999 DO UPDATE SET v = 40' ).
+        cl_abap_unit_assert=>fail( 'unmatched upsert target must report the conflict' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: t.k'
+          msg = 'unmatched upsert target error message' ).
+    ENDTRY.
+
+* no conflict means a normal insert
+    lo_database->execute( 'INSERT INTO t VALUES (3, ''c'', 40) ON CONFLICT (k) DO UPDATE SET v = 0' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 3 AND v = 40' )
+      exp = 1
+      msg = 'upsert inserts when there is no conflict' ).
+
+* UPDATE OR IGNORE and UPDATE OR REPLACE
+    lo_database->execute( 'CREATE TABLE u (id INTEGER PRIMARY KEY, k TEXT UNIQUE)' ).
+    lo_database->execute( 'INSERT INTO u VALUES (1, ''a''), (2, ''b'')' ).
+    lo_database->execute( 'UPDATE OR IGNORE u SET k = ''b'' WHERE id = 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM u WHERE id = 1 AND k = ''a''' )
+      exp = 1
+      msg = 'UPDATE OR IGNORE keeps the old value' ).
+
+    lo_database->execute( 'UPDATE OR REPLACE u SET k = ''b'' WHERE id = 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM u WHERE id = 1 AND k = ''b''' )
+      exp = 1
+      msg = 'UPDATE OR REPLACE keeps the updated row' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM u' )
+      exp = 1
+      msg = 'UPDATE OR REPLACE removes the conflicting row' ).
+
+* UPDATE OR FAIL keeps changes made earlier in the statement
+    lo_database->execute( 'CREATE TABLE f (id INTEGER PRIMARY KEY, k TEXT UNIQUE)' ).
+    lo_database->execute( 'INSERT INTO f VALUES (1, ''x''), (2, ''y''), (3, ''z'')' ).
+    TRY.
+        lo_database->execute( 'UPDATE OR FAIL f SET k = CASE id WHEN 2 THEN ''q'' WHEN 3 THEN ''x'' ELSE k END' ).
+        cl_abap_unit_assert=>fail( 'UPDATE OR FAIL must report the conflict' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: f.k'
+          msg = 'UPDATE OR FAIL error message' ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM f WHERE id = 2 AND k = ''q''' )
+      exp = 1
+      msg = 'UPDATE OR FAIL keeps earlier changes' ).
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD dml_returning.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lv_name     TYPE string.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+
+    lv_name = 'test/m7_3_returning.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'CREATE TABLE t (id INTEGER PRIMARY KEY, k TEXT, v INTEGER)' ).
+
+    rs_result = lo_database->query( 'INSERT INTO t VALUES (1, ''a'', 10) RETURNING id, v' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-columns )
+      exp = 2
+      msg = 'INSERT RETURNING column count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 10
+      msg = 'INSERT RETURNING value' ).
+
+    rs_result = lo_database->query( 'UPDATE t SET v = v + 5 WHERE id = 1 RETURNING v' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 15
+      msg = 'UPDATE RETURNING value' ).
+
+    rs_result = lo_database->query(
+      'INSERT INTO t VALUES (1, ''b'', 99) ON CONFLICT (id) DO UPDATE SET k = excluded.k, v = 99 RETURNING v' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 99
+      msg = 'upsert RETURNING value' ).
+
+    rs_result = lo_database->query( 'INSERT OR IGNORE INTO t VALUES (1, ''c'', 100) RETURNING v' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 0
+      msg = 'ignored INSERT RETURNING row count' ).
+
+    rs_result = lo_database->query( 'DELETE FROM t WHERE id = 1 RETURNING id, k' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'DELETE RETURNING row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'b'
+      msg = 'DELETE RETURNING value' ).
+
+    lo_database->execute( 'INSERT INTO t VALUES (2, ''d'', 20) RETURNING id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM t WHERE id = 2' )
+      exp = 1
+      msg = 'execute accepts RETURNING' ).
 
     lo_database->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).

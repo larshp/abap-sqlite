@@ -6,12 +6,17 @@ CLASS zcl_sqlite_ast_insert DEFINITION
   INHERITING FROM zcl_sqlite_ast_node.
 
   PUBLIC SECTION.
+    TYPES ty_upserts TYPE STANDARD TABLE OF REF TO zcl_sqlite_ast_upsert WITH DEFAULT KEY.
+    TYPES ty_returning TYPE zcl_sqlite_ast_result_column=>ty_list.
+
     METHODS constructor
       IMPORTING iv_conflict       TYPE string OPTIONAL
                 iv_table          TYPE string
                 it_columns        TYPE zcl_sqlite_ast_node=>ty_names OPTIONAL
                 io_values         TYPE REF TO zcl_sqlite_ast_values OPTIONAL
                 io_select         TYPE REF TO zcl_sqlite_ast_node OPTIONAL
+                it_upserts        TYPE ty_upserts OPTIONAL
+                it_returning      TYPE ty_returning OPTIONAL
                 iv_default_values TYPE abap_bool DEFAULT abap_false.
 
     METHODS dump REDEFINITION.
@@ -31,6 +36,12 @@ CLASS zcl_sqlite_ast_insert DEFINITION
     METHODS get_select
       RETURNING VALUE(ro_select) TYPE REF TO zcl_sqlite_ast_node.
 
+    METHODS get_upserts
+      RETURNING VALUE(rt_upserts) TYPE ty_upserts.
+
+    METHODS get_returning
+      RETURNING VALUE(rt_returning) TYPE ty_returning.
+
     METHODS is_default_values
       RETURNING VALUE(rv_default_values) TYPE abap_bool.
 
@@ -40,6 +51,8 @@ CLASS zcl_sqlite_ast_insert DEFINITION
     DATA mt_columns        TYPE zcl_sqlite_ast_node=>ty_names.
     DATA mo_values         TYPE REF TO zcl_sqlite_ast_values.
     DATA mo_select         TYPE REF TO zcl_sqlite_ast_node.
+    DATA mt_upserts        TYPE ty_upserts.
+    DATA mt_returning      TYPE ty_returning.
     DATA mv_default_values TYPE abap_bool.
 
 ENDCLASS.
@@ -54,6 +67,8 @@ CLASS zcl_sqlite_ast_insert IMPLEMENTATION.
     mt_columns = it_columns.
     mo_values = io_values.
     mo_select = io_select.
+    mt_upserts = it_upserts.
+    mt_returning = it_returning.
     mv_default_values = iv_default_values.
   ENDMETHOD.
 
@@ -73,6 +88,20 @@ CLASS zcl_sqlite_ast_insert IMPLEMENTATION.
       rv_text = rv_text && | | && mo_values->dump( ).
     ELSEIF mo_select IS BOUND.
       rv_text = rv_text && | | && mo_select->dump( ).
+    ENDIF.
+
+    LOOP AT mt_upserts INTO DATA(lo_upsert).
+      rv_text = rv_text && | | && lo_upsert->dump( ).
+    ENDLOOP.
+
+    IF lines( mt_returning ) > 0.
+      rv_text = rv_text && | RETURNING |.
+      LOOP AT mt_returning INTO DATA(lo_returning).
+        IF sy-tabix > 1.
+          rv_text = rv_text && |, |.
+        ENDIF.
+        rv_text = rv_text && lo_returning->dump( ).
+      ENDLOOP.
     ENDIF.
   ENDMETHOD.
 
@@ -94,6 +123,14 @@ CLASS zcl_sqlite_ast_insert IMPLEMENTATION.
 
   METHOD get_select.
     ro_select = mo_select.
+  ENDMETHOD.
+
+  METHOD get_upserts.
+    rt_upserts = mt_upserts.
+  ENDMETHOD.
+
+  METHOD get_returning.
+    rt_returning = mt_returning.
   ENDMETHOD.
 
   METHOD is_default_values.

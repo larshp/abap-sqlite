@@ -7,6 +7,7 @@ CLASS zcl_sqlite_scenario DEFINITION
   CREATE PUBLIC.
 
   PUBLIC SECTION.
+    CONSTANTS c_conflict_database TYPE string VALUE 'compat/conflict.db'.
     CONSTANTS c_constraints_database TYPE string VALUE 'compat/constraints.db'.
     CONSTANTS c_create_table_database TYPE string VALUE 'compat/create-table.db'.
     CONSTANTS c_delete_database TYPE string VALUE 'compat/delete.db'.
@@ -33,6 +34,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS column_constraints
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS conflict_rows
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -174,6 +179,55 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_database->close( ).
 
     rv_name = c_constraints_database.
+  ENDMETHOD.
+
+  METHOD conflict_rows.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_conflict_database ).
+
+    lo_database = zcl_sqlite_database=>open( c_conflict_database ).
+    lo_database->execute(
+      'CREATE TABLE conflict_rows (id INTEGER PRIMARY KEY,' &&
+      ' code TEXT UNIQUE, amount INTEGER)' ).
+
+* INSERTS
+    lo_database->execute( 'INSERT INTO conflict_rows VALUES (1, ''alpha'', 10), (2, ''beta'', 20)' ).
+    lo_database->execute( 'INSERT OR IGNORE INTO conflict_rows VALUES (1, ''ignored'', 99)' ).
+    lo_database->execute( 'INSERT OR REPLACE INTO conflict_rows VALUES (3, ''beta'', 30)' ).
+    expect_constraint_error(
+      io_database = lo_database
+      iv_sql      = 'INSERT OR FAIL INTO conflict_rows VALUES (4, ''gamma'', 40), (3, ''delta'', 50)' ).
+    expect_constraint_error(
+      io_database = lo_database
+      iv_sql      = 'INSERT INTO conflict_rows VALUES (5, ''epsilon'', 50), (3, ''zeta'', 60)' ).
+
+* UPSERTS
+    lo_database->execute(
+      'INSERT INTO conflict_rows VALUES (6, ''alpha'', 5) ' &&
+      'ON CONFLICT (code) DO UPDATE SET amount = amount + excluded.amount' ).
+    lo_database->execute(
+      'INSERT INTO conflict_rows VALUES (7, ''beta'', 7) ' &&
+      'ON CONFLICT (code) DO NOTHING' ).
+    lo_database->execute( 'INSERT INTO conflict_rows VALUES (8, ''eta'', 80)' ).
+
+* UPDATE OR ACTIONS
+    lo_database->execute( 'UPDATE OR IGNORE conflict_rows SET code = ''alpha'' WHERE id = 4' ).
+    lo_database->execute( 'UPDATE OR REPLACE conflict_rows SET code = ''alpha'' WHERE id = 4' ).
+    lo_database->execute( 'UPDATE conflict_rows SET amount = amount + 1 WHERE id = 4' ).
+
+* RETURNING
+    rs_result = lo_database->query( 'INSERT INTO conflict_rows VALUES (9, ''theta'', 90) RETURNING id, amount' ).
+    rs_result = lo_database->query(
+      'UPDATE conflict_rows SET amount = amount + 2 WHERE id = 9 RETURNING amount' ).
+    rs_result = lo_database->query( 'DELETE FROM conflict_rows WHERE id = 9 RETURNING id' ).
+
+    lo_database->close( ).
+
+    rv_name = c_conflict_database.
   ENDMETHOD.
 
   METHOD unique_keys.

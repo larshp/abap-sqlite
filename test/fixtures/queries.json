@@ -6715,6 +6715,143 @@
       ]
     },
     {
+      "name": "conflict.scan",
+      "database": "fixtures/conflict.db",
+      "sql": "SELECT id, code, amount FROM conflict_rows ORDER BY id",
+      "columns": [
+        "id",
+        "code",
+        "amount"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "beta"
+          },
+          {
+            "type": "integer",
+            "value": "30"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "alpha"
+          },
+          {
+            "type": "integer",
+            "value": "41"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "8"
+          },
+          {
+            "type": "text",
+            "value": "eta"
+          },
+          {
+            "type": "integer",
+            "value": "80"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "conflict.unique_where",
+      "database": "fixtures/conflict.db",
+      "sql": "SELECT id FROM conflict_rows WHERE code = 'alpha' ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "conflict.amount_range",
+      "database": "fixtures/conflict.db",
+      "sql": "SELECT code, amount FROM conflict_rows WHERE amount >= 30 ORDER BY amount, code",
+      "columns": [
+        "code",
+        "amount"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "beta"
+          },
+          {
+            "type": "integer",
+            "value": "30"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "alpha"
+          },
+          {
+            "type": "integer",
+            "value": "41"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "eta"
+          },
+          {
+            "type": "integer",
+            "value": "80"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "conflict.upsert_excluded",
+      "database": "fixtures/conflict.db",
+      "sql": "SELECT id, code, amount FROM conflict_rows WHERE amount = 30 ORDER BY id",
+      "columns": [
+        "id",
+        "code",
+        "amount"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "beta"
+          },
+          {
+            "type": "integer",
+            "value": "30"
+          }
+        ]
+      ]
+    },
+    {
       "name": "generated.many_a_0_0",
       "database": "fixtures/many_indexes.db",
       "sql": "SELECT id, a, b, c FROM m WHERE a = 'a' ORDER BY id",

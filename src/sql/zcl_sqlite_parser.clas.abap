@@ -325,6 +325,18 @@ CLASS zcl_sqlite_parser DEFINITION
       RETURNING VALUE(rv_action) TYPE string
       RAISING   zcx_sqlite_error.
 
+    METHODS parse_upsert_clauses
+      RETURNING VALUE(rt_upserts) TYPE zcl_sqlite_ast_insert=>ty_upserts
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_upsert_clause
+      RETURNING VALUE(ro_upsert) TYPE REF TO zcl_sqlite_ast_upsert
+      RAISING   zcx_sqlite_error.
+
+    METHODS parse_returning
+      RETURNING VALUE(rt_returning) TYPE zcl_sqlite_ast_result_column=>ty_list
+      RAISING   zcx_sqlite_error.
+
     METHODS parse_default_expression
       RETURNING VALUE(ro_expression) TYPE REF TO zcl_sqlite_ast_node
       RAISING   zcx_sqlite_error.
@@ -896,6 +908,8 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     DATA lt_columns        TYPE zcl_sqlite_ast_node=>ty_names.
     DATA lo_values         TYPE REF TO zcl_sqlite_ast_values.
     DATA lo_select         TYPE REF TO zcl_sqlite_ast_node.
+    DATA lt_upserts        TYPE zcl_sqlite_ast_insert=>ty_upserts.
+    DATA lt_returning      TYPE zcl_sqlite_ast_result_column=>ty_list.
     DATA lv_default_values TYPE abap_bool.
 
     expect_keyword( 'INSERT' ).
@@ -920,12 +934,17 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       lo_select = parse_select_statement( ).
     ENDIF.
 
+    lt_upserts = parse_upsert_clauses( ).
+    lt_returning = parse_returning( ).
+
     ro_statement = NEW zcl_sqlite_ast_insert(
       iv_conflict       = lv_conflict
       iv_table          = lv_table
       it_columns        = lt_columns
       io_values         = lo_values
       io_select         = lo_select
+      it_upserts        = lt_upserts
+      it_returning      = lt_returning
       iv_default_values = lv_default_values ).
   ENDMETHOD.
 
@@ -936,6 +955,7 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     DATA lt_assignments TYPE zcl_sqlite_ast_assignment=>ty_list.
     DATA lt_from        TYPE zcl_sqlite_ast_node=>ty_nodes.
     DATA lo_where       TYPE REF TO zcl_sqlite_ast_node.
+    DATA lt_returning   TYPE zcl_sqlite_ast_result_column=>ty_list.
 
     expect_keyword( 'UPDATE' ).
     lv_conflict = parse_or_conflict_action( ).
@@ -952,6 +972,7 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       advance( ).
       lo_where = parse_expression_internal( 0 ).
     ENDIF.
+    lt_returning = parse_returning( ).
 
     ro_statement = NEW zcl_sqlite_ast_update(
       iv_conflict    = lv_conflict
@@ -959,13 +980,15 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       iv_alias       = lv_alias
       it_assignments = lt_assignments
       it_from        = lt_from
-      io_where       = lo_where ).
+      io_where       = lo_where
+      it_returning   = lt_returning ).
   ENDMETHOD.
 
   METHOD parse_delete.
-    DATA lv_table TYPE string.
-    DATA lv_alias TYPE string.
-    DATA lo_where TYPE REF TO zcl_sqlite_ast_node.
+    DATA lv_table     TYPE string.
+    DATA lv_alias     TYPE string.
+    DATA lo_where     TYPE REF TO zcl_sqlite_ast_node.
+    DATA lt_returning TYPE zcl_sqlite_ast_result_column=>ty_list.
 
     expect_keyword( 'DELETE' ).
     expect_keyword( 'FROM' ).
@@ -975,11 +998,13 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       advance( ).
       lo_where = parse_expression_internal( 0 ).
     ENDIF.
+    lt_returning = parse_returning( ).
 
     ro_statement = NEW zcl_sqlite_ast_delete(
-      iv_table = lv_table
-      iv_alias = lv_alias
-      io_where = lo_where ).
+      iv_table     = lv_table
+      iv_alias     = lv_alias
+      io_where     = lo_where
+      it_returning = lt_returning ).
   ENDMETHOD.
 
   METHOD parse_or_conflict_action.
@@ -995,6 +1020,64 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       WHEN OTHERS.
         fail( 'expected conflict action' ).
     ENDCASE.
+  ENDMETHOD.
+
+  METHOD parse_upsert_clauses.
+    WHILE is_keyword( 'ON' ) = abap_true
+        AND is_keyword_at( iv_ahead   = 1
+                           iv_keyword = 'CONFLICT' ) = abap_true.
+      APPEND parse_upsert_clause( ) TO rt_upserts.
+    ENDWHILE.
+  ENDMETHOD.
+
+  METHOD parse_upsert_clause.
+    DATA lt_target_columns TYPE zcl_sqlite_ast_upsert=>ty_target_columns.
+    DATA lo_target_where   TYPE REF TO zcl_sqlite_ast_node.
+    DATA lv_action         TYPE string.
+    DATA lt_assignments    TYPE zcl_sqlite_ast_assignment=>ty_list.
+    DATA lo_where          TYPE REF TO zcl_sqlite_ast_node.
+
+    expect_keyword( 'ON' ).
+    expect_keyword( 'CONFLICT' ).
+    IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      advance( ).
+      lt_target_columns = parse_indexed_columns( ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
+    ENDIF.
+    IF is_keyword( 'WHERE' ) = abap_true.
+      advance( ).
+      lo_target_where = parse_expression_internal( 0 ).
+    ENDIF.
+    expect_keyword( 'DO' ).
+    IF is_keyword( 'NOTHING' ) = abap_true.
+      advance( ).
+      lv_action = 'NOTHING'.
+    ELSE.
+      expect_keyword( 'UPDATE' ).
+      expect_keyword( 'SET' ).
+      lt_assignments = parse_assignment_list( ).
+      IF is_keyword( 'WHERE' ) = abap_true.
+        advance( ).
+        lo_where = parse_expression_internal( 0 ).
+      ENDIF.
+      lv_action = 'UPDATE'.
+    ENDIF.
+
+    ro_upsert = NEW zcl_sqlite_ast_upsert(
+      it_target_columns = lt_target_columns
+      io_target_where   = lo_target_where
+      iv_action         = lv_action
+      it_assignments    = lt_assignments
+      io_where          = lo_where ).
+  ENDMETHOD.
+
+  METHOD parse_returning.
+    IF is_keyword( 'RETURNING' ) = abap_false.
+      RETURN.
+    ENDIF.
+    advance( ).
+    rt_returning = parse_result_columns( ).
   ENDMETHOD.
 
   METHOD parse_assignment_list.

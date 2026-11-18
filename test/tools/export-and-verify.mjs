@@ -585,6 +585,87 @@ async function verifyUniqueKeys(SQL, tempDir) {
   );
 }
 
+async function verifyConflict(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.conflict_rows({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "conflict.db");
+  const reference = new SQL.Database();
+  const statements = [
+    [
+      "CREATE TABLE conflict_rows (id INTEGER PRIMARY KEY, code TEXT UNIQUE, amount INTEGER)",
+      false,
+    ],
+    ["INSERT INTO conflict_rows VALUES (1, 'alpha', 10), (2, 'beta', 20)", false],
+    ["INSERT OR IGNORE INTO conflict_rows VALUES (1, 'ignored', 99)", false],
+    ["INSERT OR REPLACE INTO conflict_rows VALUES (3, 'beta', 30)", false],
+    [
+      "INSERT OR FAIL INTO conflict_rows VALUES (4, 'gamma', 40), (3, 'delta', 50)",
+      true,
+    ],
+    ["INSERT INTO conflict_rows VALUES (5, 'epsilon', 50), (3, 'zeta', 60)", true],
+    [
+      "INSERT INTO conflict_rows VALUES (6, 'alpha', 5) " +
+        "ON CONFLICT (code) DO UPDATE SET amount = amount + excluded.amount",
+      false,
+    ],
+    [
+      "INSERT INTO conflict_rows VALUES (7, 'beta', 7) " +
+        "ON CONFLICT (code) DO NOTHING",
+      false,
+    ],
+    ["INSERT INTO conflict_rows VALUES (8, 'eta', 80)", false],
+    ["UPDATE OR IGNORE conflict_rows SET code = 'alpha' WHERE id = 4", false],
+    ["UPDATE OR REPLACE conflict_rows SET code = 'alpha' WHERE id = 4", false],
+    ["UPDATE conflict_rows SET amount = amount + 1 WHERE id = 4", false],
+    ["INSERT INTO conflict_rows VALUES (9, 'theta', 90)", false],
+    ["UPDATE conflict_rows SET amount = amount + 2 WHERE id = 9", false],
+    ["DELETE FROM conflict_rows WHERE id = 9", false],
+  ];
+
+  try {
+    for (const [sql, shouldFail] of statements) {
+      let failed = false;
+      try {
+        reference.run(sql);
+      } catch (error) {
+        failed = true;
+        if (shouldFail === false) {
+          throw error;
+        }
+        assert.match(String(error.message), /UNIQUE constraint failed/, `unexpected error: ${sql}`);
+      }
+      assert.equal(failed, shouldFail, `statement failure mismatch: ${sql}`);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.deepEqual(
+      rows(exported.db, "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name"),
+      rows(reference, "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name"),
+      "sqlite_schema rows differ",
+    );
+    assert.deepEqual(
+      typedRows(exported.db, "conflict_rows", ["id", "code", "amount"]),
+      typedRows(reference, "conflict_rows", ["id", "code", "amount"]),
+      "conflict rows differ",
+    );
+
+    const queries = [
+      "SELECT id, code, amount FROM conflict_rows ORDER BY id",
+      "SELECT id FROM conflict_rows WHERE code = 'alpha' ORDER BY id",
+      "SELECT id, amount FROM conflict_rows WHERE amount >= 30 ORDER BY amount, id",
+    ];
+    for (const sql of queries) {
+      assert.deepEqual(rows(exported.db, sql), rows(reference, sql), `conflict query differs: ${sql}`);
+    }
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, conflict handling)`,
+  );
+}
+
 async function verifyFreelist(SQL, tempDir) {  const fileName = (await zcl_sqlite_scenario.freelist_cycle({rv_name: 1})).get();
   const exported = await openExported(SQL, tempDir, fileName, "freelist.db");
 
@@ -1034,6 +1115,7 @@ try {
     ["insert-statements", verifyInsertStatements],
     ["constraints", verifyColumnConstraints],
     ["unique", verifyUniqueKeys],
+    ["conflict", verifyConflict],
     ["index", verifyIndex],
     ["drop", verifyDrop],
     ["freelist", verifyFreelist],

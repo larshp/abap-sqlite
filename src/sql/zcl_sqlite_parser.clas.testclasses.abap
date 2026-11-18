@@ -688,6 +688,21 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_parse(
       iv_sql      = |INSERT INTO t VALUES (1), (2)|
       iv_expected = |INSERT INTO t VALUES (INTEGER(1)), (INTEGER(2))| ).
+    assert_statement_parse(
+      iv_sql      = |INSERT INTO t (a) VALUES (1) ON CONFLICT (a) DO NOTHING|
+      iv_expected = |INSERT INTO t (a) VALUES (INTEGER(1)) ON CONFLICT (a) DO NOTHING| ).
+    assert_statement_parse(
+      iv_sql      = |INSERT INTO t (a) VALUES (1) ON CONFLICT (a) WHERE a > 0 | &&
+                    |DO UPDATE SET a = excluded.a + 1 WHERE a < 9|
+      iv_expected = |INSERT INTO t (a) VALUES (INTEGER(1)) ON CONFLICT (a) | &&
+                    |WHERE BINARY(>, COLUMN(a), INTEGER(0)) DO UPDATE | &&
+                    |SET a = BINARY(+, COLUMN(excluded.a), INTEGER(1)) WHERE BINARY(<, COLUMN(a), INTEGER(9))| ).
+    assert_statement_parse(
+      iv_sql      = |INSERT INTO t DEFAULT VALUES RETURNING *|
+      iv_expected = |INSERT INTO t DEFAULT VALUES RETURNING STAR| ).
+    assert_statement_parse(
+      iv_sql      = |INSERT INTO t VALUES (1) RETURNING a AS x, b|
+      iv_expected = |INSERT INTO t VALUES (INTEGER(1)) RETURNING COLUMN(a) AS x, COLUMN(b)| ).
   ENDMETHOD.
 
   METHOD update_statements.
@@ -708,6 +723,12 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_parse(
       iv_sql      = |UPDATE t SET a = 1, b = 2|
       iv_expected = |UPDATE t SET a = INTEGER(1), b = INTEGER(2)| ).
+    assert_statement_parse(
+      iv_sql      = |UPDATE t SET a = 1 RETURNING *|
+      iv_expected = |UPDATE t SET a = INTEGER(1) RETURNING STAR| ).
+    assert_statement_parse(
+      iv_sql      = |UPDATE OR IGNORE t SET a = 1 RETURNING a, b AS x|
+      iv_expected = |UPDATE OR IGNORE t SET a = INTEGER(1) RETURNING COLUMN(a), COLUMN(b) AS x| ).
   ENDMETHOD.
 
   METHOD delete_statements.
@@ -723,6 +744,12 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_parse(
       iv_sql      = |DELETE FROM t WHERE EXISTS (SELECT 1)|
       iv_expected = |DELETE FROM t WHERE EXISTS(SELECT INTEGER(1))| ).
+    assert_statement_parse(
+      iv_sql      = |DELETE FROM t RETURNING *|
+      iv_expected = |DELETE FROM t RETURNING STAR| ).
+    assert_statement_parse(
+      iv_sql      = |DELETE FROM t WHERE id = 1 RETURNING id|
+      iv_expected = |DELETE FROM t WHERE BINARY(=, COLUMN(id), INTEGER(1)) RETURNING COLUMN(id)| ).
   ENDMETHOD.
 
   METHOD dml_with.
@@ -743,10 +770,10 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_error( |INSERT INTO t| ).
     assert_statement_error( |INSERT OR INTO t| ).
     assert_statement_error( |INSERT INTO t DEFAULT| ).
-    assert_statement_error( |INSERT INTO t DEFAULT VALUES RETURNING *| ).
+    assert_statement_error( |INSERT INTO t DEFAULT VALUES RETURNING| ).
     assert_statement_error( |INSERT INTO t (a,) VALUES (1)| ).
     assert_statement_error( |INSERT INTO t (a) VALUES| ).
-    assert_statement_error( |INSERT INTO t VALUES (1) RETURNING *| ).
+    assert_statement_error( |INSERT INTO t VALUES (1) ON CONFLICT DO BOGUS| ).
     assert_statement_error( |INSERT INTO t SELECT| ).
     assert_statement_error( |UPDATE| ).
     assert_statement_error( |UPDATE t| ).
@@ -756,11 +783,11 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_error( |UPDATE t SET a = 1,| ).
     assert_statement_error( |UPDATE t SET a = 1 WHERE| ).
     assert_statement_error( |UPDATE OR t SET a = 1| ).
-    assert_statement_error( |UPDATE t SET a = 1 RETURNING *| ).
+    assert_statement_error( |UPDATE t SET a = 1 RETURNING| ).
     assert_statement_error( |DELETE| ).
     assert_statement_error( |DELETE FROM| ).
     assert_statement_error( |DELETE FROM t WHERE| ).
-    assert_statement_error( |DELETE FROM t RETURNING *| ).
+    assert_statement_error( |DELETE FROM t RETURNING| ).
     assert_statement_error( |DELETE t| ).
     assert_statement_error( |WITH cte AS (SELECT 1) INSERT| ).
     assert_statement_error( |WITH cte AS (SELECT 1)| ).
@@ -1034,11 +1061,9 @@ CLASS ltcl_parser IMPLEMENTATION.
       ( sql = |SELECT @| message = |unrecognized token: "@"| position = 8 )
       ( sql = |SELECT 'unterminated| message = |unrecognized token: "'unterminated"| position = 8 )
       ( sql = |SELECT 1; BOGUS| message = |near "BOGUS": syntax error| position = 11 )
-      ( sql = |DELETE FROM t RETURNING *| message = |near "RETURNING": syntax error| position = 15 )
       ( sql = |DELETE t| message = |near "t": syntax error| position = 8 )
       ( sql = |SELECT * FROM (SELECT 1| message = |incomplete input| position = 24 )
       ( sql = |SELECT * FROM (SELECT 1) AS| message = |incomplete input| position = 28 )
-      ( sql = |INSERT INTO t VALUES (1) ON CONFLICT| message = |near "ON": syntax error| position = 26 )
       ( sql = |CREATE TABLE t (a INTEGER PRIMARY KEY ON CONFLICT)| message = |near ")": syntax error| position = 50 )
       ( sql = |SELECT CAST(1 AS)| message = |near ")": syntax error| position = 17 )
       ( sql = |SELECT 1 NOT| message = |near "NOT": syntax error| position = 10 )
