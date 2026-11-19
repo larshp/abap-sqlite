@@ -134,6 +134,12 @@ CLASS zcl_sqlite_bytes DEFINITION
       IMPORTING iv_value        TYPE f
       RETURNING VALUE(rs_value) TYPE ty_float64.
 
+* NaN fails every ordered comparison, only reachable where f carries
+* IEEE special values
+    CLASS-METHODS is_nan
+      IMPORTING iv_value      TYPE f
+      RETURNING VALUE(rv_nan) TYPE abap_bool.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
     CONSTANTS c_max_u8 TYPE int8 VALUE 255.
@@ -467,6 +473,10 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
+  METHOD is_nan.
+    rv_nan = xsdbool( NOT ( iv_value >= 0 OR iv_value < 0 ) ).
+  ENDMETHOD.
+
   METHOD f64_from_f.
     DATA lv_abs TYPE f.
     DATA lv_norm TYPE f.
@@ -474,8 +484,7 @@ CLASS zcl_sqlite_bytes IMPLEMENTATION.
     DATA lv_fraction TYPE f.
     DATA lv_steps TYPE i.
 
-    IF iv_value <> iv_value.
-* NaN, only reachable where f carries IEEE special values
+    IF is_nan( iv_value ) = abap_true.
       rs_value-exponent = c_exponent_max.
       rs_value-mantissa = c_quiet_nan.
       RETURN.

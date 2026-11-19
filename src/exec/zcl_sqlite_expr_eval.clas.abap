@@ -1155,7 +1155,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
         WHEN OTHERS.
           raise_error( |unsupported arithmetic operator { iv_operator }| ).
       ENDCASE.
-      IF lv_result <> lv_result.
+      IF zcl_sqlite_bytes=>is_nan( lv_result ) = abap_true.
         ro_value = zcl_sqlite_value=>null( ).
       ELSE.
         ro_value = zcl_sqlite_value=>real( lv_result ).
@@ -3279,7 +3279,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_floor_real TYPE f.
     DATA lv_floor_integer TYPE int8.
 
-    IF iv_real <> iv_real.
+    IF zcl_sqlite_bytes=>is_nan( iv_real ) = abap_true.
       rv_compare = 1.
       RETURN.
     ENDIF.
@@ -3411,7 +3411,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
             lv_real = io_value->as_real( ).
             IF lv_real >= c_int_min_boundary
                 AND lv_real < c_int_boundary
-                AND lv_real = lv_real.
+                AND zcl_sqlite_bytes=>is_nan( lv_real ) = abap_false.
               lv_trunc = truncate_real( lv_real ).
               IF lv_real = lv_trunc.
                 lv_integer = lv_trunc.
@@ -3614,7 +3614,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
     lv_real = real_from_text( lv_prefix ).
     IF lv_real >= c_int_min_boundary AND lv_real < c_int_boundary
-        AND lv_real = lv_real.
+        AND zcl_sqlite_bytes=>is_nan( lv_real ) = abap_false.
       lv_trunc = truncate_real( lv_real ).
       IF lv_real = lv_trunc.
         lv_integer = lv_trunc.
@@ -4034,7 +4034,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lv_digits TYPE string.
     DATA lv_sign TYPE string.
 
-    IF iv_value <> iv_value.
+    IF zcl_sqlite_bytes=>is_nan( iv_value ) = abap_true.
       rv_text = 'NULL'.
       RETURN.
     ENDIF.
@@ -4246,7 +4246,7 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD real_to_integer.
-    IF iv_value <> iv_value.
+    IF zcl_sqlite_bytes=>is_nan( iv_value ) = abap_true.
       rv_value = 0.
     ELSEIF iv_value >= c_int_boundary.
       rv_value = c_max_integer.
