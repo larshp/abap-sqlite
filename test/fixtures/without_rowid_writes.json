@@ -1,0 +1,547 @@
+{
+  "pragmas": {
+    "page_size": 512,
+    "page_count": 7,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "wr",
+      "sql": "CREATE TABLE wr (\n      a TEXT,\n      b TEXT,\n      c INTEGER,\n      d TEXT,\n      PRIMARY KEY (c, a)\n    ) WITHOUT ROWID",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "a",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 2
+        },
+        {
+          "cid": 1,
+          "name": "b",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "c",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 1
+        },
+        {
+          "cid": 3,
+          "name": "d",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          "key-005",
+          "b-05",
+          1,
+          "d-005"
+        ],
+        [
+          "key-010",
+          "b-03",
+          1,
+          "d-010"
+        ],
+        [
+          "key-015",
+          "b-01",
+          1,
+          "d-015"
+        ],
+        [
+          "key-020",
+          "b-06",
+          1,
+          "d-020"
+        ],
+        [
+          "key-025",
+          "b-04",
+          1,
+          "d-025"
+        ],
+        [
+          "key-001",
+          "b-01",
+          2,
+          "d-001"
+        ],
+        [
+          "key-006",
+          "b-06",
+          2,
+          "d-006"
+        ],
+        [
+          "key-011",
+          "b-04",
+          2,
+          "d-011"
+        ],
+        [
+          "key-016",
+          "b-02",
+          2,
+          "d-016"
+        ],
+        [
+          "key-021",
+          "b-00",
+          2,
+          "d-021"
+        ],
+        [
+          "key-002",
+          "b-02",
+          3,
+          "d-002"
+        ],
+        [
+          "key-007",
+          "b-00",
+          3,
+          "d-007"
+        ],
+        [
+          "key-012",
+          "b-05",
+          3,
+          "d-012"
+        ],
+        [
+          "key-017",
+          "b-03",
+          3,
+          "d-017"
+        ],
+        [
+          "key-022",
+          "b-01",
+          3,
+          "d-022"
+        ],
+        [
+          "key-003",
+          "b-03",
+          4,
+          "d-003"
+        ],
+        [
+          "key-008",
+          "b-01",
+          4,
+          "d-008"
+        ],
+        [
+          "key-013",
+          "b-06",
+          4,
+          "d-013"
+        ],
+        [
+          "key-018",
+          "b-04",
+          4,
+          "d-018"
+        ],
+        [
+          "key-023",
+          "b-02",
+          4,
+          "d-023"
+        ],
+        [
+          "key-004",
+          "b-04",
+          5,
+          "d-004"
+        ],
+        [
+          "key-009",
+          "b-02",
+          5,
+          "d-009"
+        ],
+        [
+          "key-014",
+          "b-00",
+          5,
+          "d-014"
+        ],
+        [
+          "key-019",
+          "b-05",
+          5,
+          "d-019"
+        ],
+        [
+          "key-024",
+          "b-03",
+          5,
+          "d-024"
+        ]
+      ]
+    },
+    {
+      "name": "wr_nocase",
+      "sql": "CREATE TABLE wr_nocase (\n      k TEXT COLLATE NOCASE PRIMARY KEY,\n      v TEXT\n    ) WITHOUT ROWID",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "k",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 1
+        },
+        {
+          "cid": 1,
+          "name": "v",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          "alpha",
+          "a"
+        ],
+        [
+          "Beta",
+          "b"
+        ],
+        [
+          "delta",
+          "d"
+        ],
+        [
+          "Gamma",
+          "g"
+        ]
+      ]
+    }
+  ],
+  "indexes": [
+    {
+      "name": "wr_b",
+      "table": "wr",
+      "sql": "CREATE INDEX wr_b ON wr(b)",
+      "columns": [
+        "b"
+      ],
+      "entries": [
+        [
+          "b-00",
+          2,
+          "key-021"
+        ],
+        [
+          "b-00",
+          3,
+          "key-007"
+        ],
+        [
+          "b-00",
+          5,
+          "key-014"
+        ],
+        [
+          "b-01",
+          1,
+          "key-015"
+        ],
+        [
+          "b-01",
+          2,
+          "key-001"
+        ],
+        [
+          "b-01",
+          3,
+          "key-022"
+        ],
+        [
+          "b-01",
+          4,
+          "key-008"
+        ],
+        [
+          "b-02",
+          2,
+          "key-016"
+        ],
+        [
+          "b-02",
+          3,
+          "key-002"
+        ],
+        [
+          "b-02",
+          4,
+          "key-023"
+        ],
+        [
+          "b-02",
+          5,
+          "key-009"
+        ],
+        [
+          "b-03",
+          1,
+          "key-010"
+        ],
+        [
+          "b-03",
+          3,
+          "key-017"
+        ],
+        [
+          "b-03",
+          4,
+          "key-003"
+        ],
+        [
+          "b-03",
+          5,
+          "key-024"
+        ],
+        [
+          "b-04",
+          1,
+          "key-025"
+        ],
+        [
+          "b-04",
+          2,
+          "key-011"
+        ],
+        [
+          "b-04",
+          4,
+          "key-018"
+        ],
+        [
+          "b-04",
+          5,
+          "key-004"
+        ],
+        [
+          "b-05",
+          1,
+          "key-005"
+        ],
+        [
+          "b-05",
+          3,
+          "key-012"
+        ],
+        [
+          "b-05",
+          5,
+          "key-019"
+        ],
+        [
+          "b-06",
+          1,
+          "key-020"
+        ],
+        [
+          "b-06",
+          2,
+          "key-006"
+        ],
+        [
+          "b-06",
+          4,
+          "key-013"
+        ]
+      ]
+    },
+    {
+      "name": "wr_d",
+      "table": "wr",
+      "sql": "CREATE UNIQUE INDEX wr_d ON wr(d)",
+      "columns": [
+        "d"
+      ],
+      "entries": [
+        [
+          "d-001",
+          2,
+          "key-001"
+        ],
+        [
+          "d-002",
+          3,
+          "key-002"
+        ],
+        [
+          "d-003",
+          4,
+          "key-003"
+        ],
+        [
+          "d-004",
+          5,
+          "key-004"
+        ],
+        [
+          "d-005",
+          1,
+          "key-005"
+        ],
+        [
+          "d-006",
+          2,
+          "key-006"
+        ],
+        [
+          "d-007",
+          3,
+          "key-007"
+        ],
+        [
+          "d-008",
+          4,
+          "key-008"
+        ],
+        [
+          "d-009",
+          5,
+          "key-009"
+        ],
+        [
+          "d-010",
+          1,
+          "key-010"
+        ],
+        [
+          "d-011",
+          2,
+          "key-011"
+        ],
+        [
+          "d-012",
+          3,
+          "key-012"
+        ],
+        [
+          "d-013",
+          4,
+          "key-013"
+        ],
+        [
+          "d-014",
+          5,
+          "key-014"
+        ],
+        [
+          "d-015",
+          1,
+          "key-015"
+        ],
+        [
+          "d-016",
+          2,
+          "key-016"
+        ],
+        [
+          "d-017",
+          3,
+          "key-017"
+        ],
+        [
+          "d-018",
+          4,
+          "key-018"
+        ],
+        [
+          "d-019",
+          5,
+          "key-019"
+        ],
+        [
+          "d-020",
+          1,
+          "key-020"
+        ],
+        [
+          "d-021",
+          2,
+          "key-021"
+        ],
+        [
+          "d-022",
+          3,
+          "key-022"
+        ],
+        [
+          "d-023",
+          4,
+          "key-023"
+        ],
+        [
+          "d-024",
+          5,
+          "key-024"
+        ],
+        [
+          "d-025",
+          1,
+          "key-025"
+        ]
+      ]
+    }
+  ],
+  "schema": [
+    {
+      "type": "table",
+      "name": "wr",
+      "tbl_name": "wr",
+      "rootpage": 2,
+      "sql": "CREATE TABLE wr (\n      a TEXT,\n      b TEXT,\n      c INTEGER,\n      d TEXT,\n      PRIMARY KEY (c, a)\n    ) WITHOUT ROWID"
+    },
+    {
+      "type": "index",
+      "name": "wr_b",
+      "tbl_name": "wr",
+      "rootpage": 3,
+      "sql": "CREATE INDEX wr_b ON wr(b)"
+    },
+    {
+      "type": "index",
+      "name": "wr_d",
+      "tbl_name": "wr",
+      "rootpage": 4,
+      "sql": "CREATE UNIQUE INDEX wr_d ON wr(d)"
+    },
+    {
+      "type": "table",
+      "name": "wr_nocase",
+      "tbl_name": "wr_nocase",
+      "rootpage": 7,
+      "sql": "CREATE TABLE wr_nocase (\n      k TEXT COLLATE NOCASE PRIMARY KEY,\n      v TEXT\n    ) WITHOUT ROWID"
+    }
+  ]
+}

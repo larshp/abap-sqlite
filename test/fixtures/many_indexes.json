@@ -1,0 +1,321 @@
+{
+  "pragmas": {
+    "page_size": 512,
+    "page_count": 7,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "m",
+      "sql": "CREATE TABLE m (\n      id INTEGER NOT NULL,\n      a TEXT NOT NULL,\n      b INTEGER NOT NULL,\n      c TEXT NOT NULL\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "a",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "b",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 3,
+          "name": "c",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "a",
+          1,
+          "c1"
+        ],
+        [
+          2,
+          "a",
+          2,
+          "c2"
+        ],
+        [
+          3,
+          "b",
+          1,
+          "c3"
+        ],
+        [
+          4,
+          "b",
+          2,
+          "c4"
+        ],
+        [
+          5,
+          "a",
+          1,
+          "c5"
+        ],
+        [
+          6,
+          "b",
+          2,
+          "c6"
+        ]
+      ]
+    }
+  ],
+  "indexes": [
+    {
+      "name": "m_a",
+      "table": "m",
+      "sql": "CREATE INDEX m_a ON m(a)",
+      "columns": [
+        "a"
+      ],
+      "entries": [
+        [
+          "a",
+          1
+        ],
+        [
+          "a",
+          2
+        ],
+        [
+          "a",
+          5
+        ],
+        [
+          "b",
+          3
+        ],
+        [
+          "b",
+          4
+        ],
+        [
+          "b",
+          6
+        ]
+      ]
+    },
+    {
+      "name": "m_ab",
+      "table": "m",
+      "sql": "CREATE INDEX m_ab ON m(a, b)",
+      "columns": [
+        "a",
+        "b"
+      ],
+      "entries": [
+        [
+          "a",
+          1,
+          1
+        ],
+        [
+          "a",
+          1,
+          5
+        ],
+        [
+          "a",
+          2,
+          2
+        ],
+        [
+          "b",
+          1,
+          3
+        ],
+        [
+          "b",
+          2,
+          4
+        ],
+        [
+          "b",
+          2,
+          6
+        ]
+      ]
+    },
+    {
+      "name": "m_b",
+      "table": "m",
+      "sql": "CREATE INDEX m_b ON m(b)",
+      "columns": [
+        "b"
+      ],
+      "entries": [
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          5
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          2,
+          6
+        ]
+      ]
+    },
+    {
+      "name": "m_ba",
+      "table": "m",
+      "sql": "CREATE INDEX m_ba ON m(b, a)",
+      "columns": [
+        "b",
+        "a"
+      ],
+      "entries": [
+        [
+          1,
+          "a",
+          1
+        ],
+        [
+          1,
+          "a",
+          5
+        ],
+        [
+          1,
+          "b",
+          3
+        ],
+        [
+          2,
+          "a",
+          2
+        ],
+        [
+          2,
+          "b",
+          4
+        ],
+        [
+          2,
+          "b",
+          6
+        ]
+      ]
+    },
+    {
+      "name": "m_c",
+      "table": "m",
+      "sql": "CREATE INDEX m_c ON m(c)",
+      "columns": [
+        "c"
+      ],
+      "entries": [
+        [
+          "c1",
+          1
+        ],
+        [
+          "c2",
+          2
+        ],
+        [
+          "c3",
+          3
+        ],
+        [
+          "c4",
+          4
+        ],
+        [
+          "c5",
+          5
+        ],
+        [
+          "c6",
+          6
+        ]
+      ]
+    }
+  ],
+  "schema": [
+    {
+      "type": "table",
+      "name": "m",
+      "tbl_name": "m",
+      "rootpage": 2,
+      "sql": "CREATE TABLE m (\n      id INTEGER NOT NULL,\n      a TEXT NOT NULL,\n      b INTEGER NOT NULL,\n      c TEXT NOT NULL\n    )"
+    },
+    {
+      "type": "index",
+      "name": "m_a",
+      "tbl_name": "m",
+      "rootpage": 3,
+      "sql": "CREATE INDEX m_a ON m(a)"
+    },
+    {
+      "type": "index",
+      "name": "m_ab",
+      "tbl_name": "m",
+      "rootpage": 4,
+      "sql": "CREATE INDEX m_ab ON m(a, b)"
+    },
+    {
+      "type": "index",
+      "name": "m_ba",
+      "tbl_name": "m",
+      "rootpage": 5,
+      "sql": "CREATE INDEX m_ba ON m(b, a)"
+    },
+    {
+      "type": "index",
+      "name": "m_b",
+      "tbl_name": "m",
+      "rootpage": 6,
+      "sql": "CREATE INDEX m_b ON m(b)"
+    },
+    {
+      "type": "index",
+      "name": "m_c",
+      "tbl_name": "m",
+      "rootpage": 7,
+      "sql": "CREATE INDEX m_c ON m(c)"
+    }
+  ]
+}

@@ -1,0 +1,182 @@
+{
+  "pragmas": {
+    "page_size": 512,
+    "page_count": 4,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "nulls",
+      "sql": "CREATE TABLE nulls (\n      id INTEGER NOT NULL,\n      a TEXT,\n      b INTEGER,\n      c BLOB\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "a",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "b",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 3,
+          "name": "c",
+          "type": "BLOB",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "a",
+          1,
+          {
+            "$blob": "01"
+          }
+        ],
+        [
+          2,
+          null,
+          2,
+          null
+        ],
+        [
+          3,
+          "a",
+          null,
+          {
+            "$blob": ""
+          }
+        ],
+        [
+          4,
+          null,
+          null,
+          {
+            "$blob": "03"
+          }
+        ],
+        [
+          5,
+          "b",
+          2,
+          null
+        ]
+      ]
+    }
+  ],
+  "indexes": [
+    {
+      "name": "nulls_a",
+      "table": "nulls",
+      "sql": "CREATE INDEX nulls_a ON nulls(a)",
+      "columns": [
+        "a"
+      ],
+      "entries": [
+        [
+          null,
+          2
+        ],
+        [
+          null,
+          4
+        ],
+        [
+          "a",
+          1
+        ],
+        [
+          "a",
+          3
+        ],
+        [
+          "b",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "nulls_ab",
+      "table": "nulls",
+      "sql": "CREATE INDEX nulls_ab ON nulls(a, b)",
+      "columns": [
+        "a",
+        "b"
+      ],
+      "entries": [
+        [
+          null,
+          null,
+          4
+        ],
+        [
+          null,
+          2,
+          2
+        ],
+        [
+          "a",
+          null,
+          3
+        ],
+        [
+          "a",
+          1,
+          1
+        ],
+        [
+          "b",
+          2,
+          5
+        ]
+      ]
+    }
+  ],
+  "schema": [
+    {
+      "type": "table",
+      "name": "nulls",
+      "tbl_name": "nulls",
+      "rootpage": 2,
+      "sql": "CREATE TABLE nulls (\n      id INTEGER NOT NULL,\n      a TEXT,\n      b INTEGER,\n      c BLOB\n    )"
+    },
+    {
+      "type": "index",
+      "name": "nulls_a",
+      "tbl_name": "nulls",
+      "rootpage": 3,
+      "sql": "CREATE INDEX nulls_a ON nulls(a)"
+    },
+    {
+      "type": "index",
+      "name": "nulls_ab",
+      "tbl_name": "nulls",
+      "rootpage": 4,
+      "sql": "CREATE INDEX nulls_ab ON nulls(a, b)"
+    }
+  ]
+}

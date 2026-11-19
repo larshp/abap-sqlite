@@ -1,0 +1,271 @@
+{
+  "pragmas": {
+    "page_size": 1024,
+    "page_count": 9,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "constrained",
+      "sql": "CREATE TABLE constrained (\n      id INTEGER PRIMARY KEY,\n      code TEXT NOT NULL COLLATE NOCASE,\n      rcode TEXT COLLATE RTRIM,\n      qty INTEGER DEFAULT (1 + 2) CHECK (qty > 0),\n      label TEXT DEFAULT (lower('MiXeD')),\n      amount INTEGER,\n      CONSTRAINT amount_ok CHECK (amount >= 0)\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 1
+        },
+        {
+          "cid": 1,
+          "name": "code",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "rcode",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 3,
+          "name": "qty",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": "1 + 2",
+          "primary_key": 0
+        },
+        {
+          "cid": 4,
+          "name": "label",
+          "type": "TEXT",
+          "notnull": false,
+          "default": "lower('MiXeD')",
+          "primary_key": 0
+        },
+        {
+          "cid": 5,
+          "name": "amount",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "alpha",
+          "x ",
+          1,
+          "one",
+          10
+        ],
+        [
+          2,
+          "Beta",
+          "y  ",
+          2,
+          "two",
+          0
+        ],
+        [
+          3,
+          "ALPHA",
+          "z",
+          3,
+          "mixed",
+          5
+        ],
+        [
+          4,
+          "aLpHa",
+          null,
+          4,
+          "last",
+          7
+        ]
+      ]
+    },
+    {
+      "name": "unique_basic",
+      "sql": "CREATE TABLE unique_basic (\n      id INTEGER PRIMARY KEY,\n      code TEXT NOT NULL UNIQUE,\n      part_a TEXT,\n      part_b TEXT,\n      UNIQUE (part_a, part_b)\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 1
+        },
+        {
+          "cid": 1,
+          "name": "code",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "part_a",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 3,
+          "name": "part_b",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "alpha",
+          "x",
+          "y"
+        ],
+        [
+          2,
+          "Beta",
+          "x",
+          "z"
+        ],
+        [
+          3,
+          "gamma",
+          null,
+          "y"
+        ],
+        [
+          4,
+          "delta",
+          null,
+          "y"
+        ]
+      ]
+    },
+    {
+      "name": "unique_nocase",
+      "sql": "CREATE TABLE unique_nocase (\n      id INTEGER PRIMARY KEY,\n      code TEXT COLLATE NOCASE UNIQUE,\n      tag TEXT COLLATE RTRIM,\n      UNIQUE (tag, code)\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 1
+        },
+        {
+          "cid": 1,
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "tag",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "Alpha",
+          "x "
+        ],
+        [
+          2,
+          "Beta",
+          "y"
+        ],
+        [
+          3,
+          "Gamma",
+          null
+        ],
+        [
+          4,
+          "Delta",
+          null
+        ]
+      ]
+    }
+  ],
+  "indexes": [],
+  "schema": [
+    {
+      "type": "table",
+      "name": "constrained",
+      "tbl_name": "constrained",
+      "rootpage": 2,
+      "sql": "CREATE TABLE constrained (\n      id INTEGER PRIMARY KEY,\n      code TEXT NOT NULL COLLATE NOCASE,\n      rcode TEXT COLLATE RTRIM,\n      qty INTEGER DEFAULT (1 + 2) CHECK (qty > 0),\n      label TEXT DEFAULT (lower('MiXeD')),\n      amount INTEGER,\n      CONSTRAINT amount_ok CHECK (amount >= 0)\n    )"
+    },
+    {
+      "type": "table",
+      "name": "unique_basic",
+      "tbl_name": "unique_basic",
+      "rootpage": 3,
+      "sql": "CREATE TABLE unique_basic (\n      id INTEGER PRIMARY KEY,\n      code TEXT NOT NULL UNIQUE,\n      part_a TEXT,\n      part_b TEXT,\n      UNIQUE (part_a, part_b)\n    )"
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex_unique_basic_1",
+      "tbl_name": "unique_basic",
+      "rootpage": 4,
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex_unique_basic_2",
+      "tbl_name": "unique_basic",
+      "rootpage": 5,
+      "sql": null
+    },
+    {
+      "type": "table",
+      "name": "unique_nocase",
+      "tbl_name": "unique_nocase",
+      "rootpage": 6,
+      "sql": "CREATE TABLE unique_nocase (\n      id INTEGER PRIMARY KEY,\n      code TEXT COLLATE NOCASE UNIQUE,\n      tag TEXT COLLATE RTRIM,\n      UNIQUE (tag, code)\n    )"
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex_unique_nocase_1",
+      "tbl_name": "unique_nocase",
+      "rootpage": 7,
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex_unique_nocase_2",
+      "tbl_name": "unique_nocase",
+      "rootpage": 8,
+      "sql": null
+    }
+  ]
+}

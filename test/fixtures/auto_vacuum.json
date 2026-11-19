@@ -1,0 +1,227 @@
+{
+  "pragmas": {
+    "page_size": 512,
+    "page_count": 4,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 1,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "keep",
+      "sql": "CREATE TABLE keep (id INTEGER NOT NULL, value TEXT NOT NULL)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "value",
+          "type": "TEXT",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "auto-001"
+        ],
+        [
+          2,
+          "auto-002"
+        ],
+        [
+          3,
+          "auto-003"
+        ],
+        [
+          4,
+          "auto-004"
+        ],
+        [
+          5,
+          "auto-005"
+        ],
+        [
+          6,
+          "auto-006"
+        ],
+        [
+          7,
+          "auto-007"
+        ],
+        [
+          8,
+          "auto-008"
+        ],
+        [
+          9,
+          "auto-009"
+        ],
+        [
+          10,
+          "auto-010"
+        ],
+        [
+          11,
+          "auto-011"
+        ],
+        [
+          12,
+          "auto-012"
+        ],
+        [
+          13,
+          "auto-013"
+        ],
+        [
+          14,
+          "auto-014"
+        ],
+        [
+          15,
+          "auto-015"
+        ],
+        [
+          16,
+          "auto-016"
+        ],
+        [
+          17,
+          "auto-017"
+        ],
+        [
+          18,
+          "auto-018"
+        ],
+        [
+          19,
+          "auto-019"
+        ],
+        [
+          20,
+          "auto-020"
+        ]
+      ]
+    }
+  ],
+  "indexes": [
+    {
+      "name": "keep_value",
+      "table": "keep",
+      "sql": "CREATE INDEX keep_value ON keep(value)",
+      "columns": [
+        "value"
+      ],
+      "entries": [
+        [
+          "auto-001",
+          1
+        ],
+        [
+          "auto-002",
+          2
+        ],
+        [
+          "auto-003",
+          3
+        ],
+        [
+          "auto-004",
+          4
+        ],
+        [
+          "auto-005",
+          5
+        ],
+        [
+          "auto-006",
+          6
+        ],
+        [
+          "auto-007",
+          7
+        ],
+        [
+          "auto-008",
+          8
+        ],
+        [
+          "auto-009",
+          9
+        ],
+        [
+          "auto-010",
+          10
+        ],
+        [
+          "auto-011",
+          11
+        ],
+        [
+          "auto-012",
+          12
+        ],
+        [
+          "auto-013",
+          13
+        ],
+        [
+          "auto-014",
+          14
+        ],
+        [
+          "auto-015",
+          15
+        ],
+        [
+          "auto-016",
+          16
+        ],
+        [
+          "auto-017",
+          17
+        ],
+        [
+          "auto-018",
+          18
+        ],
+        [
+          "auto-019",
+          19
+        ],
+        [
+          "auto-020",
+          20
+        ]
+      ]
+    }
+  ],
+  "schema": [
+    {
+      "type": "table",
+      "name": "keep",
+      "tbl_name": "keep",
+      "rootpage": 3,
+      "sql": "CREATE TABLE keep (id INTEGER NOT NULL, value TEXT NOT NULL)"
+    },
+    {
+      "type": "index",
+      "name": "keep_value",
+      "tbl_name": "keep",
+      "rootpage": 4,
+      "sql": "CREATE INDEX keep_value ON keep(value)"
+    }
+  ]
+}

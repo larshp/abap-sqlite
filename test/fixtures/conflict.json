@@ -1,0 +1,79 @@
+{
+  "pragmas": {
+    "page_size": 1024,
+    "page_count": 3,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "conflict_rows",
+      "sql": "CREATE TABLE conflict_rows (\n      id INTEGER PRIMARY KEY,\n      code TEXT UNIQUE,\n      amount INTEGER\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 1
+        },
+        {
+          "cid": 1,
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "amount",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          3,
+          "beta",
+          30
+        ],
+        [
+          4,
+          "alpha",
+          41
+        ],
+        [
+          8,
+          "eta",
+          80
+        ]
+      ]
+    }
+  ],
+  "indexes": [],
+  "schema": [
+    {
+      "type": "table",
+      "name": "conflict_rows",
+      "tbl_name": "conflict_rows",
+      "rootpage": 2,
+      "sql": "CREATE TABLE conflict_rows (\n      id INTEGER PRIMARY KEY,\n      code TEXT UNIQUE,\n      amount INTEGER\n    )"
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex_conflict_rows_1",
+      "tbl_name": "conflict_rows",
+      "rootpage": 3,
+      "sql": null
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "pragmas": {
+    "page_size": 1024,
+    "page_count": 5,
+    "encoding": "UTF-8",
+    "freelist_count": 2,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "auto_second",
+      "sql": "CREATE TABLE auto_second (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "default": null,
+          "primary_key": 1
+        },
+        {
+          "cid": 1,
+          "name": "v",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "a"
+        ],
+        [
+          2,
+          "b"
+        ]
+      ]
+    }
+  ],
+  "indexes": [],
+  "schema": [
+    {
+      "type": "table",
+      "name": "sqlite_sequence",
+      "tbl_name": "sqlite_sequence",
+      "rootpage": 4,
+      "sql": "CREATE TABLE sqlite_sequence(name,seq)"
+    },
+    {
+      "type": "table",
+      "name": "auto_second",
+      "tbl_name": "auto_second",
+      "rootpage": 5,
+      "sql": "CREATE TABLE auto_second (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT)"
+    }
+  ]
+}
