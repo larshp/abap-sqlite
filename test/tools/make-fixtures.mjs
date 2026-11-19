@@ -539,6 +539,26 @@ function constraintsDatabase() {
   return db;
 }
 
+function autoincrementDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 1024");
+  db.run("CREATE TABLE auto_basic (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT UNIQUE)");
+  db.run("INSERT INTO auto_basic (v) VALUES ('a')");
+  db.run("INSERT INTO auto_basic (v) VALUES ('b')");
+  db.run("DELETE FROM auto_basic WHERE id = 2");
+  db.run("INSERT INTO auto_basic (v) VALUES ('c')");
+  db.run("INSERT INTO auto_basic (id, v) VALUES (10, 'd')");
+  db.run("INSERT INTO auto_basic (id, v) VALUES (5, 'e')");
+  db.run("INSERT OR IGNORE INTO auto_basic (id, v) VALUES (20, 'c')");
+  db.run("INSERT INTO auto_basic (v) VALUES ('c') ON CONFLICT (v) DO NOTHING");
+  db.run("INSERT INTO auto_basic (v) VALUES ('g')");
+  db.run("CREATE TABLE auto_second (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT)");
+  db.run("INSERT INTO auto_second (v) VALUES ('a')");
+  db.run("DROP TABLE auto_basic");
+  db.run("INSERT INTO auto_second (v) VALUES ('b')");
+  return db;
+}
+
 function conflictDatabase() {
   const db = new SQL.Database();
   db.run("PRAGMA page_size = 1024");
@@ -1439,6 +1459,21 @@ const queryDefinitions = [
     database: "conflict.db",
     sql: "SELECT id, code, amount FROM conflict_rows WHERE amount = 30 ORDER BY id",
   },
+  {
+    name: "autoincrement.scan",
+    database: "autoincrement.db",
+    sql: "SELECT id, v FROM auto_second ORDER BY id",
+  },
+  {
+    name: "autoincrement.sequence",
+    database: "autoincrement.db",
+    sql: "SELECT name, seq FROM sqlite_sequence ORDER BY name",
+  },
+  {
+    name: "autoincrement.sequence_where",
+    database: "autoincrement.db",
+    sql: "SELECT seq FROM sqlite_sequence WHERE name = 'auto_second'",
+  },
 ];
 
 // Deterministic bulk cases keep the differential corpus broad enough to catch
@@ -1808,5 +1843,6 @@ await writeFixture("aggregates", aggregatesDatabase());
 await writeFixture("joins", joinsDatabase());
 await writeFixture("constraints", constraintsDatabase());
 await writeFixture("conflict", conflictDatabase());
+await writeFixture("autoincrement", autoincrementDatabase());
 
 await writeQueries();

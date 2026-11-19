@@ -395,6 +395,8 @@ CLASS zcl_sqlite_database DEFINITION
                 it_input     TYPE ty_row
                 iv_max_rowid TYPE int8
                 iv_have_max  TYPE abap_bool
+                iv_seq       TYPE int8 DEFAULT 0
+                iv_have_seq  TYPE abap_bool DEFAULT abap_false
       EXPORTING et_values    TYPE zcl_sqlite_record=>ty_values
                 es_result    TYPE ty_insert_result
       RAISING   zcx_sqlite_error.
@@ -405,8 +407,35 @@ CLASS zcl_sqlite_database DEFINITION
                 it_input     TYPE ty_row
                 iv_max_rowid TYPE int8
                 iv_have_max  TYPE abap_bool
+                iv_seq       TYPE int8 DEFAULT 0
+                iv_have_seq  TYPE abap_bool DEFAULT abap_false
       EXPORTING et_values    TYPE zcl_sqlite_record=>ty_values
                 es_result    TYPE ty_insert_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS ensure_sequence_table
+      RAISING   zcx_sqlite_error.
+
+    METHODS read_sequence
+      IMPORTING iv_table TYPE string
+      EXPORTING ev_seq   TYPE int8
+                ev_found TYPE abap_bool
+      RAISING   zcx_sqlite_error.
+
+    METHODS set_sequence
+      IMPORTING is_table     TYPE zcl_sqlite_schema=>ty_table
+                iv_new_seq   TYPE int8
+      CHANGING  cv_seq       TYPE int8
+                cv_have_seq  TYPE abap_bool
+                cv_seq_dirty TYPE abap_bool.
+
+    METHODS write_sequence
+      IMPORTING iv_table TYPE string
+                iv_seq   TYPE int8
+      RAISING   zcx_sqlite_error.
+
+    METHODS remove_sequence
+      IMPORTING iv_table TYPE string
       RAISING   zcx_sqlite_error.
 
     METHODS write_insert_row
@@ -1466,6 +1495,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
   METHOD execute_create_table.
     DATA ls_existing TYPE zcl_sqlite_schema=>ty_table.
     DATA ls_entry TYPE zcl_sqlite_catalog=>ty_entry.
+    DATA lo_schema TYPE REF TO zcl_sqlite_schema.
     DATA lv_root_page TYPE i.
     DATA lv_name TYPE string.
 
@@ -1511,6 +1541,12 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       is_entry = ls_entry ).
 
     create_autoindexes( lv_name ).
+
+    lo_schema = zcl_sqlite_schema=>read( mo_pager ).
+    ls_existing = lo_schema->table( lv_name ).
+    IF ls_existing-autoincrement = abap_true.
+      ensure_sequence_table( ).
+    ENDIF.
 
     mo_pager->bump_schema_cookie( ).
   ENDMETHOD.
@@ -1606,6 +1642,12 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lv_name TYPE string.
 
     lv_name = strip_schema_name( io_statement->get_name( ) ).
+    IF to_upper( lv_name ) = 'SQLITE_SEQUENCE'.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'table sqlite_sequence may not be dropped'.
+    ENDIF.
     ls_table = mo_schema->table( lv_name ).
     IF ls_table-name IS INITIAL.
       IF io_statement->is_if_exists( ) = abap_true.
@@ -1624,6 +1666,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ENDIF.
 
     APPEND ls_table-name TO lt_names.
+    IF ls_table-autoincrement = abap_true.
+      remove_sequence( ls_table-name ).
+    ENDIF.
     LOOP AT ls_table-indexes INTO ls_index.
       APPEND ls_index-name TO lt_names.
       IF ls_index-rootpage > 0.
@@ -2015,6 +2060,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lt_new_values TYPE zcl_sqlite_record=>ty_values.
     DATA lt_upsert_conflicts TYPE ty_conflicts.
     DATA lv_action TYPE string.
+    DATA lv_seq TYPE int8.
+    DATA lv_have_seq TYPE abap_bool.
+    DATA lv_seq_dirty TYPE abap_bool.
 
     ls_table = mo_schema->table( io_statement->get_table( ) ).
     IF ls_table-name IS INITIAL.
@@ -2132,6 +2180,15 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         ev_max_rowid = lv_max_rowid
         ev_have_max  = lv_have_max ).
 
+    IF ls_table-autoincrement = abap_true.
+      read_sequence(
+        EXPORTING
+          iv_table = ls_table-name
+        IMPORTING
+          ev_seq   = lv_seq
+          ev_found = lv_have_seq ).
+    ENDIF.
+
     LOOP AT lt_input_rows INTO ls_input.
       insert_one(
         EXPORTING
@@ -2140,6 +2197,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           it_input     = ls_input
           iv_max_rowid = lv_max_rowid
           iv_have_max  = lv_have_max
+          iv_seq       = lv_seq
+          iv_have_seq  = lv_have_seq
         IMPORTING
           et_values    = lt_values
           es_result    = ls_result ).
@@ -2147,6 +2206,12 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       lv_have_max = ls_result-have_max.
       lv_last_rowid = ls_result-rowid.
       lv_changes = lv_changes + 1.
+      IF ls_table-autoincrement = abap_true
+          AND ( lv_have_seq = abap_false OR ls_result-rowid > lv_seq ).
+        lv_seq = ls_result-rowid.
+        lv_have_seq = abap_true.
+        lv_seq_dirty = abap_true.
+      ENDIF.
       add_returning_if_requested(
         EXPORTING
           is_table   = ls_table
@@ -2156,6 +2221,12 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         CHANGING
           cs_result  = es_result ).
     ENDLOOP.
+
+    IF lv_seq_dirty = abap_true.
+      write_sequence(
+        iv_table = ls_table-name
+        iv_seq   = lv_seq ).
+    ENDIF.
 
     ev_changes = lv_changes.
     ev_last_rowid = lv_last_rowid.
@@ -2175,6 +2246,10 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lv_last_rowid TYPE int8.
     DATA lv_action TYPE string.
     DATA ls_input TYPE ty_row.
+    DATA lv_seq TYPE int8.
+    DATA lv_have_seq TYPE abap_bool.
+    DATA lv_seq_dirty TYPE abap_bool.
+    DATA lv_new_seq TYPE int8.
 
     ev_changes = 0.
     ev_last_rowid = 0.
@@ -2185,6 +2260,15 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       IMPORTING ev_max_rowid = lv_max_rowid
                 ev_have_max  = lv_have_max ).
 
+    IF is_table-autoincrement = abap_true.
+      read_sequence(
+        EXPORTING
+          iv_table = is_table-name
+        IMPORTING
+          ev_seq   = lv_seq
+          ev_found = lv_have_seq ).
+    ENDIF.
+
     LOOP AT it_input_rows INTO ls_input.
       build_insert_row(
         EXPORTING
@@ -2193,9 +2277,16 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           it_input     = ls_input
           iv_max_rowid = lv_max_rowid
           iv_have_max  = lv_have_max
+          iv_seq       = lv_seq
+          iv_have_seq  = lv_have_seq
         IMPORTING
           et_values    = lt_values
           es_result    = ls_result ).
+
+      lv_new_seq = lv_seq.
+      IF lv_have_seq = abap_false OR ls_result-rowid > lv_seq.
+        lv_new_seq = ls_result-rowid.
+      ENDIF.
 
       lt_conflicts = find_conflicts(
         is_table  = is_table
@@ -2223,6 +2314,14 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
             cv_changes           = lv_changes
             cv_last_rowid        = lv_last_rowid
             cs_result            = es_result ).
+        set_sequence(
+          EXPORTING
+            is_table     = is_table
+            iv_new_seq   = lv_new_seq
+          CHANGING
+            cv_seq       = lv_seq
+            cv_have_seq  = lv_have_seq
+            cv_seq_dirty = lv_seq_dirty ).
         CONTINUE.
       ENDIF.
 
@@ -2234,6 +2333,14 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         lv_have_max = ls_result-have_max.
         lv_changes = lv_changes + 1.
         lv_last_rowid = ls_result-rowid.
+        set_sequence(
+          EXPORTING
+            is_table     = is_table
+            iv_new_seq   = lv_new_seq
+          CHANGING
+            cv_seq       = lv_seq
+            cv_have_seq  = lv_have_seq
+            cv_seq_dirty = lv_seq_dirty ).
         add_returning_if_requested(
           EXPORTING
             is_table   = is_table
@@ -2247,6 +2354,14 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
       lv_action = io_statement->get_conflict( ).
       IF lv_action = 'OR IGNORE'.
+        set_sequence(
+          EXPORTING
+            is_table     = is_table
+            iv_new_seq   = lv_new_seq
+          CHANGING
+            cv_seq       = lv_seq
+            cv_have_seq  = lv_have_seq
+            cv_seq_dirty = lv_seq_dirty ).
         CONTINUE.
       ENDIF.
       IF lv_action = 'OR REPLACE'.
@@ -2260,6 +2375,14 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         lv_have_max = ls_result-have_max.
         lv_changes = lv_changes + 1.
         lv_last_rowid = ls_result-rowid.
+        set_sequence(
+          EXPORTING
+            is_table     = is_table
+            iv_new_seq   = lv_new_seq
+          CHANGING
+            cv_seq       = lv_seq
+            cv_have_seq  = lv_have_seq
+            cv_seq_dirty = lv_seq_dirty ).
         add_returning_if_requested(
           EXPORTING
             is_table   = is_table
@@ -2277,6 +2400,11 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           write_table_rows(
             is_table = is_table
             it_rows  = lt_rows ).
+          IF lv_seq_dirty = abap_true.
+            write_sequence(
+              iv_table = is_table-name
+              iv_seq   = lv_seq ).
+          ENDIF.
           IF mv_in_transaction = abap_true.
             mo_pager->commit_statement( ).
           ELSE.
@@ -2304,6 +2432,12 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     write_table_rows(
       is_table = is_table
       it_rows  = lt_rows ).
+
+    IF lv_seq_dirty = abap_true.
+      write_sequence(
+        iv_table = is_table-name
+        iv_seq   = lv_seq ).
+    ENDIF.
 
     ev_changes = lv_changes.
     ev_last_rowid = lv_last_rowid.
@@ -3127,6 +3261,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         it_input     = it_input
         iv_max_rowid = iv_max_rowid
         iv_have_max  = iv_have_max
+        iv_seq       = iv_seq
+        iv_have_seq  = iv_have_seq
       IMPORTING
         et_values    = et_values
         es_result    = es_result ).
@@ -3195,7 +3331,27 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ENDLOOP.
 
     IF lv_rowid_set = abap_false.
-      IF iv_have_max = abap_true.
+      IF is_table-autoincrement = abap_true
+          AND iv_have_seq = abap_true.
+        IF iv_have_max = abap_true
+            AND iv_max_rowid >= iv_seq.
+          IF iv_max_rowid = c_max_rowid.
+            RAISE EXCEPTION TYPE zcx_sqlite_error
+              EXPORTING
+                iv_code    = zcx_sqlite_error=>sqlite_error
+                iv_message = 'rowid overflow'.
+          ENDIF.
+          lv_rowid = iv_max_rowid + 1.
+        ELSE.
+          IF iv_seq = c_max_rowid.
+            RAISE EXCEPTION TYPE zcx_sqlite_error
+              EXPORTING
+                iv_code    = zcx_sqlite_error=>sqlite_error
+                iv_message = 'rowid overflow'.
+          ENDIF.
+          lv_rowid = iv_seq + 1.
+        ENDIF.
+      ELSEIF iv_have_max = abap_true.
         IF iv_max_rowid = c_max_rowid.
           RAISE EXCEPTION TYPE zcx_sqlite_error
             EXPORTING
@@ -3224,6 +3380,148 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     IF iv_have_max = abap_false OR lv_rowid > iv_max_rowid.
       es_result-max_rowid = lv_rowid.
       es_result-have_max = abap_true.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD ensure_sequence_table.
+    DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_create TYPE REF TO zcl_sqlite_ast_create_table.
+
+    ls_table = mo_schema->table( 'sqlite_sequence' ).
+    IF ls_table-name IS NOT INITIAL.
+      RETURN.
+    ENDIF.
+
+    lo_statement = zcl_sqlite_parser=>parse_statement( 'CREATE TABLE sqlite_sequence(name,seq)' ).
+    lo_create ?= lo_statement.
+    execute_create_table(
+      io_statement = lo_create
+      iv_sql       = 'CREATE TABLE sqlite_sequence(name,seq)' ).
+  ENDMETHOD.
+
+  METHOD read_sequence.
+    DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA lt_rows TYPE ty_memory_rows.
+    DATA ls_row TYPE ty_memory_row.
+    DATA lo_name TYPE REF TO zcl_sqlite_value.
+    DATA lo_seq TYPE REF TO zcl_sqlite_value.
+
+    ev_seq = 0.
+    ev_found = abap_false.
+
+    ls_table = mo_schema->table( 'sqlite_sequence' ).
+    IF ls_table-name IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    lt_rows = read_table_rows( ls_table ).
+    LOOP AT lt_rows INTO ls_row.
+      READ TABLE ls_row-values INTO lo_name INDEX 1.
+      READ TABLE ls_row-values INTO lo_seq INDEX 2.
+      IF sy-subrc = 0
+          AND lo_name->is_null( ) = abap_false
+          AND to_upper( lo_name->as_text( ) ) = to_upper( iv_table )
+          AND lo_seq->is_null( ) = abap_false.
+        ev_seq = lo_seq->as_integer( ).
+        ev_found = abap_true.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD set_sequence.
+    IF is_table-autoincrement = abap_false.
+      RETURN.
+    ENDIF.
+    IF cv_have_seq = abap_false OR iv_new_seq > cv_seq.
+      cv_seq = iv_new_seq.
+      cv_have_seq = abap_true.
+      cv_seq_dirty = abap_true.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD write_sequence.
+    DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA lt_rows TYPE ty_memory_rows.
+    DATA ls_row TYPE ty_memory_row.
+    DATA lo_name TYPE REF TO zcl_sqlite_value.
+    DATA lv_found TYPE abap_bool.
+    DATA lv_max_rowid TYPE int8.
+    DATA lv_have_max TYPE abap_bool.
+
+    ls_table = mo_schema->table( 'sqlite_sequence' ).
+    IF ls_table-name IS INITIAL.
+      ensure_sequence_table( ).
+      mo_schema = zcl_sqlite_schema=>read( mo_pager ).
+      ls_table = mo_schema->table( 'sqlite_sequence' ).
+      IF ls_table-name IS INITIAL.
+        RETURN.
+      ENDIF.
+    ENDIF.
+
+    lt_rows = read_table_rows( ls_table ).
+    LOOP AT lt_rows INTO ls_row.
+      READ TABLE ls_row-values INTO lo_name INDEX 1.
+      IF sy-subrc = 0
+          AND lo_name->is_null( ) = abap_false
+          AND to_upper( lo_name->as_text( ) ) = to_upper( iv_table ).
+        MODIFY ls_row-values FROM zcl_sqlite_value=>integer( iv_seq ) INDEX 2.
+        MODIFY lt_rows FROM ls_row INDEX sy-tabix.
+        lv_found = abap_true.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+
+    IF lv_found = abap_false.
+      max_memory_rowid(
+        EXPORTING it_rows      = lt_rows
+        IMPORTING ev_max_rowid = lv_max_rowid
+                  ev_have_max  = lv_have_max ).
+      CLEAR ls_row.
+      IF lv_have_max = abap_true.
+        ls_row-rowid = lv_max_rowid + 1.
+      ELSE.
+        ls_row-rowid = 1.
+      ENDIF.
+      APPEND zcl_sqlite_value=>text( iv_table ) TO ls_row-values.
+      APPEND zcl_sqlite_value=>integer( iv_seq ) TO ls_row-values.
+      APPEND ls_row TO lt_rows.
+    ENDIF.
+
+    write_table_rows(
+      is_table = ls_table
+      it_rows  = lt_rows ).
+  ENDMETHOD.
+
+  METHOD remove_sequence.
+    DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA lt_rows TYPE ty_memory_rows.
+    DATA ls_row TYPE ty_memory_row.
+    DATA lo_name TYPE REF TO zcl_sqlite_value.
+    DATA lv_found TYPE abap_bool.
+
+    ls_table = mo_schema->table( 'sqlite_sequence' ).
+    IF ls_table-name IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    lt_rows = read_table_rows( ls_table ).
+    LOOP AT lt_rows INTO ls_row.
+      READ TABLE ls_row-values INTO lo_name INDEX 1.
+      IF sy-subrc = 0
+          AND lo_name->is_null( ) = abap_false
+          AND to_upper( lo_name->as_text( ) ) = to_upper( iv_table ).
+        DELETE lt_rows INDEX sy-tabix.
+        lv_found = abap_true.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+
+    IF lv_found = abap_true.
+      write_table_rows(
+        is_table = ls_table
+        it_rows  = lt_rows ).
     ENDIF.
   ENDMETHOD.
 

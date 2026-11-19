@@ -622,7 +622,7 @@ The order in this phase is flexible. Each milestone adds its cases to the differ
 | ✅ M7.1 Column constraints | `NOT NULL`, `CHECK`, `DEFAULT` expressions, `COLLATE` on columns |
 | ✅ M7.2 Unique keys | `UNIQUE`, `PRIMARY KEY` (incl. composite → autoindex `sqlite_autoindex_*`) |
 | ✅ M7.3 Conflict handling | `INSERT OR REPLACE/IGNORE/ABORT/FAIL/ROLLBACK`, `ON CONFLICT` UPSERT, `RETURNING` |
-| M7.4 AUTOINCREMENT | `sqlite_sequence` table |
+| ✅ M7.4 AUTOINCREMENT | `sqlite_sequence` table |
 | M7.5 WITHOUT ROWID writes | Insert/update/delete on index-organized tables |
 | M7.6 Subqueries | Scalar, `IN`, `EXISTS`, correlated, subqueries in `FROM` |
 | M7.7 Views | `CREATE VIEW` / `DROP VIEW`, expanded at plan time |

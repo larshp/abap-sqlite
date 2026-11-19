@@ -27,6 +27,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS conflict_actions FOR TESTING RAISING zcx_sqlite_error.
     METHODS upsert_actions FOR TESTING RAISING zcx_sqlite_error.
     METHODS dml_returning FOR TESTING RAISING zcx_sqlite_error.
+    METHODS autoincrement FOR TESTING RAISING zcx_sqlite_error.
 
     TYPES: BEGIN OF ty_abap_row,
              id      TYPE i,
@@ -3150,6 +3151,101 @@ CLASS ltcl_database IMPLEMENTATION.
                         iv_sql      = 'SELECT id FROM t WHERE id = 2' )
       exp = 1
       msg = 'execute accepts RETURNING' ).
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD autoincrement.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lv_name     TYPE string.
+
+    lv_name = 'test/m7_4_autoincrement.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'CREATE TABLE auto (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT UNIQUE)' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT name FROM sqlite_sequence' )
+      exp = 0
+      msg = 'sqlite_sequence starts empty' ).
+
+    lo_database->execute( 'INSERT INTO auto (v) VALUES (''a'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM auto WHERE id = 1' )
+      exp = 1
+      msg = 'AUTOINCREMENT starts at one' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT seq FROM sqlite_sequence WHERE name = ''auto'' AND seq = 1' )
+      exp = 1
+      msg = 'sqlite_sequence records the first insert' ).
+
+    lo_database->execute( 'INSERT INTO auto (id, v) VALUES (10, ''b'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT seq FROM sqlite_sequence WHERE name = ''auto'' AND seq = 10' )
+      exp = 1
+      msg = 'explicit rowid advances sqlite_sequence' ).
+
+    lo_database->execute( 'DELETE FROM auto' ).
+    lo_database->execute( 'INSERT INTO auto (v) VALUES (''c'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM auto WHERE id = 11' )
+      exp = 1
+      msg = 'deleted AUTOINCREMENT rowids are not reused' ).
+
+    lo_database->execute( 'INSERT OR IGNORE INTO auto (id, v) VALUES (50, ''c'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT seq FROM sqlite_sequence WHERE name = ''auto'' AND seq = 50' )
+      exp = 1
+      msg = 'ignored row still advances sqlite_sequence' ).
+    lo_database->execute( 'INSERT INTO auto (v) VALUES (''d'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM auto WHERE id = 51' )
+      exp = 1
+      msg = 'insert after ignored row uses the sequence' ).
+
+    lo_database->execute( 'INSERT INTO auto (v) VALUES (''d'') ON CONFLICT (v) DO NOTHING' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT seq FROM sqlite_sequence WHERE name = ''auto'' AND seq = 52' )
+      exp = 1
+      msg = 'DO NOTHING advances sqlite_sequence' ).
+    lo_database->execute( 'INSERT INTO auto (v) VALUES (''e'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM auto WHERE id = 53' )
+      exp = 1
+      msg = 'insert after DO NOTHING uses the sequence' ).
+
+    lo_database->execute( 'DROP TABLE auto' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT name FROM sqlite_sequence' )
+      exp = 0
+      msg = 'DROP TABLE removes the sequence row' ).
+
+* the sequence is persisted across reopen
+    lo_database->execute( 'CREATE TABLE auto2 (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT)' ).
+    lo_database->execute( 'INSERT INTO auto2 (v) VALUES (''a'')' ).
+    lo_database->close( ).
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'DELETE FROM auto2' ).
+    lo_database->execute( 'INSERT INTO auto2 (v) VALUES (''b'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM auto2 WHERE id = 2' )
+      exp = 1
+      msg = 'sqlite_sequence is persisted' ).
 
     lo_database->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).

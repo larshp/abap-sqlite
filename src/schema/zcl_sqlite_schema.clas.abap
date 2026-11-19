@@ -68,6 +68,7 @@ CLASS zcl_sqlite_schema DEFINITION
         rootpage      TYPE int8,
         without_rowid TYPE abap_bool,
         strict        TYPE abap_bool,
+        autoincrement TYPE abap_bool,
         columns       TYPE ty_columns,
         checks        TYPE ty_checks,
         indexes       TYPE ty_indexes,
@@ -153,6 +154,10 @@ CLASS zcl_sqlite_schema DEFINITION
     METHODS find_primary_key
       IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_create_table
       RETURNING VALUE(rs_pk) TYPE ty_primary_key.
+
+    METHODS has_autoincrement
+      IMPORTING io_statement  TYPE REF TO zcl_sqlite_ast_create_table
+      RETURNING VALUE(rv_set) TYPE abap_bool.
 
     METHODS apply_primary_key
       IMPORTING is_pk             TYPE ty_primary_key
@@ -401,6 +406,7 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
       ls_table-columns = mark_rowid_alias(
         it_pk_names = ls_pk-names
         it_columns  = ls_table-columns ).
+      ls_table-autoincrement = has_autoincrement( io_statement ).
     ENDIF.
 
     IF ls_table-without_rowid = abap_true OR ls_table-strict = abap_true.
@@ -525,6 +531,24 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
         ENDIF.
       ENDLOOP.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD has_autoincrement.
+    DATA lt_columns TYPE zcl_sqlite_ast_create_table=>ty_columns.
+    DATA lt_constraints TYPE zcl_sqlite_ast_column_def=>ty_constraints.
+    DATA lo_column TYPE REF TO zcl_sqlite_ast_column_def.
+    DATA lo_constraint TYPE REF TO zcl_sqlite_ast_constraint.
+
+    lt_columns = io_statement->get_columns( ).
+    LOOP AT lt_columns INTO lo_column.
+      lt_constraints = lo_column->get_constraints( ).
+      LOOP AT lt_constraints INTO lo_constraint.
+        IF lo_constraint->is_autoincrement( ) = abap_true.
+          rv_set = abap_true.
+          RETURN.
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD apply_primary_key.
@@ -915,6 +939,10 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD is_sqlite_internal.
+    IF to_lower( iv_name ) = 'sqlite_sequence'.
+      RETURN.
+    ENDIF.
+
     IF strlen( iv_name ) >= 7
         AND to_lower( substring( val = iv_name
                                  len = 7 ) ) = 'sqlite_'.

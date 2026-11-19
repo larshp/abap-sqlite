@@ -7,6 +7,7 @@ CLASS zcl_sqlite_scenario DEFINITION
   CREATE PUBLIC.
 
   PUBLIC SECTION.
+    CONSTANTS c_autoincrement_database TYPE string VALUE 'compat/autoincrement.db'.
     CONSTANTS c_conflict_database TYPE string VALUE 'compat/conflict.db'.
     CONSTANTS c_constraints_database TYPE string VALUE 'compat/constraints.db'.
     CONSTANTS c_create_table_database TYPE string VALUE 'compat/create-table.db'.
@@ -38,6 +39,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS conflict_rows
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS autoincrement_rows
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -228,6 +233,35 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_database->close( ).
 
     rv_name = c_conflict_database.
+  ENDMETHOD.
+
+  METHOD autoincrement_rows.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_autoincrement_database ).
+
+    lo_database = zcl_sqlite_database=>open( c_autoincrement_database ).
+    lo_database->execute( 'CREATE TABLE auto_basic (id INTEGER PRIMARY KEY AUTOINCREMENT,' && ' v TEXT UNIQUE)' ).
+    lo_database->execute( 'INSERT INTO auto_basic (v) VALUES (''a'')' ).
+    lo_database->execute( 'INSERT INTO auto_basic (v) VALUES (''b'')' ).
+    lo_database->execute( 'DELETE FROM auto_basic WHERE id = 2' ).
+    lo_database->execute( 'INSERT INTO auto_basic (v) VALUES (''c'')' ).
+    lo_database->execute( 'INSERT INTO auto_basic (id, v) VALUES (10, ''d'')' ).
+    lo_database->execute( 'INSERT INTO auto_basic (id, v) VALUES (5, ''e'')' ).
+    lo_database->execute( 'INSERT OR IGNORE INTO auto_basic (id, v) VALUES (20, ''c'')' ).
+    lo_database->execute( 'INSERT INTO auto_basic (v) VALUES (''c'') ON CONFLICT (v) DO NOTHING' ).
+    lo_database->execute( 'INSERT INTO auto_basic (v) VALUES (''g'')' ).
+
+    lo_database->execute( 'CREATE TABLE auto_second (id INTEGER PRIMARY KEY AUTOINCREMENT,' && ' v TEXT)' ).
+    lo_database->execute( 'INSERT INTO auto_second (v) VALUES (''a'')' ).
+    lo_database->execute( 'DROP TABLE auto_basic' ).
+    lo_database->execute( 'INSERT INTO auto_second (v) VALUES (''b'')' ).
+
+    lo_database->close( ).
+
+    rv_name = c_autoincrement_database.
   ENDMETHOD.
 
   METHOD unique_keys.

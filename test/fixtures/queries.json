@@ -6852,6 +6852,74 @@
       ]
     },
     {
+      "name": "autoincrement.scan",
+      "database": "fixtures/autoincrement.db",
+      "sql": "SELECT id, v FROM auto_second ORDER BY id",
+      "columns": [
+        "id",
+        "v"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "autoincrement.sequence",
+      "database": "fixtures/autoincrement.db",
+      "sql": "SELECT name, seq FROM sqlite_sequence ORDER BY name",
+      "columns": [
+        "name",
+        "seq"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "auto_second"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "autoincrement.sequence_where",
+      "database": "fixtures/autoincrement.db",
+      "sql": "SELECT seq FROM sqlite_sequence WHERE name = 'auto_second'",
+      "columns": [
+        "seq"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
       "name": "generated.many_a_0_0",
       "database": "fixtures/many_indexes.db",
       "sql": "SELECT id, a, b, c FROM m WHERE a = 'a' ORDER BY id",

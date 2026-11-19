@@ -585,6 +585,66 @@ async function verifyUniqueKeys(SQL, tempDir) {
   );
 }
 
+async function verifyAutoincrement(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.autoincrement_rows({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "autoincrement.db");
+  const reference = new SQL.Database();
+  const statements = [
+    "CREATE TABLE auto_basic (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT UNIQUE)",
+    "INSERT INTO auto_basic (v) VALUES ('a')",
+    "INSERT INTO auto_basic (v) VALUES ('b')",
+    "DELETE FROM auto_basic WHERE id = 2",
+    "INSERT INTO auto_basic (v) VALUES ('c')",
+    "INSERT INTO auto_basic (id, v) VALUES (10, 'd')",
+    "INSERT INTO auto_basic (id, v) VALUES (5, 'e')",
+    "INSERT OR IGNORE INTO auto_basic (id, v) VALUES (20, 'c')",
+    "INSERT INTO auto_basic (v) VALUES ('c') ON CONFLICT (v) DO NOTHING",
+    "INSERT INTO auto_basic (v) VALUES ('g')",
+    "CREATE TABLE auto_second (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT)",
+    "INSERT INTO auto_second (v) VALUES ('a')",
+    "DROP TABLE auto_basic",
+    "INSERT INTO auto_second (v) VALUES ('b')",
+  ];
+
+  try {
+    for (const sql of statements) {
+      reference.run(sql);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.deepEqual(
+      rows(exported.db, "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name"),
+      rows(reference, "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name"),
+      "sqlite_schema rows differ",
+    );
+    assert.deepEqual(
+      typedRows(exported.db, "auto_second", ["id", "v"]),
+      typedRows(reference, "auto_second", ["id", "v"]),
+      "autoincrement rows differ",
+    );
+    assert.deepEqual(
+      typedRows(exported.db, "sqlite_sequence", ["name", "seq"]),
+      typedRows(reference, "sqlite_sequence", ["name", "seq"]),
+      "sqlite_sequence rows differ",
+    );
+
+    const queries = [
+      "SELECT id, v FROM auto_second ORDER BY id",
+      "SELECT name, seq FROM sqlite_sequence ORDER BY name",
+    ];
+    for (const sql of queries) {
+      assert.deepEqual(rows(exported.db, sql), rows(reference, sql), `autoincrement query differs: ${sql}`);
+    }
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, autoincrement)`,
+  );
+}
+
 async function verifyConflict(SQL, tempDir) {
   const fileName = (await zcl_sqlite_scenario.conflict_rows({rv_name: 1})).get();
   const exported = await openExported(SQL, tempDir, fileName, "conflict.db");
@@ -1116,6 +1176,7 @@ try {
     ["constraints", verifyColumnConstraints],
     ["unique", verifyUniqueKeys],
     ["conflict", verifyConflict],
+    ["autoincrement", verifyAutoincrement],
     ["index", verifyIndex],
     ["drop", verifyDrop],
     ["freelist", verifyFreelist],
