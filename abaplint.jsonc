@@ -15,6 +15,7 @@
   ],
   "rules": {
     "cds_comment_style": true,
+    "redundant_conversion": true,
     "change_if_to_case": true,
     "expand_macros": true,
     "fully_type_itabs": true,

@@ -27,7 +27,7 @@ CLASS zcl_sqlite_random IMPLEMENTATION.
 
   METHOD next.
     mv_seed = ( mv_seed * 48271 ) MOD 2147483647.
-    rv_value = CONV i( mv_seed MOD iv_limit ).
+    rv_value = mv_seed MOD iv_limit.
   ENDMETHOD.
 
 ENDCLASS.

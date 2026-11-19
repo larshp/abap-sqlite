@@ -298,7 +298,7 @@ CLASS zcl_sqlite_btree_writer IMPLEMENTATION.
     mo_pager = io_pager.
     mv_root_page = iv_root_page.
     ls_header = io_pager->header( ).
-    mv_page_size = CONV i( ls_header-page_size ).
+    mv_page_size = ls_header-page_size.
     mv_usable_size = mv_page_size - CONV i( ls_header-reserved_bytes ).
     IF mv_usable_size < zcl_sqlite_btree=>c_min_usable_size.
       fail( iv_code    = zcx_sqlite_error=>sqlite_corrupt
@@ -760,9 +760,9 @@ CLASS zcl_sqlite_btree_writer IMPLEMENTATION.
       APPEND lv_page TO lt_seen.
 
       ls_raw = mo_pager->get_page( lv_page ).
-      lv_next = CONV i( read_u32(
+      lv_next = read_u32(
         iv_data   = ls_raw-data
-        iv_offset = 0 ) ).
+        iv_offset = 0 ).
       mo_pager->free_page( lv_page ).
       lv_page = lv_next.
     ENDWHILE.
@@ -1059,7 +1059,7 @@ CLASS zcl_sqlite_btree_writer IMPLEMENTATION.
       IF iv_rowid <= lv_key.
         lv_child = read_u32( iv_data   = is_raw-data
                              iv_offset = lv_offset ).
-        ev_child = CONV i( lv_child ).
+        ev_child = lv_child.
         ev_child_index = sy-tabix - 1.
         RETURN.
       ENDIF.
@@ -1401,7 +1401,7 @@ CLASS zcl_sqlite_btree_writer IMPLEMENTATION.
       ENDIF.
 
       ls_cell-key = lv_key.
-      ls_cell-child = CONV i( lv_child ).
+      ls_cell-child = lv_child.
       ls_cell-data = is_raw-data+lv_offset(lv_cell_length).
       APPEND ls_cell TO rt_cells.
     ENDLOOP.

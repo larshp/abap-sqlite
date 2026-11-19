@@ -135,8 +135,8 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
           lv_slot = lv_next_index.
           lv_next_index = lv_next_index + 1.
         ELSE.
-          lv_slot = CONV i( substring( val = lv_text
-                                       off = 1 ) ).
+          lv_slot = substring( val         = lv_text
+                                       off = 1 ).
           IF lv_slot <= 0.
             RAISE EXCEPTION TYPE zcx_sqlite_error
               EXPORTING

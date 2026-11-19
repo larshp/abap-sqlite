@@ -384,7 +384,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
       put_page( iv_page = CONV i( lv_trunk )
                 iv_data = ls_trunk-data ).
 
-      rv_page = CONV i( lv_leaf ).
+      rv_page = lv_leaf.
     ELSE.
       lv_next = page_u32( iv_data   = ls_trunk-data
                           iv_offset = 0 ).
@@ -393,7 +393,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
       ENDIF.
 
       mv_header-freelist_trunk = lv_next.
-      rv_page = CONV i( lv_trunk ).
+      rv_page = lv_trunk.
     ENDIF.
 
     mv_header-freelist_pages = mv_header-freelist_pages - 1.
@@ -428,7 +428,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
       put_page( iv_page = iv_page
                 iv_data = lv_data ).
 
-      mv_header-freelist_trunk = CONV int8( iv_page ).
+      mv_header-freelist_trunk = iv_page.
       mv_header-freelist_pages = mv_header-freelist_pages + 1.
       RETURN.
     ENDIF.
@@ -466,7 +466,7 @@ CLASS zcl_sqlite_pager IMPLEMENTATION.
       put_page( iv_page = iv_page
                 iv_data = lv_data ).
 
-      mv_header-freelist_trunk = CONV int8( iv_page ).
+      mv_header-freelist_trunk = iv_page.
     ENDIF.
 
     mv_header-freelist_pages = mv_header-freelist_pages + 1.
