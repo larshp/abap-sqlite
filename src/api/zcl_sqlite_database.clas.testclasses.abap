@@ -28,6 +28,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS upsert_actions FOR TESTING RAISING zcx_sqlite_error.
     METHODS dml_returning FOR TESTING RAISING zcx_sqlite_error.
     METHODS autoincrement FOR TESTING RAISING zcx_sqlite_error.
+    METHODS without_rowid_writes FOR TESTING RAISING zcx_sqlite_error.
 
     TYPES: BEGIN OF ty_abap_row,
              id      TYPE i,
@@ -3465,6 +3466,171 @@ CLASS ltcl_database IMPLEMENTATION.
     lo_vfs = NEW zcl_sqlite_vfs_table( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
     COMMIT WORK.
+  ENDMETHOD.
+
+  METHOD without_rowid_writes.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA lv_name     TYPE string.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+
+    lv_name = 'test/m7_5_without_rowid.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    TRY.
+        lo_database->execute( 'CREATE TABLE bad (a TEXT) WITHOUT ROWID' ).
+        cl_abap_unit_assert=>fail( 'WITHOUT ROWID without primary key must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'PRIMARY KEY missing on table bad'
+          msg = 'WITHOUT ROWID primary key error' ).
+    ENDTRY.
+    TRY.
+        lo_database->query( 'SELECT a FROM bad' ).
+        cl_abap_unit_assert=>fail( 'failed WITHOUT ROWID create must not leave a table' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'no such table: bad'
+          msg = 'failed WITHOUT ROWID create rollback' ).
+    ENDTRY.
+    TRY.
+        lo_database->execute( 'CREATE TABLE bad_auto (a INTEGER PRIMARY KEY AUTOINCREMENT) WITHOUT ROWID' ).
+        cl_abap_unit_assert=>fail( 'WITHOUT ROWID AUTOINCREMENT must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'AUTOINCREMENT not allowed on WITHOUT ROWID tables'
+          msg = 'WITHOUT ROWID autoincrement error' ).
+    ENDTRY.
+
+    lo_database->execute(
+      'CREATE TABLE wr (a TEXT, b TEXT, c INTEGER, d TEXT, PRIMARY KEY (c, a)) WITHOUT ROWID' ).
+    lo_database->execute( 'CREATE INDEX wr_b ON wr(b)' ).
+    lo_database->execute( 'CREATE UNIQUE INDEX wr_d ON wr(d)' ).
+    lo_database->execute( 'INSERT INTO wr VALUES (''a2'', ''b2'', 2, ''d2'')' ).
+    lo_database->execute( 'INSERT INTO wr VALUES (''a1'', ''b1'', 1, ''d1'')' ).
+    lo_database->execute( 'INSERT INTO wr VALUES (''a3'', ''b3'', 3, ''d3'')' ).
+
+    rs_result = lo_database->query( 'SELECT a, b, c, d FROM wr ORDER BY c, a' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'without rowid insert row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'a1'
+      msg = 'without rowid stored primary key order' ).
+    READ TABLE ls_row INTO lo_value INDEX 4.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'd1'
+      msg = 'without rowid stored non-key order' ).
+
+    lo_database->execute( 'UPDATE wr SET b = ''B2'', d = ''D2'' WHERE c = 2 AND a = ''a2''' ).
+    rs_result = lo_database->query( 'SELECT b, d FROM wr WHERE c = 2 AND a = ''a2''' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'B2'
+      msg = 'without rowid update value' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'D2'
+      msg = 'without rowid update indexed value' ).
+
+    TRY.
+        lo_database->execute( 'INSERT INTO wr VALUES (''a2'', ''b9'', 2, ''d9'')' ).
+        cl_abap_unit_assert=>fail( 'without rowid duplicate primary key must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->code
+          exp = zcx_sqlite_error=>sqlite_constraint
+          msg = 'without rowid duplicate primary key code' ).
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: wr.c, wr.a'
+          msg = 'without rowid duplicate primary key text' ).
+    ENDTRY.
+
+    TRY.
+        lo_database->execute( 'INSERT INTO wr VALUES (''a4'', ''b4'', 4, ''D2'')' ).
+        cl_abap_unit_assert=>fail( 'without rowid duplicate unique index must fail' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'UNIQUE constraint failed: wr.d'
+          msg = 'without rowid duplicate unique index text' ).
+    ENDTRY.
+
+    lo_database->execute( 'INSERT OR IGNORE INTO wr VALUES (''a2'', ''b9'', 2, ''d9'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT a FROM wr' )
+      exp = 3
+      msg = 'without rowid insert or ignore' ).
+
+    lo_database->execute( 'INSERT OR REPLACE INTO wr VALUES (''a2'', ''b8'', 2, ''d8'')' ).
+    rs_result = lo_database->query( 'SELECT b, d FROM wr WHERE c = 2 AND a = ''a2''' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'b8'
+      msg = 'without rowid insert or replace' ).
+
+    lo_database->execute(
+      'INSERT INTO wr VALUES (''a2'', ''b7'', 2, ''d7'') ' &&
+      'ON CONFLICT (c, a) DO UPDATE SET b = excluded.b' ).
+    rs_result = lo_database->query( 'SELECT b, d FROM wr WHERE c = 2 AND a = ''a2''' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'b7'
+      msg = 'without rowid upsert update' ).
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'd8'
+      msg = 'without rowid upsert keeps unassigned column' ).
+
+    rs_result = lo_database->query( 'UPDATE wr SET b = ''b1x'' WHERE c = 1 AND a = ''a1'' RETURNING a, b' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'without rowid update returning count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'b1x'
+      msg = 'without rowid update returning value' ).
+
+    rs_result = lo_database->query( 'DELETE FROM wr WHERE c = 2 AND a = ''a2'' RETURNING a' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'without rowid delete returning count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT a FROM wr' )
+      exp = 2
+      msg = 'without rowid delete row count' ).
+
+    lo_database->execute( 'DROP TABLE wr' ).
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
 
 ENDCLASS.

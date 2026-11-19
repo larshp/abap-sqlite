@@ -86,6 +86,10 @@ CLASS zcl_sqlite_table_scan DEFINITION
       RETURNING VALUE(rt_values) TYPE zcl_sqlite_record=>ty_values
       RAISING   zcx_sqlite_error.
 
+    METHODS normalize_values
+      IMPORTING it_values        TYPE zcl_sqlite_record=>ty_values
+      RETURNING VALUE(rt_values) TYPE zcl_sqlite_record=>ty_values.
+
     METHODS cursor_rowid
       RETURNING VALUE(rv_rowid) TYPE int8.
 
@@ -226,6 +230,9 @@ CLASS zcl_sqlite_table_scan IMPLEMENTATION.
     CLEAR mt_current_values.
     IF iv_found = abap_true.
       mt_current_values = cursor_values( ).
+      IF ms_table-without_rowid = abap_true.
+        mt_current_values = normalize_values( mt_current_values ).
+      ENDIF.
     ENDIF.
   ENDMETHOD.
 
@@ -475,6 +482,52 @@ CLASS zcl_sqlite_table_scan IMPLEMENTATION.
     ELSEIF mo_index_cursor IS BOUND.
       rt_values = mo_index_cursor->values( ).
     ENDIF.
+  ENDMETHOD.
+
+  METHOD normalize_values.
+    DATA lv_name TYPE string.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+    DATA lv_stored_index TYPE i.
+    DATA lv_is_pk TYPE abap_bool.
+
+    DO lines( ms_table-columns ) TIMES.
+      APPEND zcl_sqlite_value=>null( ) TO rt_values.
+    ENDDO.
+
+    LOOP AT ms_table-pk_columns INTO lv_name.
+      lv_stored_index = lv_stored_index + 1.
+      READ TABLE it_values INTO lo_value INDEX lv_stored_index.
+      IF sy-subrc <> 0.
+        lo_value = zcl_sqlite_value=>null( ).
+      ENDIF.
+      LOOP AT ms_table-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = to_upper( lv_name ).
+          MODIFY rt_values FROM lo_value INDEX ls_column-cid + 1.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
+
+    LOOP AT ms_table-columns INTO ls_column.
+      lv_is_pk = abap_false.
+      LOOP AT ms_table-pk_columns INTO lv_name.
+        IF to_upper( lv_name ) = to_upper( ls_column-name ).
+          lv_is_pk = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lv_is_pk = abap_true.
+        CONTINUE.
+      ENDIF.
+
+      lv_stored_index = lv_stored_index + 1.
+      READ TABLE it_values INTO lo_value INDEX lv_stored_index.
+      IF sy-subrc <> 0.
+        lo_value = zcl_sqlite_value=>null( ).
+      ENDIF.
+      MODIFY rt_values FROM lo_value INDEX ls_column-cid + 1.
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD cursor_rowid.

@@ -720,17 +720,23 @@ CLASS ltcl_database IMPLEMENTATION.
 
   METHOD update_without_rowid.
     DATA lo_database TYPE REF TO zcl_sqlite_database.
-    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
 
     lo_database = zcl_sqlite_database=>open( 'fixtures/without_rowid.db' ).
-    TRY.
-        lo_database->execute( |UPDATE wr SET n = 1 WHERE k = 'key-001'| ).
-        cl_abap_unit_assert=>fail( 'WITHOUT ROWID update was accepted' ).
-      CATCH zcx_sqlite_error INTO lo_error.
-        cl_abap_unit_assert=>assert_equals(
-          act = lo_error->code
-          exp = zcx_sqlite_error=>sqlite_error ).
-    ENDTRY.
+    lo_database->execute( |UPDATE wr SET n = 1 WHERE k = 'key-001'| ).
+    rs_result = lo_database->query( |SELECT n FROM wr WHERE k = 'key-001'| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'WITHOUT ROWID update row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 1
+      msg = 'WITHOUT ROWID updated value' ).
     lo_database->close( ).
   ENDMETHOD.
 

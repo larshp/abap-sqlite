@@ -67,6 +67,18 @@ function typedRows(db, tableName, columns) {
   );
 }
 
+function typedRowsWithoutRowid(db, tableName, columns) {
+  const expressions = columns.flatMap((column) => [
+    `typeof(${quoteIdentifier(column)})`,
+    `quote(${quoteIdentifier(column)})`,
+  ]);
+  const order = columns.map((column) => quoteIdentifier(column)).join(", ");
+  return rows(
+    db,
+    `SELECT ${expressions.join(", ")} FROM ${quoteIdentifier(tableName)} ORDER BY ${order}`,
+  );
+}
+
 const randomRounds = 12;
 const randomRoundOperations = 1000;
 const randomCheckpointRound = 2;
@@ -645,6 +657,69 @@ async function verifyAutoincrement(SQL, tempDir) {
   );
 }
 
+async function verifyWithoutRowid(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.without_rowid_writes({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "without-rowid.db");
+  const reference = new SQL.Database();
+  const statements = [
+    "CREATE TABLE wr (a TEXT, b TEXT, c INTEGER, d TEXT, PRIMARY KEY (c, a)) WITHOUT ROWID",
+    "CREATE INDEX wr_b ON wr(b)",
+    "CREATE UNIQUE INDEX wr_d ON wr(d)",
+    "INSERT INTO wr VALUES ('a2', 'b2', 2, 'd2'), ('a1', 'b1', 1, 'd1'), ('a3', 'b3', 3, 'd3')",
+    "UPDATE wr SET b = 'B2', d = 'D2' WHERE c = 2 AND a = 'a2'",
+    "UPDATE wr SET c = 4 WHERE c = 3 AND a = 'a3'",
+    "INSERT OR IGNORE INTO wr VALUES ('a1', 'ignored', 1, 'd9')",
+    "INSERT OR REPLACE INTO wr VALUES ('a2', 'b8', 2, 'd8')",
+    "INSERT INTO wr VALUES ('a2', 'b7', 2, 'd7') ON CONFLICT (c, a) DO UPDATE SET b = excluded.b",
+    "INSERT INTO wr VALUES ('a4', 'b4', 4, 'd4')",
+    "UPDATE wr SET d = 'D4' WHERE c = 4 AND a = 'a4'",
+    "DELETE FROM wr WHERE c = 1 AND a = 'a1'",
+    "CREATE TABLE wr_nocase (k TEXT COLLATE NOCASE PRIMARY KEY, v TEXT) WITHOUT ROWID",
+    "INSERT INTO wr_nocase VALUES ('Beta', 'b'), ('alpha', 'a'), ('Gamma', 'g')",
+    "UPDATE wr_nocase SET v = 'A' WHERE k = 'ALPHA'",
+  ];
+
+  try {
+    for (const sql of statements) {
+      reference.run(sql);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.deepEqual(
+      rows(exported.db, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      rows(reference, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      "sqlite_schema rows differ",
+    );
+    assert.deepEqual(
+      typedRowsWithoutRowid(exported.db, "wr", ["a", "b", "c", "d"]),
+      typedRowsWithoutRowid(reference, "wr", ["a", "b", "c", "d"]),
+      "without rowid rows differ",
+    );
+    assert.deepEqual(
+      typedRowsWithoutRowid(exported.db, "wr_nocase", ["k", "v"]),
+      typedRowsWithoutRowid(reference, "wr_nocase", ["k", "v"]),
+      "without rowid nocase rows differ",
+    );
+
+    const queries = [
+      "SELECT a, b, c, d FROM wr ORDER BY c, a",
+      "SELECT k, v FROM wr_nocase ORDER BY k",
+      "SELECT a FROM wr WHERE b = 'b7'",
+      "SELECT d FROM wr WHERE c = 4 ORDER BY d",
+    ];
+    for (const sql of queries) {
+      assert.deepEqual(rows(exported.db, sql), rows(reference, sql), `without rowid query differs: ${sql}`);
+    }
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, without rowid)`,
+  );
+}
+
 async function verifyConflict(SQL, tempDir) {
   const fileName = (await zcl_sqlite_scenario.conflict_rows({rv_name: 1})).get();
   const exported = await openExported(SQL, tempDir, fileName, "conflict.db");
@@ -1177,6 +1252,7 @@ try {
     ["unique", verifyUniqueKeys],
     ["conflict", verifyConflict],
     ["autoincrement", verifyAutoincrement],
+    ["without-rowid", verifyWithoutRowid],
     ["index", verifyIndex],
     ["drop", verifyDrop],
     ["freelist", verifyFreelist],

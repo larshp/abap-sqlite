@@ -230,8 +230,7 @@ CLASS ltcl_schema IMPLEMENTATION.
     assert_index_names(
       it_indexes = ls_table-indexes
       it_names   = VALUE string_table(
-        ( |wr_v| )
-        ( |sqlite_autoindex_wr_1| ) )
+        ( |wr_v| ) )
       iv_context = 'without_rowid.db index_list' ).
 
     READ TABLE ls_table-indexes INTO ls_index INDEX 1.
@@ -248,21 +247,6 @@ CLASS ltcl_schema IMPLEMENTATION.
       act = ls_index-rootpage
       exp = 3
       msg = 'without_rowid.db wr_v rootpage' ).
-
-    READ TABLE ls_table-indexes INTO ls_index INDEX 2.
-    assert_index(
-      is_index    = ls_index
-      iv_name     = 'sqlite_autoindex_wr_1'
-      iv_tbl_name = 'wr'
-      iv_unique   = abap_true
-      iv_origin   = 'pk'
-      iv_partial  = abap_false
-      iv_columns  = '0:k'
-      iv_context  = 'without_rowid.db primary key' ).
-    cl_abap_unit_assert=>assert_equals(
-      act = ls_index-rootpage
-      exp = 0
-      msg = 'without_rowid.db primary key rootpage' ).
   ENDMETHOD.
 
   METHOD many_indexes_fixture.

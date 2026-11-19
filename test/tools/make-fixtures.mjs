@@ -348,6 +348,47 @@ function withoutRowidDatabase() {
   return db;
 }
 
+function withoutRowidWritesDatabase() {
+  const db = new SQL.Database();
+  db.run("PRAGMA page_size = 512");
+  db.run(`
+    CREATE TABLE wr (
+      a TEXT,
+      b TEXT,
+      c INTEGER,
+      d TEXT,
+      PRIMARY KEY (c, a)
+    ) WITHOUT ROWID`);
+  db.run("CREATE INDEX wr_b ON wr(b)");
+  db.run("CREATE UNIQUE INDEX wr_d ON wr(d)");
+
+  const insert = db.prepare("INSERT INTO wr (a, b, c, d) VALUES (?, ?, ?, ?)");
+  db.run("BEGIN");
+  for (let id = 1; id <= 25; id++) {
+    insert.run([
+      `key-${String(id).padStart(3, "0")}`,
+      `b-${String(id % 7).padStart(2, "0")}`,
+      (id % 5) + 1,
+      `d-${String(id).padStart(3, "0")}`,
+    ]);
+  }
+  insert.free();
+  db.run("COMMIT");
+
+  db.run(`
+    CREATE TABLE wr_nocase (
+      k TEXT COLLATE NOCASE PRIMARY KEY,
+      v TEXT
+    ) WITHOUT ROWID`);
+  db.run(`
+    INSERT INTO wr_nocase (k, v) VALUES
+      ('Beta', 'b'),
+      ('alpha', 'a'),
+      ('Gamma', 'g'),
+      ('delta', 'd')`);
+  return db;
+}
+
 function nullsDatabase() {
   const db = new SQL.Database();
   db.run("PRAGMA page_size = 512");
@@ -1621,6 +1662,17 @@ function addGeneratedQueries() {
   ].forEach((sql, index) => add(`without_${index}`, "without_rowid.db", sql));
 
   [
+    "SELECT a, b, c, d FROM wr",
+    "SELECT a, b, c, d FROM wr ORDER BY c, a",
+    "SELECT d FROM wr WHERE b = 'b-03' ORDER BY d",
+    "SELECT c, a FROM wr WHERE c = 2 ORDER BY a",
+    "SELECT k, v FROM wr_nocase",
+    "SELECT k, v FROM wr_nocase ORDER BY k",
+  ].forEach((sql, index) =>
+    add(`without_writes_${index}`, "without_rowid_writes.db", sql),
+  );
+
+  [
     "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE a.id = 1 ORDER BY b.id",
     "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE b.price > 10 ORDER BY b.id",
     "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE b.price IS NULL ORDER BY b.id",
@@ -1836,6 +1888,7 @@ for (const pageSize of [512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]) {
 await writeFixture("freelist", freelistDatabase());
 await writeFixture("auto_vacuum", autoVacuumDatabase());
 await writeFixture("without_rowid", withoutRowidDatabase());
+await writeFixture("without_rowid_writes", withoutRowidWritesDatabase());
 await writeFixture("nulls", nullsDatabase());
 await writeFixture("many_indexes", manyIndexesDatabase());
 await writeFixture("ordering", orderingDatabase());

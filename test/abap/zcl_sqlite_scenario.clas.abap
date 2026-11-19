@@ -25,6 +25,7 @@ CLASS zcl_sqlite_scenario DEFINITION
     CONSTANTS c_split_database TYPE string VALUE 'compat/split.db'.
     CONSTANTS c_update_database TYPE string VALUE 'compat/update.db'.
     CONSTANTS c_unique_database TYPE string VALUE 'compat/unique.db'.
+    CONSTANTS c_without_rowid_database TYPE string VALUE 'compat/without-rowid.db'.
 
     CLASS-METHODS create_empty
       RETURNING VALUE(rv_name) TYPE string
@@ -87,6 +88,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS unique_keys
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS without_rowid_writes
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -262,6 +267,48 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_database->close( ).
 
     rv_name = c_autoincrement_database.
+  ENDMETHOD.
+
+  METHOD without_rowid_writes.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_without_rowid_database ).
+
+    lo_database = zcl_sqlite_database=>open( c_without_rowid_database ).
+    lo_database->execute(
+      'CREATE TABLE wr (a TEXT, b TEXT, c INTEGER, d TEXT,' &&
+      ' PRIMARY KEY (c, a)) WITHOUT ROWID' ).
+    lo_database->execute( 'CREATE INDEX wr_b ON wr(b)' ).
+    lo_database->execute( 'CREATE UNIQUE INDEX wr_d ON wr(d)' ).
+    lo_database->execute(
+      'INSERT INTO wr VALUES' &&
+      ' (''a2'', ''b2'', 2, ''d2''),' &&
+      ' (''a1'', ''b1'', 1, ''d1''),' &&
+      ' (''a3'', ''b3'', 3, ''d3'')' ).
+    lo_database->execute( 'UPDATE wr SET b = ''B2'', d = ''D2''' && ' WHERE c = 2 AND a = ''a2''' ).
+    lo_database->execute( 'UPDATE wr SET c = 4 WHERE c = 3 AND a = ''a3''' ).
+    lo_database->execute( 'INSERT OR IGNORE INTO wr VALUES (''a1'', ''ignored'', 1, ''d9'')' ).
+    lo_database->execute( 'INSERT OR REPLACE INTO wr VALUES (''a2'', ''b8'', 2, ''d8'')' ).
+    lo_database->execute(
+      'INSERT INTO wr VALUES (''a2'', ''b7'', 2, ''d7'')' &&
+      ' ON CONFLICT (c, a) DO UPDATE SET b = excluded.b' ).
+    lo_database->execute( 'INSERT INTO wr VALUES (''a4'', ''b4'', 4, ''d4'')' ).
+    lo_database->execute( 'UPDATE wr SET d = ''D4'' WHERE c = 4 AND a = ''a4''' ).
+    lo_database->execute( 'DELETE FROM wr WHERE c = 1 AND a = ''a1''' ).
+
+    lo_database->execute(
+      'CREATE TABLE wr_nocase (k TEXT COLLATE NOCASE PRIMARY KEY,' &&
+      ' v TEXT) WITHOUT ROWID' ).
+    lo_database->execute(
+      'INSERT INTO wr_nocase VALUES' &&
+      ' (''Beta'', ''b''), (''alpha'', ''a''), (''Gamma'', ''g'')' ).
+    lo_database->execute( 'UPDATE wr_nocase SET v = ''A'' WHERE k = ''ALPHA''' ).
+
+    lo_database->close( ).
+
+    rv_name = c_without_rowid_database.
   ENDMETHOD.
 
   METHOD unique_keys.

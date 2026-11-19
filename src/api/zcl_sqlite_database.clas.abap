@@ -134,6 +134,7 @@ CLASS zcl_sqlite_database DEFINITION
     TYPES: BEGIN OF ty_conflict,
              rowid           TYPE int8,
              is_rowid        TYPE abap_bool,
+             is_pk           TYPE abap_bool,
              index_name      TYPE string,
              constraint_text TYPE string,
            END OF ty_conflict,
@@ -337,6 +338,13 @@ CLASS zcl_sqlite_database DEFINITION
                 es_result    TYPE ty_result
       RAISING   zcx_sqlite_error.
 
+    METHODS execute_delete_without_rowid
+      IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_delete
+                is_table     TYPE zcl_sqlite_schema=>ty_table
+      EXPORTING ev_changes   TYPE i
+                es_result    TYPE ty_result
+      RAISING   zcx_sqlite_error.
+
     METHODS execute_update
       IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_update
       EXPORTING ev_changes   TYPE i
@@ -453,6 +461,48 @@ CLASS zcl_sqlite_database DEFINITION
     METHODS write_table_rows
       IMPORTING is_table TYPE zcl_sqlite_schema=>ty_table
                 it_rows  TYPE ty_memory_rows
+      RAISING   zcx_sqlite_error.
+
+    METHODS write_without_rowid_rows
+      IMPORTING is_table TYPE zcl_sqlite_schema=>ty_table
+                it_rows  TYPE ty_memory_rows
+      RAISING   zcx_sqlite_error.
+
+    METHODS primary_key_values
+      IMPORTING is_table         TYPE zcl_sqlite_schema=>ty_table
+                it_values        TYPE zcl_sqlite_record=>ty_values
+      RETURNING VALUE(rt_values) TYPE zcl_sqlite_record=>ty_values
+      RAISING   zcx_sqlite_error.
+
+    METHODS primary_key_collations
+      IMPORTING is_table         TYPE zcl_sqlite_schema=>ty_table
+      RETURNING VALUE(rt_values) TYPE string_table.
+
+    METHODS wr_pk_constraint_text
+      IMPORTING is_table       TYPE zcl_sqlite_schema=>ty_table
+      RETURNING VALUE(rv_text) TYPE string.
+
+    METHODS column_value
+      IMPORTING is_table        TYPE zcl_sqlite_schema=>ty_table
+                iv_name         TYPE string
+                it_values       TYPE zcl_sqlite_record=>ty_values
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value.
+
+    METHODS index_has_column
+      IMPORTING is_index        TYPE zcl_sqlite_schema=>ty_index
+                iv_name         TYPE string
+      RETURNING VALUE(rv_found) TYPE abap_bool.
+
+    METHODS to_storage_values
+      IMPORTING is_table         TYPE zcl_sqlite_schema=>ty_table
+                it_values        TYPE zcl_sqlite_record=>ty_values
+      RETURNING VALUE(rt_values) TYPE zcl_sqlite_record=>ty_values
+      RAISING   zcx_sqlite_error.
+
+    METHODS from_storage_values
+      IMPORTING is_table         TYPE zcl_sqlite_schema=>ty_table
+                it_values        TYPE zcl_sqlite_record=>ty_values
+      RETURNING VALUE(rt_values) TYPE zcl_sqlite_record=>ty_values
       RAISING   zcx_sqlite_error.
 
     METHODS find_conflicts
@@ -1498,6 +1548,10 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_schema TYPE REF TO zcl_sqlite_schema.
     DATA lv_root_page TYPE i.
     DATA lv_name TYPE string.
+    DATA lt_columns TYPE zcl_sqlite_ast_create_table=>ty_columns.
+    DATA lt_constraints TYPE zcl_sqlite_ast_column_def=>ty_constraints.
+    DATA lo_column TYPE REF TO zcl_sqlite_ast_column_def.
+    DATA lo_constraint TYPE REF TO zcl_sqlite_ast_constraint.
 
     lv_name = io_statement->get_name( ).
     IF io_statement->is_temporary( ) = abap_true.
@@ -1505,12 +1559,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         EXPORTING
           iv_code    = zcx_sqlite_error=>sqlite_error
           iv_message = 'temporary tables are not supported'.
-    ENDIF.
-    IF io_statement->is_without_rowid( ) = abap_true.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
-          iv_message = 'WITHOUT ROWID tables are not supported yet'.
     ENDIF.
 
     ls_existing = mo_schema->table( lv_name ).
@@ -1525,10 +1573,17 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ENDIF.
 
     lv_root_page = mo_pager->allocate_page( ).
-    mo_pager->put_page(
-      iv_page = lv_root_page
-      iv_data = zcl_sqlite_btree=>empty_table_leaf(
-        mo_pager->page_size( ) ) ).
+    IF io_statement->is_without_rowid( ) = abap_true.
+      mo_pager->put_page(
+        iv_page = lv_root_page
+        iv_data = zcl_sqlite_btree=>empty_index_leaf(
+          mo_pager->page_size( ) ) ).
+    ELSE.
+      mo_pager->put_page(
+        iv_page = lv_root_page
+        iv_data = zcl_sqlite_btree=>empty_table_leaf(
+          mo_pager->page_size( ) ) ).
+    ENDIF.
 
     ls_entry-type = 'table'.
     ls_entry-name = lv_name.
@@ -1544,6 +1599,26 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
     lo_schema = zcl_sqlite_schema=>read( mo_pager ).
     ls_existing = lo_schema->table( lv_name ).
+    IF ls_existing-without_rowid = abap_true.
+      IF lines( ls_existing-pk_columns ) = 0.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = |PRIMARY KEY missing on table { lv_name }|.
+      ENDIF.
+      lt_columns = io_statement->get_columns( ).
+      LOOP AT lt_columns INTO lo_column.
+        lt_constraints = lo_column->get_constraints( ).
+        LOOP AT lt_constraints INTO lo_constraint.
+          IF lo_constraint->is_autoincrement( ) = abap_true.
+            RAISE EXCEPTION TYPE zcx_sqlite_error
+              EXPORTING
+                iv_code    = zcx_sqlite_error=>sqlite_error
+                iv_message = 'AUTOINCREMENT not allowed on WITHOUT ROWID tables'.
+          ENDIF.
+        ENDLOOP.
+      ENDLOOP.
+    ENDIF.
     IF ls_existing-autoincrement = abap_true.
       ensure_sequence_table( ).
     ENDIF.
@@ -1570,13 +1645,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           iv_code    = zcx_sqlite_error=>sqlite_error
           iv_message = |no such table: { lv_table_name }|.
     ENDIF.
-    IF ls_table-without_rowid = abap_true.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
-          iv_message = 'WITHOUT ROWID tables are not supported yet'.
-    ENDIF.
-
     ls_existing = mo_schema->index( lv_name ).
     IF ls_existing-name IS NOT INITIAL.
       IF io_statement->is_if_not_exists( ) = abap_true.
@@ -1658,13 +1726,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           iv_code    = zcx_sqlite_error=>sqlite_error
           iv_message = |no such table: { lv_name }|.
     ENDIF.
-    IF ls_table-without_rowid = abap_true.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
-          iv_message = 'WITHOUT ROWID tables are not supported yet'.
-    ENDIF.
-
     APPEND ls_table-name TO lt_names.
     IF ls_table-autoincrement = abap_true.
       remove_sequence( ls_table-name ).
@@ -1719,8 +1780,16 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
   METHOD drop_table_tree.
     DATA lo_writer TYPE REF TO zcl_sqlite_btree_writer.
+    DATA lo_index_writer TYPE REF TO zcl_sqlite_index_writer.
 
     IF is_table-rootpage <= 0.
+      RETURN.
+    ENDIF.
+    IF is_table-without_rowid = abap_true.
+      lo_index_writer = NEW zcl_sqlite_index_writer(
+        io_pager     = mo_pager
+        iv_root_page = CONV i( is_table-rootpage ) ).
+      lo_index_writer->free_tree( ).
       RETURN.
     ENDIF.
     lo_writer = NEW zcl_sqlite_btree_writer(
@@ -1783,6 +1852,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
   METHOD build_index.
     DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lo_index_cursor TYPE REF TO zcl_sqlite_index_cursor.
     DATA lo_writer TYPE REF TO zcl_sqlite_index_writer.
     DATA lt_values TYPE zcl_sqlite_record=>ty_values.
     DATA lt_key TYPE zcl_sqlite_record=>ty_values.
@@ -1804,6 +1874,36 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       is_index = is_index ).
 
     lv_root_page = is_table-rootpage.
+    IF is_table-without_rowid = abap_true.
+      lo_index_cursor = NEW zcl_sqlite_index_cursor(
+        io_pager     = mo_pager
+        iv_root_page = lv_root_page ).
+      IF lo_index_cursor->first( ) = abap_false.
+        RETURN.
+      ENDIF.
+
+      DO.
+        lt_values = from_storage_values(
+          is_table  = is_table
+          it_values = lo_index_cursor->values( ) ).
+        lt_key = index_key(
+          is_table  = is_table
+          is_index  = is_index
+          it_values = lt_values
+          iv_rowid  = 0 ).
+        lo_writer->insert_entry(
+          it_values        = lt_key
+          iv_unique        = is_index-is_unique
+          iv_prefix_length = lines( is_index-columns )
+          it_collations    = lt_collations
+          iv_constraint    = lv_constraint ).
+        IF lo_index_cursor->next( ) = abap_false.
+          EXIT.
+        ENDIF.
+      ENDDO.
+      RETURN.
+    ENDIF.
+
     lo_cursor = NEW zcl_sqlite_cursor(
       io_pager     = mo_pager
       iv_root_page = lv_root_page ).
@@ -1883,6 +1983,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA ls_index_column TYPE zcl_sqlite_schema=>ty_index_column.
     DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
     DATA lv_collation TYPE string.
+    DATA lv_pk_name TYPE string.
+    DATA lv_found TYPE abap_bool.
 
     LOOP AT is_index-columns INTO ls_index_column.
       CLEAR lv_collation.
@@ -1893,6 +1995,32 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         ENDIF.
       ENDLOOP.
       APPEND lv_collation TO rt_collations.
+    ENDLOOP.
+
+    IF is_table-without_rowid = abap_false.
+      RETURN.
+    ENDIF.
+
+* SQLite appends PRIMARY KEY columns that are not already part of the index
+* key. They participate in the physical index ordering.
+    LOOP AT is_table-pk_columns INTO lv_pk_name.
+      lv_found = abap_false.
+      LOOP AT is_index-columns INTO ls_index_column.
+        IF to_upper( ls_index_column-name ) = to_upper( lv_pk_name ).
+          lv_found = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lv_found = abap_false.
+        CLEAR lv_collation.
+        LOOP AT is_table-columns INTO ls_column.
+          IF to_upper( ls_column-name ) = to_upper( lv_pk_name ).
+            lv_collation = ls_column-collation.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+        APPEND lv_collation TO rt_collations.
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
 
@@ -1959,6 +2087,21 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       APPEND lo_value TO rt_values.
     ENDLOOP.
 
+    IF is_table-without_rowid = abap_true.
+      LOOP AT is_table-pk_columns INTO lv_name.
+        IF index_has_column(
+             is_index = is_index
+             iv_name  = lv_name ) = abap_false.
+          lo_value = column_value(
+            is_table  = is_table
+            iv_name   = lv_name
+            it_values = it_values ).
+          APPEND lo_value TO rt_values.
+        ENDIF.
+      ENDLOOP.
+      RETURN.
+    ENDIF.
+
     APPEND zcl_sqlite_value=>integer( iv_rowid ) TO rt_values.
   ENDMETHOD.
 
@@ -2004,9 +2147,10 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         ENDIF.
       ENDLOOP.
       IF lv_found = abap_false
-          AND lv_name <> 'ROWID'
-          AND lv_name <> '_ROWID_'
-          AND lv_name <> 'OID'.
+          AND ( is_table-without_rowid = abap_true
+            OR ( lv_name <> 'ROWID'
+              AND lv_name <> '_ROWID_'
+              AND lv_name <> 'OID' ) ).
         RAISE EXCEPTION TYPE zcx_sqlite_error
           EXPORTING
             iv_code    = zcx_sqlite_error=>sqlite_error
@@ -2071,13 +2215,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           iv_code    = zcx_sqlite_error=>sqlite_error
           iv_message = |no such table: { io_statement->get_table( ) }|.
     ENDIF.
-    IF ls_table-without_rowid = abap_true.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
-          iv_message = 'WITHOUT ROWID tables are not supported yet'.
-    ENDIF.
-
     lt_columns = build_insert_columns(
       io_statement     = io_statement
       it_table_columns = ls_table-columns ).
@@ -2153,7 +2290,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ENDIF.
 
     lv_conflict_mode = boolc( io_statement->get_conflict( ) IS NOT INITIAL
-                              OR lines( lt_upserts ) > 0 ).
+                              OR lines( lt_upserts ) > 0
+                              OR ls_table-without_rowid = abap_true ).
 
     IF lv_conflict_mode = abap_true.
       execute_insert_conflict(
@@ -2170,6 +2308,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           es_result            = es_result ).
       ev_changes = lv_changes.
       ev_last_rowid = lv_last_rowid.
+      IF ls_table-without_rowid = abap_true.
+        ev_last_rowid = 0.
+      ENDIF.
       RETURN.
     ENDIF.
 
@@ -2551,11 +2692,16 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           iv_message = |no such table: { io_statement->get_table( ) }|.
     ENDIF.
     IF ls_table-without_rowid = abap_true.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
+      execute_delete_without_rowid(
         EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
-          iv_message = 'WITHOUT ROWID tables are not supported yet'.
+          io_statement = io_statement
+          is_table     = ls_table
+        IMPORTING
+          ev_changes   = ev_changes
+          es_result    = es_result ).
+      RETURN.
     ENDIF.
+
     lo_expression = NEW zcl_sqlite_ast_name(
       iv_kind = zcl_sqlite_ast_name=>c_column
       iv_text = rowid_select_name( ls_table ) ).
@@ -2624,6 +2770,74 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ev_changes = lv_changes.
   ENDMETHOD.
 
+  METHOD execute_delete_without_rowid.
+    DATA lt_rows TYPE ty_memory_rows.
+    DATA lt_kept TYPE ty_memory_rows.
+    DATA ls_row TYPE ty_memory_row.
+    DATA lo_context TYPE REF TO zcl_sqlite_row.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+    DATA lo_where TYPE REF TO zcl_sqlite_ast_node.
+    DATA lv_matches TYPE abap_bool.
+    DATA lv_table_name TYPE string.
+    DATA lt_returning TYPE zcl_sqlite_ast_result_column=>ty_list.
+    DATA lt_returning_columns TYPE zcl_sqlite_project=>ty_columns.
+
+    ev_changes = 0.
+    lo_where = io_statement->get_where( ).
+    lv_table_name = io_statement->get_alias( ).
+    IF lv_table_name IS INITIAL.
+      lv_table_name = is_table-name.
+    ENDIF.
+
+    lt_returning = io_statement->get_returning( ).
+    IF lines( lt_returning ) > 0.
+      prepare_returning(
+        EXPORTING
+          is_table     = is_table
+          it_returning = lt_returning
+        IMPORTING
+          et_columns   = lt_returning_columns
+          es_result    = es_result ).
+    ENDIF.
+
+    lt_rows = read_table_rows( is_table ).
+    LOOP AT lt_rows INTO ls_row.
+      lo_context = row_context(
+        is_table      = is_table
+        iv_table_name = lv_table_name
+        it_values     = ls_row-values
+        iv_rowid      = ls_row-rowid ).
+
+      lv_matches = abap_true.
+      IF lo_where IS BOUND.
+        lo_value = zcl_sqlite_expr_eval=>evaluate(
+          io_expression = lo_where
+          io_context    = lo_context ).
+        lv_matches = zcl_sqlite_expr_eval=>is_true( lo_value ).
+      ENDIF.
+
+      IF lv_matches = abap_true.
+        ev_changes = ev_changes + 1.
+        IF lines( lt_returning ) > 0.
+          add_returning_row(
+            EXPORTING
+              is_table   = is_table
+              it_values  = ls_row-values
+              iv_rowid   = ls_row-rowid
+              it_columns = lt_returning_columns
+            CHANGING
+              cs_result  = es_result ).
+        ENDIF.
+      ELSE.
+        APPEND ls_row TO lt_kept.
+      ENDIF.
+    ENDLOOP.
+
+    write_table_rows(
+      is_table = is_table
+      it_rows  = lt_kept ).
+  ENDMETHOD.
+
   METHOD execute_update.
     DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
     DATA lt_assignments TYPE zcl_sqlite_ast_update=>ty_assignments.
@@ -2654,12 +2868,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
           iv_code    = zcx_sqlite_error=>sqlite_error
           iv_message = |no such table: { io_statement->get_table( ) }|.
     ENDIF.
-    IF ls_table-without_rowid = abap_true.
-      RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING
-          iv_code    = zcx_sqlite_error=>sqlite_error
-          iv_message = 'WITHOUT ROWID tables are not supported yet'.
-    ENDIF.
     IF lines( io_statement->get_from( ) ) > 0.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
@@ -2673,6 +2881,17 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         is_table = ls_table
         iv_name  = lo_assignment->get_column( ) ).
     ENDLOOP.
+
+    IF ls_table-without_rowid = abap_true.
+      execute_update_conflict(
+        EXPORTING
+          io_statement = io_statement
+          is_table     = ls_table
+        IMPORTING
+          ev_changes   = ev_changes
+          es_result    = es_result ).
+      RETURN.
+    ENDIF.
 
     lt_returning = io_statement->get_returning( ).
     IF io_statement->get_conflict( ) IS NOT INITIAL.
@@ -2936,6 +3155,12 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ENDLOOP.
 
     IF lv_name = 'ROWID' OR lv_name = '_ROWID_' OR lv_name = 'OID'.
+      IF is_table-without_rowid = abap_true.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_code    = zcx_sqlite_error=>sqlite_error
+            iv_message = |no such column: { iv_name }|.
+      ENDIF.
       rs_target-is_rowid = abap_true.
       RETURN.
     ENDIF.
@@ -3331,7 +3556,13 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ENDLOOP.
 
     IF lv_rowid_set = abap_false.
-      IF is_table-autoincrement = abap_true
+      IF is_table-without_rowid = abap_true.
+        IF iv_have_max = abap_true.
+          lv_rowid = iv_max_rowid + 1.
+        ELSE.
+          lv_rowid = 1.
+        ENDIF.
+      ELSEIF is_table-autoincrement = abap_true
           AND iv_have_seq = abap_true.
         IF iv_have_max = abap_true
             AND iv_max_rowid >= iv_seq.
@@ -3584,10 +3815,33 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
   METHOD read_table_rows.
     DATA lo_cursor TYPE REF TO zcl_sqlite_cursor.
+    DATA lo_index_cursor TYPE REF TO zcl_sqlite_index_cursor.
     DATA ls_row TYPE ty_memory_row.
     DATA lv_root_page TYPE i.
+    DATA lv_rowid TYPE int8.
 
     lv_root_page = is_table-rootpage.
+    IF is_table-without_rowid = abap_true.
+      lo_index_cursor = NEW zcl_sqlite_index_cursor(
+        io_pager     = mo_pager
+        iv_root_page = lv_root_page ).
+      IF lo_index_cursor->first( ) = abap_false.
+        RETURN.
+      ENDIF.
+      DO.
+        lv_rowid = lv_rowid + 1.
+        ls_row-rowid = lv_rowid.
+        ls_row-values = from_storage_values(
+          is_table  = is_table
+          it_values = lo_index_cursor->values( ) ).
+        APPEND ls_row TO rt_rows.
+        IF lo_index_cursor->next( ) = abap_false.
+          EXIT.
+        ENDIF.
+      ENDDO.
+      RETURN.
+    ENDIF.
+
     lo_cursor = NEW zcl_sqlite_cursor(
       io_pager     = mo_pager
       iv_root_page = lv_root_page ).
@@ -3612,6 +3866,13 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lv_rowid TYPE int8.
     DATA ls_row TYPE ty_memory_row.
     DATA lv_root_page TYPE i.
+
+    IF is_table-without_rowid = abap_true.
+      write_without_rowid_rows(
+        is_table = is_table
+        it_rows  = it_rows ).
+      RETURN.
+    ENDIF.
 
     lv_root_page = is_table-rootpage.
     lo_cursor = NEW zcl_sqlite_cursor(
@@ -3641,6 +3902,190 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     rebuild_table_indexes( is_table ).
   ENDMETHOD.
 
+  METHOD write_without_rowid_rows.
+    DATA lo_writer TYPE REF TO zcl_sqlite_index_writer.
+    DATA ls_row TYPE ty_memory_row.
+    DATA lt_stored TYPE zcl_sqlite_record=>ty_values.
+    DATA lt_collations TYPE string_table.
+    DATA lv_constraint TYPE string.
+    DATA lv_root_page TYPE i.
+
+    lv_root_page = is_table-rootpage.
+    lo_writer = NEW zcl_sqlite_index_writer(
+      io_pager     = mo_pager
+      iv_root_page = lv_root_page ).
+    lo_writer->clear_tree( ).
+
+    lt_collations = primary_key_collations( is_table ).
+    lv_constraint = wr_pk_constraint_text( is_table ).
+    LOOP AT it_rows INTO ls_row.
+      lt_stored = to_storage_values(
+        is_table  = is_table
+        it_values = ls_row-values ).
+      lo_writer->insert_entry(
+        it_values        = lt_stored
+        iv_unique        = abap_true
+        iv_prefix_length = lines( is_table-pk_columns )
+        iv_key_length    = lines( is_table-pk_columns )
+        it_collations    = lt_collations
+        iv_constraint    = lv_constraint ).
+    ENDLOOP.
+
+    rebuild_table_indexes( is_table ).
+  ENDMETHOD.
+
+  METHOD primary_key_values.
+    DATA lv_name TYPE string.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+
+    LOOP AT is_table-pk_columns INTO lv_name.
+      CLEAR lo_value.
+      LOOP AT is_table-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = to_upper( lv_name ).
+          READ TABLE it_values INTO lo_value INDEX ls_column-cid + 1.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lo_value IS NOT BOUND.
+        lo_value = zcl_sqlite_value=>null( ).
+      ENDIF.
+      APPEND lo_value TO rt_values.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD primary_key_collations.
+    DATA lv_name TYPE string.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA lv_collation TYPE string.
+
+    LOOP AT is_table-pk_columns INTO lv_name.
+      CLEAR lv_collation.
+      LOOP AT is_table-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = to_upper( lv_name ).
+          lv_collation = ls_column-collation.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      APPEND lv_collation TO rt_values.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD wr_pk_constraint_text.
+    DATA lv_name TYPE string.
+
+    LOOP AT is_table-pk_columns INTO lv_name.
+      IF sy-tabix > 1.
+        rv_text = |{ rv_text }, |.
+      ENDIF.
+      rv_text = |{ rv_text }{ is_table-name }.{ lv_name }|.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD column_value.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+
+    ro_value = zcl_sqlite_value=>null( ).
+    LOOP AT is_table-columns INTO ls_column.
+      IF to_upper( ls_column-name ) = to_upper( iv_name ).
+        READ TABLE it_values INTO ro_value INDEX ls_column-cid + 1.
+        IF sy-subrc <> 0.
+          ro_value = zcl_sqlite_value=>null( ).
+        ENDIF.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD index_has_column.
+    DATA ls_index_column TYPE zcl_sqlite_schema=>ty_index_column.
+
+    LOOP AT is_index-columns INTO ls_index_column.
+      IF to_upper( ls_index_column-name ) = to_upper( iv_name ).
+        rv_found = abap_true.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD to_storage_values.
+    DATA lv_name TYPE string.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+    DATA lv_is_pk TYPE abap_bool.
+
+    rt_values = primary_key_values(
+      is_table  = is_table
+      it_values = it_values ).
+
+    LOOP AT is_table-columns INTO ls_column.
+      lv_is_pk = abap_false.
+      LOOP AT is_table-pk_columns INTO lv_name.
+        IF to_upper( lv_name ) = to_upper( ls_column-name ).
+          lv_is_pk = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lv_is_pk = abap_true.
+        CONTINUE.
+      ENDIF.
+
+      READ TABLE it_values INTO lo_value INDEX sy-tabix.
+      IF sy-subrc <> 0.
+        lo_value = zcl_sqlite_value=>null( ).
+      ENDIF.
+      APPEND lo_value TO rt_values.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD from_storage_values.
+    DATA lv_name TYPE string.
+    DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
+    DATA lo_value TYPE REF TO zcl_sqlite_value.
+    DATA lv_stored_index TYPE i.
+    DATA lv_is_pk TYPE abap_bool.
+
+    DO lines( is_table-columns ) TIMES.
+      APPEND zcl_sqlite_value=>null( ) TO rt_values.
+    ENDDO.
+
+* PRIMARY KEY values come first, in PRIMARY KEY order.
+    LOOP AT is_table-pk_columns INTO lv_name.
+      lv_stored_index = lv_stored_index + 1.
+      READ TABLE it_values INTO lo_value INDEX lv_stored_index.
+      IF sy-subrc <> 0.
+        lo_value = zcl_sqlite_value=>null( ).
+      ENDIF.
+      LOOP AT is_table-columns INTO ls_column.
+        IF to_upper( ls_column-name ) = to_upper( lv_name ).
+          MODIFY rt_values FROM lo_value INDEX ls_column-cid + 1.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
+
+* Remaining columns follow in table definition order.
+    LOOP AT is_table-columns INTO ls_column.
+      lv_is_pk = abap_false.
+      LOOP AT is_table-pk_columns INTO lv_name.
+        IF to_upper( lv_name ) = to_upper( ls_column-name ).
+          lv_is_pk = abap_true.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lv_is_pk = abap_true.
+        CONTINUE.
+      ENDIF.
+
+      lv_stored_index = lv_stored_index + 1.
+      READ TABLE it_values INTO lo_value INDEX lv_stored_index.
+      IF sy-subrc <> 0.
+        lo_value = zcl_sqlite_value=>null( ).
+      ENDIF.
+      MODIFY rt_values FROM lo_value INDEX ls_column-cid + 1.
+    ENDLOOP.
+  ENDMETHOD.
+
   METHOD find_conflicts.
     DATA ls_row TYPE ty_memory_row.
     DATA ls_index TYPE zcl_sqlite_schema=>ty_index.
@@ -3652,20 +4097,60 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_existing TYPE REF TO zcl_sqlite_value.
     DATA lv_collation TYPE string.
     DATA lv_match TYPE abap_bool.
+    DATA lt_candidate_pk TYPE zcl_sqlite_record=>ty_values.
+    DATA lt_existing_pk TYPE zcl_sqlite_record=>ty_values.
+    DATA lt_pk_collations TYPE string_table.
 
-    LOOP AT it_rows INTO ls_row.
-      IF iv_ignore_rowid <> 0 AND ls_row-rowid = iv_ignore_rowid.
-        CONTINUE.
-      ENDIF.
-      IF ls_row-rowid = iv_rowid.
-        CLEAR ls_conflict.
-        ls_conflict-rowid = ls_row-rowid.
-        ls_conflict-is_rowid = abap_true.
-        ls_conflict-constraint_text = |UNIQUE constraint failed: | &&
-          primary_key_constraint_text( is_table ).
-        APPEND ls_conflict TO rt_conflicts.
-      ENDIF.
-    ENDLOOP.
+    IF is_table-without_rowid = abap_true.
+      lt_candidate_pk = primary_key_values(
+        is_table  = is_table
+        it_values = it_values ).
+      lt_pk_collations = primary_key_collations( is_table ).
+      LOOP AT it_rows INTO ls_row.
+        IF iv_ignore_rowid <> 0 AND ls_row-rowid = iv_ignore_rowid.
+          CONTINUE.
+        ENDIF.
+        lt_existing_pk = primary_key_values(
+          is_table  = is_table
+          it_values = ls_row-values ).
+        lv_match = abap_true.
+        LOOP AT lt_candidate_pk INTO lo_candidate.
+          READ TABLE lt_existing_pk INTO lo_existing INDEX sy-tabix.
+          READ TABLE lt_pk_collations INTO lv_collation INDEX sy-tabix.
+          IF lo_candidate->is_null( ) = abap_true
+              OR lo_existing->is_null( ) = abap_true
+              OR zcl_sqlite_expr_eval=>compare_values(
+                   io_left      = lo_candidate
+                   io_right     = lo_existing
+                   iv_collation = lv_collation ) <> 0.
+            lv_match = abap_false.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+        IF lv_match = abap_true.
+          CLEAR ls_conflict.
+          ls_conflict-rowid = ls_row-rowid.
+          ls_conflict-is_pk = abap_true.
+          ls_conflict-constraint_text = |UNIQUE constraint failed: | &&
+            wr_pk_constraint_text( is_table ).
+          APPEND ls_conflict TO rt_conflicts.
+        ENDIF.
+      ENDLOOP.
+    ELSE.
+      LOOP AT it_rows INTO ls_row.
+        IF iv_ignore_rowid <> 0 AND ls_row-rowid = iv_ignore_rowid.
+          CONTINUE.
+        ENDIF.
+        IF ls_row-rowid = iv_rowid.
+          CLEAR ls_conflict.
+          ls_conflict-rowid = ls_row-rowid.
+          ls_conflict-is_rowid = abap_true.
+          ls_conflict-constraint_text = |UNIQUE constraint failed: | &&
+            primary_key_constraint_text( is_table ).
+          APPEND ls_conflict TO rt_conflicts.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
 
     LOOP AT is_table-indexes INTO ls_index.
       IF ls_index-is_unique = abap_false OR ls_index-rootpage <= 0.
@@ -3731,9 +4216,31 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA ls_column TYPE zcl_sqlite_schema=>ty_column.
     DATA lo_target TYPE REF TO zcl_sqlite_ast_indexed_column.
     DATA lv_name TYPE string.
+    DATA lv_pk_name TYPE string.
     DATA lv_found TYPE abap_bool.
 
     IF lines( it_target_columns ) = 0.
+      rv_match = abap_true.
+      RETURN.
+    ENDIF.
+
+    IF is_conflict-is_pk = abap_true.
+      IF lines( it_target_columns ) <> lines( is_table-pk_columns ).
+        RETURN.
+      ENDIF.
+      LOOP AT it_target_columns INTO lo_target.
+        lv_name = to_upper( lo_target->get_name( ) ).
+        lv_found = abap_false.
+        LOOP AT is_table-pk_columns INTO lv_pk_name.
+          IF to_upper( lv_pk_name ) = to_upper( lv_name ).
+            lv_found = abap_true.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+        IF lv_found = abap_false.
+          RETURN.
+        ENDIF.
+      ENDLOOP.
       rv_match = abap_true.
       RETURN.
     ENDIF.

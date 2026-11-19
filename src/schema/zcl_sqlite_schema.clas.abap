@@ -69,6 +69,7 @@ CLASS zcl_sqlite_schema DEFINITION
         without_rowid TYPE abap_bool,
         strict        TYPE abap_bool,
         autoincrement TYPE abap_bool,
+        pk_columns    TYPE zcl_sqlite_ast_node=>ty_names,
         columns       TYPE ty_columns,
         checks        TYPE ty_checks,
         indexes       TYPE ty_indexes,
@@ -186,6 +187,7 @@ CLASS zcl_sqlite_schema DEFINITION
                 iv_table_name    TYPE string
                 it_table_columns TYPE ty_columns
                 iv_rowid_alias   TYPE abap_bool
+                iv_without_rowid TYPE abap_bool
                 it_entries       TYPE zcl_sqlite_catalog=>ty_entries.
 
     METHODS append_autoindex
@@ -393,6 +395,7 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
     ls_table-checks = build_table_checks( io_statement ).
 
     ls_pk = find_primary_key( io_statement ).
+    ls_table-pk_columns = ls_pk-names.
     ls_table-columns = apply_primary_key(
       is_pk       = ls_pk
       it_pk_names = ls_pk-names
@@ -420,6 +423,7 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
       iv_table_name    = ls_table-name
       it_table_columns = ls_table-columns
       iv_rowid_alias   = lv_rowid_alias
+      iv_without_rowid = ls_table-without_rowid
       it_entries       = it_entries ).
 
     APPEND ls_table TO mt_tables.
@@ -679,6 +683,7 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
               it_entries       = it_entries ).
           WHEN 'PRIMARY KEY'.
             IF iv_rowid_alias = abap_false
+                AND iv_without_rowid = abap_false
                 AND lv_pk_index_created = abap_false.
               CLEAR lt_names.
               APPEND lo_column->get_name( ) TO lt_names.
@@ -710,6 +715,7 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
             it_entries       = it_entries ).
         WHEN 'PRIMARY KEY'.
           IF iv_rowid_alias = abap_false
+              AND iv_without_rowid = abap_false
               AND lv_pk_index_created = abap_false.
             lt_indexed = lo_constraint->get_indexed_columns( ).
             lt_names = indexed_column_names( lt_indexed ).

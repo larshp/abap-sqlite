@@ -24,6 +24,7 @@ CLASS zcl_sqlite_index_writer DEFINITION
       IMPORTING it_values        TYPE ty_values
                 iv_unique        TYPE abap_bool DEFAULT abap_false
                 iv_prefix_length TYPE i DEFAULT 0
+                iv_key_length    TYPE i DEFAULT 0
                 it_collations    TYPE string_table OPTIONAL
                 iv_constraint    TYPE string OPTIONAL
       RAISING   zcx_sqlite_error.
@@ -39,6 +40,8 @@ CLASS zcl_sqlite_index_writer DEFINITION
       IMPORTING it_keys          TYPE ty_keys
                 iv_unique        TYPE abap_bool DEFAULT abap_false
                 iv_prefix_length TYPE i DEFAULT 0
+                iv_key_length    TYPE i DEFAULT 0
+                it_collations    TYPE string_table OPTIONAL
       RAISING   zcx_sqlite_error.
 
   PROTECTED SECTION.
@@ -72,6 +75,8 @@ CLASS zcl_sqlite_index_writer DEFINITION
     DATA mv_root_page   TYPE i.
     DATA mv_page_size   TYPE i.
     DATA mv_usable_size TYPE i.
+    DATA mv_key_length  TYPE i.
+    DATA mt_collations  TYPE string_table.
 
     METHODS insert_page
       IMPORTING iv_page         TYPE i
@@ -199,6 +204,7 @@ CLASS zcl_sqlite_index_writer DEFINITION
     METHODS compare_value
       IMPORTING io_left           TYPE REF TO zcl_sqlite_value
                 io_right          TYPE REF TO zcl_sqlite_value
+                iv_collation      TYPE string DEFAULT 'BINARY'
       RETURNING VALUE(rv_compare) TYPE i
       RAISING   zcx_sqlite_error.
 
@@ -292,6 +298,9 @@ CLASS zcl_sqlite_index_writer IMPLEMENTATION.
     DATA lv_message TYPE string.
     DATA lo_error TYPE REF TO zcx_sqlite_error.
 
+    mv_key_length = iv_key_length.
+    mt_collations = it_collations.
+
     IF iv_unique = abap_true
         AND iv_prefix_length > 0
         AND contains_prefix(
@@ -346,7 +355,9 @@ CLASS zcl_sqlite_index_writer IMPLEMENTATION.
       insert_entry(
         it_values        = lt_values
         iv_unique        = iv_unique
-        iv_prefix_length = iv_prefix_length ).
+        iv_prefix_length = iv_prefix_length
+        iv_key_length    = iv_key_length
+        it_collations    = it_collations ).
     ENDLOOP.
   ENDMETHOD.
 
@@ -1345,25 +1356,37 @@ CLASS zcl_sqlite_index_writer IMPLEMENTATION.
 
   METHOD compare_records.
     DATA lv_index TYPE i.
+    DATA lv_collation TYPE string.
     DATA lo_left TYPE REF TO zcl_sqlite_value.
     DATA lo_right TYPE REF TO zcl_sqlite_value.
 
     LOOP AT it_left INTO lo_left.
       lv_index = sy-tabix.
+      IF mv_key_length > 0 AND lv_index > mv_key_length.
+        EXIT.
+      ENDIF.
       READ TABLE it_right INTO lo_right INDEX lv_index.
       IF sy-subrc <> 0.
         rv_compare = 1.
         RETURN.
       ENDIF.
+      lv_collation = 'BINARY'.
+      READ TABLE mt_collations INTO lv_collation INDEX lv_index.
+      IF sy-subrc <> 0 OR lv_collation IS INITIAL.
+        lv_collation = 'BINARY'.
+      ENDIF.
       rv_compare = compare_value(
-        io_left  = lo_left
-        io_right = lo_right ).
+        io_left      = lo_left
+        io_right     = lo_right
+        iv_collation = lv_collation ).
       IF rv_compare <> 0.
         RETURN.
       ENDIF.
     ENDLOOP.
 
-    IF lines( it_right ) > lines( it_left ).
+    IF mv_key_length > 0.
+      rv_compare = 0.
+    ELSEIF lines( it_right ) > lines( it_left ).
       rv_compare = -1.
     ELSE.
       rv_compare = 0.
@@ -1416,6 +1439,15 @@ CLASS zcl_sqlite_index_writer IMPLEMENTATION.
     DATA lv_right_real TYPE f.
     DATA lv_left_bytes TYPE xstring.
     DATA lv_right_bytes TYPE xstring.
+
+    IF iv_collation IS NOT INITIAL
+        AND to_upper( iv_collation ) <> 'BINARY'.
+      rv_compare = zcl_sqlite_expr_eval=>compare_values(
+        io_left      = io_left
+        io_right     = io_right
+        iv_collation = iv_collation ).
+      RETURN.
+    ENDIF.
 
     lv_left_rank = value_rank( io_left ).
     lv_right_rank = value_rank( io_right ).

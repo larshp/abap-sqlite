@@ -437,7 +437,6 @@ CLASS ltcl_schema IMPLEMENTATION.
   METHOD strict_without_rowid_not_null.
     DATA lo_schema TYPE REF TO zcl_sqlite_schema.
     DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
-    DATA ls_index TYPE zcl_sqlite_schema=>ty_index.
 
     lo_schema = build_from_sql( 'CREATE TABLE t (a INTEGER PRIMARY KEY, b TEXT) STRICT' ).
     ls_table = lo_schema->table( 't' ).
@@ -468,16 +467,14 @@ CLASS ltcl_schema IMPLEMENTATION.
       iv_dflt_value   = ''
       iv_dflt_is_null = abap_true
       iv_context      = 'without rowid primary key not null' ).
-    READ TABLE ls_table-indexes INTO ls_index INDEX 1.
-    assert_index(
-      is_index    = ls_index
-      iv_name     = 'sqlite_autoindex_t_1'
-      iv_tbl_name = 't'
-      iv_unique   = abap_true
-      iv_origin   = 'pk'
-      iv_partial  = abap_false
-      iv_columns  = '0:a'
-      iv_context  = 'without rowid primary key index' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( ls_table-indexes )
+      exp = 0
+      msg = 'without rowid primary key has no autoindex' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( ls_table-pk_columns )
+      exp = 1
+      msg = 'without rowid primary key columns' ).
   ENDMETHOD.
 
   METHOD build_from_sql.

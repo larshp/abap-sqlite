@@ -15253,6 +15253,1129 @@
       ]
     },
     {
+      "name": "generated.without_writes_0",
+      "database": "fixtures/without_rowid_writes.db",
+      "sql": "SELECT a, b, c, d FROM wr",
+      "columns": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "key-005"
+          },
+          {
+            "type": "text",
+            "value": "b-05"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "d-005"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-010"
+          },
+          {
+            "type": "text",
+            "value": "b-03"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "d-010"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-015"
+          },
+          {
+            "type": "text",
+            "value": "b-01"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "d-015"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-020"
+          },
+          {
+            "type": "text",
+            "value": "b-06"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "d-020"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-025"
+          },
+          {
+            "type": "text",
+            "value": "b-04"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "d-025"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-001"
+          },
+          {
+            "type": "text",
+            "value": "b-01"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "d-001"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-006"
+          },
+          {
+            "type": "text",
+            "value": "b-06"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "d-006"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-011"
+          },
+          {
+            "type": "text",
+            "value": "b-04"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "d-011"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-016"
+          },
+          {
+            "type": "text",
+            "value": "b-02"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "d-016"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-021"
+          },
+          {
+            "type": "text",
+            "value": "b-00"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "d-021"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-002"
+          },
+          {
+            "type": "text",
+            "value": "b-02"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "d-002"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-007"
+          },
+          {
+            "type": "text",
+            "value": "b-00"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "d-007"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-012"
+          },
+          {
+            "type": "text",
+            "value": "b-05"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "d-012"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-017"
+          },
+          {
+            "type": "text",
+            "value": "b-03"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "d-017"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-022"
+          },
+          {
+            "type": "text",
+            "value": "b-01"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "d-022"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-003"
+          },
+          {
+            "type": "text",
+            "value": "b-03"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "d-003"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-008"
+          },
+          {
+            "type": "text",
+            "value": "b-01"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "d-008"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-013"
+          },
+          {
+            "type": "text",
+            "value": "b-06"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "d-013"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-018"
+          },
+          {
+            "type": "text",
+            "value": "b-04"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "d-018"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-023"
+          },
+          {
+            "type": "text",
+            "value": "b-02"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "d-023"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-004"
+          },
+          {
+            "type": "text",
+            "value": "b-04"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "d-004"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-009"
+          },
+          {
+            "type": "text",
+            "value": "b-02"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "d-009"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-014"
+          },
+          {
+            "type": "text",
+            "value": "b-00"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "d-014"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-019"
+          },
+          {
+            "type": "text",
+            "value": "b-05"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "d-019"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-024"
+          },
+          {
+            "type": "text",
+            "value": "b-03"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "d-024"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "generated.without_writes_1",
+      "database": "fixtures/without_rowid_writes.db",
+      "sql": "SELECT a, b, c, d FROM wr ORDER BY c, a",
+      "columns": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "key-005"
+          },
+          {
+            "type": "text",
+            "value": "b-05"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "d-005"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-010"
+          },
+          {
+            "type": "text",
+            "value": "b-03"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "d-010"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-015"
+          },
+          {
+            "type": "text",
+            "value": "b-01"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "d-015"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-020"
+          },
+          {
+            "type": "text",
+            "value": "b-06"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "d-020"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-025"
+          },
+          {
+            "type": "text",
+            "value": "b-04"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "d-025"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-001"
+          },
+          {
+            "type": "text",
+            "value": "b-01"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "d-001"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-006"
+          },
+          {
+            "type": "text",
+            "value": "b-06"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "d-006"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-011"
+          },
+          {
+            "type": "text",
+            "value": "b-04"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "d-011"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-016"
+          },
+          {
+            "type": "text",
+            "value": "b-02"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "d-016"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-021"
+          },
+          {
+            "type": "text",
+            "value": "b-00"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "d-021"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-002"
+          },
+          {
+            "type": "text",
+            "value": "b-02"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "d-002"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-007"
+          },
+          {
+            "type": "text",
+            "value": "b-00"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "d-007"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-012"
+          },
+          {
+            "type": "text",
+            "value": "b-05"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "d-012"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-017"
+          },
+          {
+            "type": "text",
+            "value": "b-03"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "d-017"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-022"
+          },
+          {
+            "type": "text",
+            "value": "b-01"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "d-022"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-003"
+          },
+          {
+            "type": "text",
+            "value": "b-03"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "d-003"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-008"
+          },
+          {
+            "type": "text",
+            "value": "b-01"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "d-008"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-013"
+          },
+          {
+            "type": "text",
+            "value": "b-06"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "d-013"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-018"
+          },
+          {
+            "type": "text",
+            "value": "b-04"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "d-018"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-023"
+          },
+          {
+            "type": "text",
+            "value": "b-02"
+          },
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "d-023"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-004"
+          },
+          {
+            "type": "text",
+            "value": "b-04"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "d-004"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-009"
+          },
+          {
+            "type": "text",
+            "value": "b-02"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "d-009"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-014"
+          },
+          {
+            "type": "text",
+            "value": "b-00"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "d-014"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-019"
+          },
+          {
+            "type": "text",
+            "value": "b-05"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "d-019"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "key-024"
+          },
+          {
+            "type": "text",
+            "value": "b-03"
+          },
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "d-024"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "generated.without_writes_2",
+      "database": "fixtures/without_rowid_writes.db",
+      "sql": "SELECT d FROM wr WHERE b = 'b-03' ORDER BY d",
+      "columns": [
+        "d"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "d-003"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d-010"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d-017"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "d-024"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "generated.without_writes_3",
+      "database": "fixtures/without_rowid_writes.db",
+      "sql": "SELECT c, a FROM wr WHERE c = 2 ORDER BY a",
+      "columns": [
+        "c",
+        "a"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "key-001"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "key-006"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "key-011"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "key-016"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "key-021"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "generated.without_writes_4",
+      "database": "fixtures/without_rowid_writes.db",
+      "sql": "SELECT k, v FROM wr_nocase",
+      "columns": [
+        "k",
+        "v"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "alpha"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Beta"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "delta"
+          },
+          {
+            "type": "text",
+            "value": "d"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Gamma"
+          },
+          {
+            "type": "text",
+            "value": "g"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "generated.without_writes_5",
+      "database": "fixtures/without_rowid_writes.db",
+      "sql": "SELECT k, v FROM wr_nocase ORDER BY k",
+      "columns": [
+        "k",
+        "v"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "alpha"
+          },
+          {
+            "type": "text",
+            "value": "a"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Beta"
+          },
+          {
+            "type": "text",
+            "value": "b"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "delta"
+          },
+          {
+            "type": "text",
+            "value": "d"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "value": "Gamma"
+          },
+          {
+            "type": "text",
+            "value": "g"
+          }
+        ]
+      ]
+    },
+    {
       "name": "generated.joins_0",
       "database": "fixtures/joins.db",
       "sql": "SELECT a.name, b.title FROM authors a JOIN books b ON a.id = b.author_id WHERE a.id = 1 ORDER BY b.id",
