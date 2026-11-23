@@ -214,6 +214,7 @@ CLASS zcl_sqlite_join IMPLEMENTATION.
     DATA lv_name   TYPE string.
 
     ro_row = NEW zcl_sqlite_row( ).
+    ro_row->set_outer_context( io_left->get_outer_context( ) ).
     ro_row->copy_cells( io_left ).
 
     IF io_right IS BOUND.

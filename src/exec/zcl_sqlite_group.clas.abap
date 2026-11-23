@@ -17,6 +17,7 @@ CLASS zcl_sqlite_group DEFINITION
                 it_columns       TYPE ty_columns
                 iv_visible_count TYPE i
                 io_having        TYPE REF TO zcl_sqlite_ast_node OPTIONAL
+                io_outer         TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RAISING   zcx_sqlite_error.
 
   PRIVATE SECTION.
@@ -35,6 +36,7 @@ CLASS zcl_sqlite_group DEFINITION
     DATA mt_columns     TYPE ty_columns.
     DATA mv_visible_count TYPE i.
     DATA mo_having      TYPE REF TO zcl_sqlite_ast_node.
+    DATA mo_outer       TYPE REF TO zif_sqlite_eval_context.
     DATA mt_groups      TYPE ty_groups.
     DATA mv_index       TYPE i.
     DATA mo_row         TYPE REF TO zcl_sqlite_row.
@@ -75,6 +77,7 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
     mt_columns = it_columns.
     mv_visible_count = iv_visible_count.
     mo_having = io_having.
+    mo_outer = io_outer.
   ENDMETHOD.
 
   METHOD zif_sqlite_operator~open.
@@ -219,6 +222,7 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
     DATA lo_value          TYPE REF TO zcl_sqlite_value.
     DATA lo_row            TYPE REF TO zcl_sqlite_row.
     DATA lo_context        TYPE REF TO zif_sqlite_eval_context.
+    DATA lo_outer          TYPE REF TO zif_sqlite_eval_context.
     DATA lo_alias_context  TYPE REF TO zcl_sqlite_group_context.
     DATA ls_column         TYPE zcl_sqlite_project=>ty_column.
     DATA ls_alias          TYPE zcl_sqlite_group_context=>ty_alias.
@@ -255,7 +259,17 @@ CLASS zcl_sqlite_group IMPLEMENTATION.
       ENDIF.
     ENDIF.
 
+    IF lines( it_rows ) > 0.
+      lo_outer = it_rows[ 1 ]->get_outer_context( ).
+    ENDIF.
+    IF lo_outer IS NOT BOUND.
+      lo_outer = mo_outer.
+    ENDIF.
+
     lo_row = NEW zcl_sqlite_row( ).
+    IF lo_outer IS BOUND.
+      lo_row->set_outer_context( lo_outer ).
+    ENDIF.
     LOOP AT mt_columns INTO ls_column.
       lo_value = zcl_sqlite_expr_eval=>evaluate(
         io_expression = ls_column-expression

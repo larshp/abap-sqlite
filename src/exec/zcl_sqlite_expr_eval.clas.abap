@@ -73,6 +73,12 @@ CLASS zcl_sqlite_expr_eval DEFINITION
       RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
       RAISING   zcx_sqlite_error.
 
+    CLASS-METHODS set_subquery_runner
+      IMPORTING io_runner TYPE REF TO zif_sqlite_subquery_runner OPTIONAL.
+
+    CLASS-METHODS get_subquery_runner
+      RETURNING VALUE(ro_runner) TYPE REF TO zif_sqlite_subquery_runner.
+
   PRIVATE SECTION.
     TYPES: BEGIN OF ty_integer_parse,
              value    TYPE int8,
@@ -86,6 +92,26 @@ CLASS zcl_sqlite_expr_eval DEFINITION
            END OF ty_glob_class.
 
     TYPES ty_values TYPE STANDARD TABLE OF REF TO zcl_sqlite_value WITH DEFAULT KEY.
+
+    CLASS-DATA mo_subquery_runner TYPE REF TO zif_sqlite_subquery_runner.
+
+    CLASS-METHODS evaluate_subquery
+      IMPORTING io_subquery     TYPE REF TO zcl_sqlite_ast_subquery
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS evaluate_exists
+      IMPORTING io_exists       TYPE REF TO zcl_sqlite_ast_exists
+                io_context      TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(ro_value) TYPE REF TO zcl_sqlite_value
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS execute_subquery
+      IMPORTING io_statement     TYPE REF TO zcl_sqlite_ast_node
+                io_context       TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(rs_result) TYPE zif_sqlite_subquery_runner=>ty_result
+      RAISING   zcx_sqlite_error.
 
     CLASS-METHODS contains_aggregate_in_function
       IMPORTING io_function         TYPE REF TO zcl_sqlite_ast_function
@@ -632,6 +658,14 @@ ENDCLASS.
 
 CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
 
+  METHOD set_subquery_runner.
+    mo_subquery_runner = io_runner.
+  ENDMETHOD.
+
+  METHOD get_subquery_runner.
+    ro_runner = mo_subquery_runner.
+  ENDMETHOD.
+
   METHOD evaluate.
     DATA lo_literal  TYPE REF TO zcl_sqlite_ast_literal.
     DATA lo_unary    TYPE REF TO zcl_sqlite_ast_unary.
@@ -644,6 +678,8 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     DATA lo_name     TYPE REF TO zcl_sqlite_ast_name.
     DATA lo_function TYPE REF TO zcl_sqlite_ast_function.
     DATA lo_like     TYPE REF TO zcl_sqlite_ast_like.
+    DATA lo_subquery TYPE REF TO zcl_sqlite_ast_subquery.
+    DATA lo_exists   TYPE REF TO zcl_sqlite_ast_exists.
 
     IF io_expression IS NOT BOUND.
       raise_error( 'expression is not bound' ).
@@ -692,6 +728,14 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lo_like ?= io_expression.
       ro_value = evaluate_like( io_like    = lo_like
                                 io_context = io_context ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_subquery.
+      lo_subquery ?= io_expression.
+      ro_value = evaluate_subquery( io_subquery = lo_subquery
+                                    io_context  = io_context ).
+    ELSEIF io_expression IS INSTANCE OF zcl_sqlite_ast_exists.
+      lo_exists ?= io_expression.
+      ro_value = evaluate_exists( io_exists  = lo_exists
+                                  io_context = io_context ).
     ELSE.
       raise_error( 'unsupported expression' ).
     ENDIF.
@@ -1335,24 +1379,76 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
+  METHOD evaluate_subquery.
+    DATA rs_result  TYPE zif_sqlite_subquery_runner=>ty_result.
+    DATA lt_row     TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value   TYPE REF TO zcl_sqlite_value.
+    DATA lv_columns TYPE i.
+
+    rs_result = execute_subquery(
+      io_statement = io_subquery->get_statement( )
+      io_context   = io_context ).
+
+    lv_columns = lines( rs_result-columns ).
+    IF lv_columns <> 1.
+      raise_error( |sub-select returns { lv_columns } columns - expected 1| ).
+    ENDIF.
+
+    IF lines( rs_result-rows ) = 0.
+      ro_value = zcl_sqlite_value=>null( ).
+      RETURN.
+    ENDIF.
+
+    READ TABLE rs_result-rows INTO lt_row INDEX 1.
+    READ TABLE lt_row INTO lo_value INDEX 1.
+    IF sy-subrc <> 0 OR lo_value IS NOT BOUND.
+      ro_value = zcl_sqlite_value=>null( ).
+    ELSE.
+      ro_value = lo_value.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD evaluate_exists.
+    DATA rs_result TYPE zif_sqlite_subquery_runner=>ty_result.
+
+    rs_result = execute_subquery(
+      io_statement = io_exists->get_statement( )
+      io_context   = io_context ).
+
+    IF lines( rs_result-rows ) > 0.
+      ro_value = zcl_sqlite_value=>integer( 1 ).
+    ELSE.
+      ro_value = zcl_sqlite_value=>integer( 0 ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD execute_subquery.
+    IF mo_subquery_runner IS NOT BOUND.
+      raise_error( 'subqueries are not available in this context' ).
+    ENDIF.
+
+    rs_result = mo_subquery_runner->run(
+      io_statement = io_statement
+      io_outer     = io_context ).
+  ENDMETHOD.
+
   METHOD evaluate_in.
     DATA lo_value     TYPE REF TO zcl_sqlite_value.
     DATA lo_candidate TYPE REF TO zcl_sqlite_value.
     DATA lo_expression TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
     DATA lt_values    TYPE zcl_sqlite_ast_node=>ty_nodes.
+    DATA lt_row       TYPE zcl_sqlite_record=>ty_values.
+    DATA rs_result    TYPE zif_sqlite_subquery_runner=>ty_result.
     DATA lv_collation TYPE string.
     DATA lv_found     TYPE abap_bool.
     DATA lv_saw_null  TYPE abap_bool.
     DATA lv_result    TYPE int8.
-
-    IF io_in->get_select( ) IS BOUND.
-      raise_error( 'IN subquery is not supported in a constant expression' ).
-    ENDIF.
+    DATA lv_columns   TYPE i.
 
     lo_value = evaluate(
       io_expression = io_in->get_expression( )
       io_context    = io_context ).
-    lt_values = io_in->get_values( ).
     lv_collation = collation_of_context(
       io_expression = io_in->get_expression( )
       io_context    = io_context ).
@@ -1360,25 +1456,61 @@ CLASS zcl_sqlite_expr_eval IMPLEMENTATION.
       lv_collation = 'BINARY'.
     ENDIF.
 
-    IF lo_value->is_null( ) = abap_false.
-      LOOP AT lt_values INTO lo_expression.
-        lo_candidate = evaluate(
-          io_expression = lo_expression
-          io_context    = io_context ).
-        IF lo_candidate->is_null( ) = abap_true.
-          lv_saw_null = abap_true.
-          CONTINUE.
-        ENDIF.
-        IF compare_non_null(
-            io_left      = lo_value
-            io_right     = lo_candidate
-            iv_collation = lv_collation ) = 0.
-          lv_found = abap_true.
-          EXIT.
-        ENDIF.
-      ENDLOOP.
+    lo_statement = io_in->get_select( ).
+    IF lo_statement IS BOUND.
+      rs_result = execute_subquery(
+        io_statement = lo_statement
+        io_context   = io_context ).
+      lv_columns = lines( rs_result-columns ).
+      IF lv_columns <> 1.
+        raise_error( |sub-select returns { lv_columns } columns - expected 1| ).
+      ENDIF.
+
+      IF lo_value->is_null( ) = abap_false.
+        LOOP AT rs_result-rows INTO lt_row.
+          READ TABLE lt_row INTO lo_candidate INDEX 1.
+          IF sy-subrc <> 0 OR lo_candidate IS NOT BOUND.
+            lv_saw_null = abap_true.
+            CONTINUE.
+          ENDIF.
+          IF lo_candidate->is_null( ) = abap_true.
+            lv_saw_null = abap_true.
+            CONTINUE.
+          ENDIF.
+          IF compare_non_null(
+              io_left      = lo_value
+              io_right     = lo_candidate
+              iv_collation = lv_collation ) = 0.
+            lv_found = abap_true.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+      ELSE.
+        lv_saw_null = abap_true.
+      ENDIF.
     ELSE.
-      lv_saw_null = abap_true.
+      lt_values = io_in->get_values( ).
+
+      IF lo_value->is_null( ) = abap_false.
+        LOOP AT lt_values INTO lo_expression.
+          lo_candidate = evaluate(
+            io_expression = lo_expression
+            io_context    = io_context ).
+          IF lo_candidate->is_null( ) = abap_true.
+            lv_saw_null = abap_true.
+            CONTINUE.
+          ENDIF.
+          IF compare_non_null(
+              io_left      = lo_value
+              io_right     = lo_candidate
+              iv_collation = lv_collation ) = 0.
+            lv_found = abap_true.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+      ELSE.
+        lv_saw_null = abap_true.
+      ENDIF.
     ENDIF.
 
     IF lv_found = abap_true.

@@ -12,6 +12,12 @@ CLASS zcl_sqlite_ast_subquery_ref DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_statement
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_alias
+      RETURNING VALUE(rv_alias) TYPE string.
+
   PRIVATE SECTION.
     DATA mo_statement TYPE REF TO zcl_sqlite_ast_node.
     DATA mv_alias     TYPE string.
@@ -25,6 +31,14 @@ CLASS zcl_sqlite_ast_subquery_ref IMPLEMENTATION.
     super->constructor( ).
     mo_statement = io_statement.
     mv_alias = iv_alias.
+  ENDMETHOD.
+
+  METHOD get_statement.
+    ro_statement = mo_statement.
+  ENDMETHOD.
+
+  METHOD get_alias.
+    rv_alias = mv_alias.
   ENDMETHOD.
 
   METHOD dump.

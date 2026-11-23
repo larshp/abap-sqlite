@@ -16,11 +16,13 @@ CLASS zcl_sqlite_project DEFINITION
 
     METHODS constructor
       IMPORTING io_source  TYPE REF TO zif_sqlite_operator OPTIONAL
-                it_columns TYPE ty_columns.
+                it_columns TYPE ty_columns
+                io_outer   TYPE REF TO zif_sqlite_eval_context OPTIONAL.
 
   PRIVATE SECTION.
     DATA mo_source  TYPE REF TO zif_sqlite_operator.
     DATA mt_columns TYPE ty_columns.
+    DATA mo_outer   TYPE REF TO zif_sqlite_eval_context.
     DATA mv_emitted TYPE abap_bool.
     DATA mo_row     TYPE REF TO zcl_sqlite_row.
 
@@ -35,6 +37,7 @@ CLASS zcl_sqlite_project IMPLEMENTATION.
   METHOD constructor.
     mo_source = io_source.
     mt_columns = it_columns.
+    mo_outer = io_outer.
   ENDMETHOD.
 
   METHOD zif_sqlite_operator~open.
@@ -68,18 +71,30 @@ CLASS zcl_sqlite_project IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_row.
-    DATA lo_context TYPE REF TO zif_sqlite_eval_context.
-    DATA lo_row     TYPE REF TO zcl_sqlite_row.
-    DATA ls_column  TYPE ty_column.
-    DATA lo_value   TYPE REF TO zcl_sqlite_value.
+    DATA lo_context    TYPE REF TO zif_sqlite_eval_context.
+    DATA lo_source_row TYPE REF TO zcl_sqlite_row.
+    DATA lo_outer      TYPE REF TO zif_sqlite_eval_context.
+    DATA lo_row        TYPE REF TO zcl_sqlite_row.
+    DATA ls_column     TYPE ty_column.
+    DATA lo_value      TYPE REF TO zcl_sqlite_value.
 
     IF mo_source IS BOUND.
       lo_context = mo_source->row( ).
+      lo_source_row ?= lo_context.
+      IF lo_source_row IS BOUND.
+        lo_outer = lo_source_row->get_outer_context( ).
+      ENDIF.
     ELSE.
       lo_context = NEW zcl_sqlite_row( ).
     ENDIF.
+    IF lo_outer IS NOT BOUND.
+      lo_outer = mo_outer.
+    ENDIF.
 
     lo_row = NEW zcl_sqlite_row( ).
+    IF lo_outer IS BOUND.
+      lo_row->set_outer_context( lo_outer ).
+    ENDIF.
     LOOP AT mt_columns INTO ls_column.
       lo_value = zcl_sqlite_expr_eval=>evaluate(
         io_expression = ls_column-expression

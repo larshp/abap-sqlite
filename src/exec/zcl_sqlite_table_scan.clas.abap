@@ -15,10 +15,12 @@ CLASS zcl_sqlite_table_scan DEFINITION
                 is_table TYPE zcl_sqlite_schema=>ty_table
                 iv_alias TYPE string OPTIONAL
                 is_plan  TYPE zcl_sqlite_planner=>ty_plan OPTIONAL
+                io_outer TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RAISING   zcx_sqlite_error.
 
   PRIVATE SECTION.
     DATA mo_pager          TYPE REF TO zcl_sqlite_pager.
+    DATA mo_outer          TYPE REF TO zif_sqlite_eval_context.
     DATA ms_table          TYPE zcl_sqlite_schema=>ty_table.
     DATA ms_plan           TYPE zcl_sqlite_planner=>ty_plan.
     DATA mv_alias          TYPE string.
@@ -115,6 +117,7 @@ CLASS zcl_sqlite_table_scan IMPLEMENTATION.
     mo_pager = io_pager.
     ms_table = is_table.
     mv_alias = iv_alias.
+    mo_outer = io_outer.
     IF is_plan IS SUPPLIED.
       ms_plan = is_plan.
     ENDIF.
@@ -549,6 +552,9 @@ CLASS zcl_sqlite_table_scan IMPLEMENTATION.
     ENDIF.
     lv_rowid = cursor_rowid( ).
     lo_row = NEW zcl_sqlite_row( ).
+    IF mo_outer IS BOUND.
+      lo_row->set_outer_context( mo_outer ).
+    ENDIF.
 
     LOOP AT ms_table-columns INTO ls_column.
       READ TABLE it_values INTO lo_value INDEX sy-tabix.

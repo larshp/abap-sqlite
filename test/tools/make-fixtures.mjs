@@ -1411,6 +1411,76 @@ const queryDefinitions = [
     sql: "SELECT shipments.carrier FROM orders NATURAL JOIN shipments ORDER BY order_id",
   },
   {
+    name: "subquery.scalar_correlated",
+    database: "joins.db",
+    sql: "SELECT b.id, (SELECT name FROM authors WHERE id = b.author_id) AS author_name FROM books b ORDER BY b.id",
+  },
+  {
+    name: "subquery.scalar_empty",
+    database: "joins.db",
+    sql: "SELECT id, (SELECT title FROM books WHERE author_id = a.id AND price > 100) AS title FROM authors a ORDER BY id",
+  },
+  {
+    name: "subquery.scalar_where",
+    database: "joins.db",
+    sql: "SELECT id FROM books WHERE price = (SELECT max(price) FROM books) ORDER BY id",
+  },
+  {
+    name: "subquery.in",
+    database: "joins.db",
+    sql: "SELECT id FROM books WHERE author_id IN (SELECT id FROM authors WHERE name LIKE 'A%') ORDER BY id",
+  },
+  {
+    name: "subquery.in_correlated",
+    database: "joins.db",
+    sql: "SELECT a.id FROM authors a WHERE a.id IN (SELECT b.author_id FROM books b WHERE b.price > 10) ORDER BY a.id",
+  },
+  {
+    name: "subquery.not_in_null",
+    database: "joins.db",
+    sql: "SELECT id FROM books WHERE id NOT IN (SELECT author_id FROM books) ORDER BY id",
+  },
+  {
+    name: "subquery.exists_correlated",
+    database: "joins.db",
+    sql: "SELECT id, name FROM authors a WHERE EXISTS (SELECT 1 FROM books b WHERE b.author_id = a.id AND b.price > 15) ORDER BY id",
+  },
+  {
+    name: "subquery.not_exists",
+    database: "joins.db",
+    sql: "SELECT id, name FROM authors a WHERE NOT EXISTS (SELECT 1 FROM books b WHERE b.author_id = a.id) ORDER BY id",
+  },
+  {
+    name: "subquery.exists_select",
+    database: "joins.db",
+    sql: "SELECT id, EXISTS(SELECT 1 FROM books b WHERE b.author_id = a.id) AS has_book FROM authors a ORDER BY id",
+  },
+  {
+    name: "subquery.from",
+    database: "joins.db",
+    sql: "SELECT t.id, t.name FROM (SELECT id, name FROM authors WHERE id < 3) AS t ORDER BY t.id",
+  },
+  {
+    name: "subquery.from_star",
+    database: "joins.db",
+    sql: "SELECT * FROM (SELECT id, title FROM books WHERE price >= 10) AS b ORDER BY b.id",
+  },
+  {
+    name: "subquery.from_join",
+    database: "joins.db",
+    sql: "SELECT x.name, b.title FROM (SELECT id, name FROM authors WHERE id <= 2) x JOIN books b ON x.id = b.author_id ORDER BY b.id",
+  },
+  {
+    name: "subquery.from_nested",
+    database: "joins.db",
+    sql: "SELECT * FROM (SELECT * FROM (SELECT id, name FROM authors WHERE id > 2) a) b ORDER BY id",
+  },
+  {
+    name: "subquery.having",
+    database: "joins.db",
+    sql: "SELECT author_id, count(*) FROM books WHERE author_id IS NOT NULL GROUP BY author_id HAVING count(*) > (SELECT count(*) FROM books WHERE author_id = 1) ORDER BY author_id",
+  },
+  {
     name: "constraints.where_nocase",
     database: "constraints.db",
     sql: "SELECT id FROM constrained WHERE code = 'ALPHA' ORDER BY id",

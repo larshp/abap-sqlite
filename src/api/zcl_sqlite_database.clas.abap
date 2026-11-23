@@ -7,14 +7,12 @@ CLASS zcl_sqlite_database DEFINITION
   CREATE PRIVATE.
 
   PUBLIC SECTION.
-    TYPES ty_row TYPE zcl_sqlite_record=>ty_values.
-    TYPES ty_rows TYPE STANDARD TABLE OF ty_row WITH DEFAULT KEY.
-    TYPES ty_column_names TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
+    INTERFACES zif_sqlite_subquery_runner.
 
-    TYPES: BEGIN OF ty_result,
-             columns TYPE ty_column_names,
-             rows    TYPE ty_rows,
-           END OF ty_result.
+    TYPES ty_row TYPE zif_sqlite_subquery_runner=>ty_row.
+    TYPES ty_rows TYPE zif_sqlite_subquery_runner=>ty_rows.
+    TYPES ty_column_names TYPE zif_sqlite_subquery_runner=>ty_column_names.
+    TYPES ty_result TYPE zif_sqlite_subquery_runner=>ty_result.
 
     CLASS-METHODS open
       IMPORTING iv_name            TYPE string
@@ -179,6 +177,13 @@ CLASS zcl_sqlite_database DEFINITION
 
     METHODS query_select
       IMPORTING io_select        TYPE REF TO zcl_sqlite_ast_select
+                io_outer         TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(rs_result) TYPE ty_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS query_select_internal
+      IMPORTING io_select        TYPE REF TO zcl_sqlite_ast_select
+                io_outer         TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(rs_result) TYPE ty_result
       RAISING   zcx_sqlite_error.
 
@@ -587,25 +592,35 @@ CLASS zcl_sqlite_database DEFINITION
     METHODS build_from_list
       IMPORTING it_from        TYPE zcl_sqlite_ast_select=>ty_from
                 io_planner     TYPE REF TO zcl_sqlite_planner
+                io_outer       TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(rs_plan) TYPE ty_from_plan
       RAISING   zcx_sqlite_error.
 
     METHODS build_from
       IMPORTING io_item        TYPE REF TO zcl_sqlite_ast_node
                 io_planner     TYPE REF TO zcl_sqlite_planner
+                io_outer       TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(rs_plan) TYPE ty_from_plan
       RAISING   zcx_sqlite_error.
 
     METHODS build_table
       IMPORTING io_table_ref   TYPE REF TO zcl_sqlite_ast_table_ref
                 io_planner     TYPE REF TO zcl_sqlite_planner
+                io_outer       TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(rs_plan) TYPE ty_from_plan
       RAISING   zcx_sqlite_error.
 
     METHODS build_join
       IMPORTING io_join        TYPE REF TO zcl_sqlite_ast_join
                 io_planner     TYPE REF TO zcl_sqlite_planner
+                io_outer       TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(rs_plan) TYPE ty_from_plan
+      RAISING   zcx_sqlite_error.
+
+    METHODS build_subquery
+      IMPORTING io_subquery_ref TYPE REF TO zcl_sqlite_ast_subquery_ref
+                io_outer        TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(rs_plan)  TYPE ty_from_plan
       RAISING   zcx_sqlite_error.
 
     METHODS combine_plans
@@ -857,7 +872,38 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       iv_sql       = iv_sql ).
   ENDMETHOD.
 
+  METHOD zif_sqlite_subquery_runner~run.
+    DATA lo_select TYPE REF TO zcl_sqlite_ast_select.
+
+    IF io_statement IS NOT INSTANCE OF zcl_sqlite_ast_select.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING iv_message = 'unsupported subquery'.
+    ENDIF.
+    lo_select ?= io_statement.
+
+    rs_result = query_select(
+      io_select = lo_select
+      io_outer  = io_outer ).
+  ENDMETHOD.
+
   METHOD query_select.
+    DATA lo_previous TYPE REF TO zif_sqlite_subquery_runner.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+
+    lo_previous = zcl_sqlite_expr_eval=>get_subquery_runner( ).
+    zcl_sqlite_expr_eval=>set_subquery_runner( me ).
+    TRY.
+        rs_result = query_select_internal(
+          io_select = io_select
+          io_outer  = io_outer ).
+        zcl_sqlite_expr_eval=>set_subquery_runner( lo_previous ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        zcl_sqlite_expr_eval=>set_subquery_runner( lo_previous ).
+        RAISE EXCEPTION lo_error.
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD query_select_internal.
     DATA lo_select          TYPE REF TO zcl_sqlite_ast_select.
     DATA lo_where           TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_having          TYPE REF TO zcl_sqlite_ast_node.
@@ -891,7 +937,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     IF lines( lt_from ) > 0.
       ls_from_plan = build_from_list(
         it_from    = lt_from
-        io_planner = lo_planner ).
+        io_planner = lo_planner
+        io_outer   = io_outer ).
     ENDIF.
 
     lt_result_columns = lo_select->get_columns( ).
@@ -944,11 +991,13 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         it_group_by      = lt_group_by
         it_columns       = lt_project_columns
         iv_visible_count = lv_visible_count
-        io_having        = lo_having ).
+        io_having        = lo_having
+        io_outer         = io_outer ).
     ELSE.
       lo_operator = NEW zcl_sqlite_project(
         io_source  = lo_operator
-        it_columns = lt_project_columns ).
+        it_columns = lt_project_columns
+        io_outer   = io_outer ).
     ENDIF.
 
     IF lo_select->get_distinct( ) = abap_true.
@@ -1389,6 +1438,10 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
   METHOD execute_statement.
     DATA lv_changes TYPE i.
     DATA lv_last_rowid TYPE int8.
+    DATA lo_previous TYPE REF TO zif_sqlite_subquery_runner.
+
+    lo_previous = zcl_sqlite_expr_eval=>get_subquery_runner( ).
+    zcl_sqlite_expr_eval=>set_subquery_runner( me ).
     TRY.
         IF mv_in_transaction = abap_true.
           mo_pager->begin_statement( ).
@@ -1449,7 +1502,9 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         IF mv_in_transaction = abap_false.
           commit_work_if_requested( ).
         ENDIF.
+        zcl_sqlite_expr_eval=>set_subquery_runner( lo_previous ).
       CATCH zcx_sqlite_error INTO DATA(lo_error).
+        zcl_sqlite_expr_eval=>set_subquery_runner( lo_previous ).
         IF lo_error->force_rollback = abap_true.
 * ROLLBACK conflict resolution ends the transaction.
           mo_pager->rollback( ).
@@ -4639,13 +4694,15 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     IF sy-subrc = 0.
       rs_plan = build_from(
         io_item    = lo_item
-        io_planner = io_planner ).
+        io_planner = io_planner
+        io_outer   = io_outer ).
     ENDIF.
 
     LOOP AT it_from INTO lo_item FROM 2.
       ls_right = build_from(
         io_item    = lo_item
-        io_planner = io_planner ).
+        io_planner = io_planner
+        io_outer   = io_outer ).
       rs_plan = combine_plans(
         is_left      = rs_plan
         is_right     = ls_right
@@ -4654,23 +4711,60 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_from.
-    DATA lo_table_ref TYPE REF TO zcl_sqlite_ast_table_ref.
-    DATA lo_join      TYPE REF TO zcl_sqlite_ast_join.
+    DATA lo_table_ref    TYPE REF TO zcl_sqlite_ast_table_ref.
+    DATA lo_join         TYPE REF TO zcl_sqlite_ast_join.
+    DATA lo_subquery_ref TYPE REF TO zcl_sqlite_ast_subquery_ref.
 
     IF io_item IS INSTANCE OF zcl_sqlite_ast_table_ref.
       lo_table_ref ?= io_item.
       rs_plan = build_table(
         io_table_ref = lo_table_ref
-        io_planner   = io_planner ).
+        io_planner   = io_planner
+        io_outer     = io_outer ).
     ELSEIF io_item IS INSTANCE OF zcl_sqlite_ast_join.
       lo_join ?= io_item.
       rs_plan = build_join(
         io_join    = lo_join
-        io_planner = io_planner ).
+        io_planner = io_planner
+        io_outer   = io_outer ).
+    ELSEIF io_item IS INSTANCE OF zcl_sqlite_ast_subquery_ref.
+      lo_subquery_ref ?= io_item.
+      rs_plan = build_subquery(
+        io_subquery_ref = lo_subquery_ref
+        io_outer        = io_outer ).
     ELSE.
       RAISE EXCEPTION TYPE zcx_sqlite_error
-        EXPORTING iv_message = 'subqueries in FROM are not supported yet'.
+        EXPORTING iv_message = 'unsupported FROM item'.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD build_subquery.
+    DATA lo_select  TYPE REF TO zcl_sqlite_ast_select.
+    DATA rs_result  TYPE ty_result.
+    DATA ls_column  TYPE zcl_sqlite_join=>ty_column.
+    DATA lv_alias   TYPE string.
+    DATA lv_name    TYPE string.
+
+    IF io_subquery_ref->get_statement( ) IS NOT INSTANCE OF zcl_sqlite_ast_select.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING iv_message = 'unsupported subquery in FROM'.
+    ENDIF.
+    lo_select ?= io_subquery_ref->get_statement( ).
+
+    rs_result = query_select( lo_select ).
+    lv_alias = io_subquery_ref->get_alias( ).
+
+    LOOP AT rs_result-columns INTO lv_name.
+      ls_column-name = lv_name.
+      ls_column-table_name = lv_alias.
+      ls_column-hidden = abap_false.
+      APPEND ls_column TO rs_plan-columns.
+    ENDLOOP.
+
+    rs_plan-operator = NEW zcl_sqlite_row_source(
+      it_columns = rs_plan-columns
+      it_rows    = rs_result-rows
+      io_outer   = io_outer ).
   ENDMETHOD.
 
   METHOD build_table.
@@ -4699,7 +4793,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       io_pager = mo_pager
       is_table = ls_table
       iv_alias = io_table_ref->get_alias( )
-      is_plan  = ls_access ).
+      is_plan  = ls_access
+      io_outer = io_outer ).
 
     LOOP AT ls_table-columns INTO ls_table_column.
       ls_from_column-name = ls_table_column-name.
@@ -4718,10 +4813,12 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
     ls_left = build_from(
       io_item    = io_join->get_left( )
-      io_planner = io_planner ).
+      io_planner = io_planner
+      io_outer   = io_outer ).
     ls_right = build_from(
       io_item    = io_join->get_right( )
-      io_planner = io_planner ).
+      io_planner = io_planner
+      io_outer   = io_outer ).
     lv_join_type = io_join->get_join_type( ).
 
     IF io_join->is_natural( ) = abap_true.

@@ -11,6 +11,9 @@ CLASS zcl_sqlite_ast_exists DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_statement
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node.
+
   PRIVATE SECTION.
     DATA mo_statement TYPE REF TO zcl_sqlite_ast_node.
 
@@ -22,6 +25,10 @@ CLASS zcl_sqlite_ast_exists IMPLEMENTATION.
   METHOD constructor.
     super->constructor( ).
     mo_statement = io_statement.
+  ENDMETHOD.
+
+  METHOD get_statement.
+    ro_statement = mo_statement.
   ENDMETHOD.
 
   METHOD dump.

@@ -18,6 +18,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS joins_inner_left FOR TESTING RAISING zcx_sqlite_error.
     METHODS joins_using_natural FOR TESTING RAISING zcx_sqlite_error.
     METHODS joins_ambiguous FOR TESTING RAISING zcx_sqlite_error.
+    METHODS subqueries FOR TESTING RAISING zcx_sqlite_error.
     METHODS planner_access_paths FOR TESTING RAISING zcx_sqlite_error.
     METHODS planner_execution FOR TESTING RAISING zcx_sqlite_error.
     METHODS update_without_rowid FOR TESTING RAISING zcx_sqlite_error.
@@ -565,6 +566,148 @@ CLASS ltcl_database IMPLEMENTATION.
     ENDTRY.
 
     lo_database->close( ).
+  ENDMETHOD.
+
+  METHOD subqueries.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA lv_name     TYPE string.
+
+    lo_database = zcl_sqlite_database=>open( 'fixtures/joins.db' ).
+
+    rs_result = lo_database->query(
+      |SELECT b.id, (SELECT name FROM authors WHERE id = b.author_id) AS author_name | &
+      |FROM books b ORDER BY b.id| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 5
+      msg = 'scalar subquery row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'Ada'
+      msg = 'scalar subquery first author' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 4.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->is_null( )
+      exp = abap_true
+      msg = 'scalar subquery null for orphan' ).
+
+    rs_result = lo_database->query(
+      |SELECT id FROM books WHERE author_id IN | &
+      |(SELECT id FROM authors WHERE name LIKE 'A%') ORDER BY id| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'IN subquery row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 2.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'IN subquery second id' ).
+
+    rs_result = lo_database->query(
+      |SELECT id, name FROM authors a WHERE NOT EXISTS | &
+      |(SELECT 1 FROM books b WHERE b.author_id = a.id) ORDER BY id| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'NOT EXISTS row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 3
+      msg = 'NOT EXISTS first id' ).
+
+    rs_result = lo_database->query(
+      |SELECT id FROM books WHERE id NOT IN (SELECT author_id FROM books) ORDER BY id| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 0
+      msg = 'NOT IN null candidate' ).
+
+    rs_result = lo_database->query(
+      |SELECT t.id, t.name FROM (SELECT id, name FROM authors WHERE id < 3) AS t ORDER BY t.id| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'FROM subquery row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 2.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'Grace'
+      msg = 'FROM subquery second name' ).
+
+    rs_result = lo_database->query(
+      |SELECT x.name, b.title FROM (SELECT id, name FROM authors WHERE id <= 2) x | &
+      |JOIN books b ON x.id = b.author_id ORDER BY b.id| ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'FROM subquery join row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 3.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'Gamma'
+      msg = 'FROM subquery join last title' ).
+
+    TRY.
+        lo_database->query( 'SELECT (SELECT id, name FROM authors)' ).
+        cl_abap_unit_assert=>fail( 'expected scalar subquery column error' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'sub-select returns 2 columns - expected 1'
+          msg = 'scalar subquery column count' ).
+    ENDTRY.
+
+    lo_database->close( ).
+
+* DML subqueries use their own database so the shared fixture stays pristine
+    lv_name = 'test/m7_6_subqueries.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+    lo_database = zcl_sqlite_database=>open(
+      iv_name = lv_name
+      io_vfs  = lo_vfs ).
+    lo_database->execute( 'CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT)' ).
+    lo_database->execute( 'CREATE TABLE books (id INTEGER PRIMARY KEY, author_id INTEGER, price INTEGER)' ).
+    lo_database->execute( 'INSERT INTO authors VALUES (1, ''Ada''), (2, ''Grace''), (3, ''Linus'')' ).
+    lo_database->execute(
+      'INSERT INTO books VALUES (1, 1, 10), (2, 1, 20), (3, 2, 15), (4, NULL, 5), (5, 99, 7)' ).
+
+    lo_database->execute(
+      |UPDATE books SET price = price + 100 WHERE author_id IN | &
+      |(SELECT id FROM authors WHERE name = 'Ada')| ).
+    rs_result = lo_database->query( 'SELECT price FROM books WHERE id = 2' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 120
+      msg = 'UPDATE subquery' ).
+
+    lo_database->execute(
+      |DELETE FROM books WHERE EXISTS | &
+      |(SELECT 1 FROM authors a WHERE a.id = books.author_id AND a.name = 'Grace')| ).
+    rs_result = lo_database->query( 'SELECT id FROM books ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 4
+      msg = 'DELETE subquery row count' ).
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.
 
   METHOD planner_access_paths.

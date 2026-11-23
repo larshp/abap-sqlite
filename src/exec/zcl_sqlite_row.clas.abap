@@ -38,8 +38,15 @@ CLASS zcl_sqlite_row DEFINITION
     METHODS values
       RETURNING VALUE(rt_values) TYPE ty_values.
 
+    METHODS set_outer_context
+      IMPORTING io_outer TYPE REF TO zif_sqlite_eval_context OPTIONAL.
+
+    METHODS get_outer_context
+      RETURNING VALUE(ro_outer) TYPE REF TO zif_sqlite_eval_context.
+
   PRIVATE SECTION.
     DATA mt_cells TYPE ty_cells.
+    DATA mo_outer TYPE REF TO zif_sqlite_eval_context.
 
 ENDCLASS.
 
@@ -90,6 +97,14 @@ CLASS zcl_sqlite_row IMPLEMENTATION.
     ENDLOOP.
   ENDMETHOD.
 
+  METHOD set_outer_context.
+    mo_outer = io_outer.
+  ENDMETHOD.
+
+  METHOD get_outer_context.
+    ro_outer = mo_outer.
+  ENDMETHOD.
+
   METHOD zif_sqlite_eval_context~value_of.
     DATA ls_cell        TYPE ty_cell.
     DATA lo_match       TYPE REF TO zcl_sqlite_value.
@@ -125,6 +140,11 @@ CLASS zcl_sqlite_row IMPLEMENTATION.
         RETURN.
       ENDIF.
     ENDLOOP.
+
+    IF mo_outer IS BOUND.
+      ro_value = mo_outer->value_of( iv_name ).
+      RETURN.
+    ENDIF.
 
     RAISE EXCEPTION TYPE zcx_sqlite_error
       EXPORTING iv_message = |no such column: { iv_name }|.
@@ -163,6 +183,13 @@ CLASS zcl_sqlite_row IMPLEMENTATION.
         RETURN.
       ENDIF.
     ENDLOOP.
+
+    IF mo_outer IS BOUND.
+      TRY.
+          rv_collation = mo_outer->collation_of( iv_name ).
+        CATCH zcx_sqlite_error.
+      ENDTRY.
+    ENDIF.
   ENDMETHOD.
 
   METHOD zif_sqlite_eval_context~aggregate.
