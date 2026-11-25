@@ -150,6 +150,7 @@ CLASS zcl_sqlite_database DEFINITION
     TYPES: BEGIN OF ty_statement,
              create_table   TYPE REF TO zcl_sqlite_ast_create_table,
              create_index   TYPE REF TO zcl_sqlite_ast_create_index,
+             create_view    TYPE REF TO zcl_sqlite_ast_create_view,
              insert         TYPE REF TO zcl_sqlite_ast_insert,
              update         TYPE REF TO zcl_sqlite_ast_update,
              delete         TYPE REF TO zcl_sqlite_ast_delete,
@@ -157,6 +158,7 @@ CLASS zcl_sqlite_database DEFINITION
              transaction    TYPE REF TO zcl_sqlite_ast_transaction,
              schema_changed TYPE abap_bool,
              index_created  TYPE abap_bool,
+             view_created   TYPE abap_bool,
              inserted       TYPE abap_bool,
              updated        TYPE abap_bool,
            END OF ty_statement.
@@ -166,6 +168,7 @@ CLASS zcl_sqlite_database DEFINITION
     DATA mo_file   TYPE REF TO zif_sqlite_file.
     DATA mo_pager  TYPE REF TO zcl_sqlite_pager.
     DATA mo_schema TYPE REF TO zcl_sqlite_schema.
+    DATA mt_view_stack TYPE zcl_sqlite_ast_node=>ty_names.
     DATA mv_last_insert_rowid TYPE int8.
     DATA mv_changes           TYPE i.
     DATA mv_in_transaction    TYPE abap_bool.
@@ -204,6 +207,11 @@ CLASS zcl_sqlite_database DEFINITION
 
     METHODS execute_create_table
       IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_create_table
+                iv_sql       TYPE string
+      RAISING   zcx_sqlite_error.
+
+    METHODS execute_create_view
+      IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_create_view
                 iv_sql       TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -258,6 +266,10 @@ CLASS zcl_sqlite_database DEFINITION
       RAISING   zcx_sqlite_error.
 
     METHODS execute_drop_index
+      IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_drop
+      RAISING   zcx_sqlite_error.
+
+    METHODS execute_drop_view
       IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_drop
       RAISING   zcx_sqlite_error.
 
@@ -606,6 +618,13 @@ CLASS zcl_sqlite_database DEFINITION
     METHODS build_table
       IMPORTING io_table_ref   TYPE REF TO zcl_sqlite_ast_table_ref
                 io_planner     TYPE REF TO zcl_sqlite_planner
+                io_outer       TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(rs_plan) TYPE ty_from_plan
+      RAISING   zcx_sqlite_error.
+
+    METHODS build_view
+      IMPORTING io_table_ref   TYPE REF TO zcl_sqlite_ast_table_ref
+                is_view        TYPE zcl_sqlite_schema=>ty_view
                 io_outer       TYPE REF TO zif_sqlite_eval_context OPTIONAL
       RETURNING VALUE(rs_plan) TYPE ty_from_plan
       RAISING   zcx_sqlite_error.
@@ -1401,6 +1420,10 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_create_index.
       rs_statement-create_index ?= io_statement.
       rs_statement-index_created = abap_true.
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_create_view.
+      rs_statement-create_view ?= io_statement.
+      rs_statement-view_created = abap_true.
+      rs_statement-schema_changed = abap_true.
     ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_insert.
       rs_statement-insert ?= io_statement.
       rs_statement-inserted = abap_true.
@@ -1417,7 +1440,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     ELSE.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING
-          iv_message = 'only CREATE TABLE/INDEX, DROP TABLE/INDEX, INSERT, UPDATE, DELETE'
+          iv_message = 'only CREATE TABLE/INDEX/VIEW, DROP TABLE/INDEX/VIEW, INSERT, UPDATE, DELETE'
                     && ' and transaction control are supported'.
     ENDIF.
   ENDMETHOD.
@@ -1449,6 +1472,10 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
         IF is_statement-drop IS BOUND.
           execute_drop( is_statement-drop ).
+        ELSEIF is_statement-view_created = abap_true.
+          execute_create_view(
+            io_statement = is_statement-create_view
+            iv_sql       = iv_sql ).
         ELSEIF is_statement-schema_changed = abap_true.
           execute_create_table(
             io_statement = is_statement-create_table
@@ -1599,6 +1626,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
   METHOD execute_create_table.
     DATA ls_existing TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_view TYPE zcl_sqlite_schema=>ty_view.
     DATA ls_entry TYPE zcl_sqlite_catalog=>ty_entry.
     DATA lo_schema TYPE REF TO zcl_sqlite_schema.
     DATA lv_root_page TYPE i.
@@ -1625,6 +1653,16 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         EXPORTING
           iv_code    = zcx_sqlite_error=>sqlite_error
           iv_message = |table { lv_name } already exists|.
+    ENDIF.
+    ls_view = mo_schema->view( lv_name ).
+    IF ls_view-name IS NOT INITIAL.
+      IF io_statement->is_if_not_exists( ) = abap_true.
+        RETURN.
+      ENDIF.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |view { lv_name } already exists|.
     ENDIF.
 
     lv_root_page = mo_pager->allocate_page( ).
@@ -1677,6 +1715,54 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     IF ls_existing-autoincrement = abap_true.
       ensure_sequence_table( ).
     ENDIF.
+
+    mo_pager->bump_schema_cookie( ).
+  ENDMETHOD.
+
+  METHOD execute_create_view.
+    DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_view TYPE zcl_sqlite_schema=>ty_view.
+    DATA ls_entry TYPE zcl_sqlite_catalog=>ty_entry.
+    DATA lv_name TYPE string.
+
+    IF io_statement->is_temporary( ) = abap_true.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = 'temporary views are not supported'.
+    ENDIF.
+
+    lv_name = strip_schema_name( io_statement->get_name( ) ).
+    ls_table = mo_schema->table( lv_name ).
+    IF ls_table-name IS NOT INITIAL.
+      IF io_statement->is_if_not_exists( ) = abap_true.
+        RETURN.
+      ENDIF.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |table { lv_name } already exists|.
+    ENDIF.
+    ls_view = mo_schema->view( lv_name ).
+    IF ls_view-name IS NOT INITIAL.
+      IF io_statement->is_if_not_exists( ) = abap_true.
+        RETURN.
+      ENDIF.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |view { lv_name } already exists|.
+    ENDIF.
+
+    ls_entry-type = 'view'.
+    ls_entry-name = lv_name.
+    ls_entry-tbl_name = lv_name.
+    ls_entry-rootpage = 0.
+    ls_entry-sql = normalized_sql( iv_sql ).
+    ls_entry-sql_is_null = abap_false.
+    zcl_sqlite_catalog=>append(
+      io_pager = mo_pager
+      is_entry = ls_entry ).
 
     mo_pager->bump_schema_cookie( ).
   ENDMETHOD.
@@ -1750,6 +1836,8 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         execute_drop_table( io_statement ).
       WHEN 'INDEX'.
         execute_drop_index( io_statement ).
+      WHEN 'VIEW'.
+        execute_drop_view( io_statement ).
       WHEN OTHERS.
         RAISE EXCEPTION TYPE zcx_sqlite_error
           EXPORTING
@@ -1760,6 +1848,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
   METHOD execute_drop_table.
     DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_view TYPE zcl_sqlite_schema=>ty_view.
     DATA ls_index TYPE zcl_sqlite_schema=>ty_index.
     DATA lt_names TYPE zcl_sqlite_catalog=>ty_names.
     DATA lv_name TYPE string.
@@ -1770,6 +1859,13 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         EXPORTING
           iv_code    = zcx_sqlite_error=>sqlite_error
           iv_message = 'table sqlite_sequence may not be dropped'.
+    ENDIF.
+    ls_view = mo_schema->view( lv_name ).
+    IF ls_view-name IS NOT INITIAL.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |use DROP VIEW to delete view { lv_name }|.
     ENDIF.
     ls_table = mo_schema->table( lv_name ).
     IF ls_table-name IS INITIAL.
@@ -1827,6 +1923,38 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       drop_index_tree( ls_index ).
     ENDIF.
     APPEND ls_index-name TO lt_names.
+    zcl_sqlite_catalog=>remove(
+      io_pager = mo_pager
+      it_names = lt_names ).
+    mo_pager->bump_schema_cookie( ).
+  ENDMETHOD.
+
+  METHOD execute_drop_view.
+    DATA ls_table TYPE zcl_sqlite_schema=>ty_table.
+    DATA ls_view TYPE zcl_sqlite_schema=>ty_view.
+    DATA lt_names TYPE zcl_sqlite_catalog=>ty_names.
+    DATA lv_name TYPE string.
+
+    lv_name = strip_schema_name( io_statement->get_name( ) ).
+    ls_table = mo_schema->table( lv_name ).
+    IF ls_table-name IS NOT INITIAL.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |use DROP TABLE to delete table { lv_name }|.
+    ENDIF.
+    ls_view = mo_schema->view( lv_name ).
+    IF ls_view-name IS INITIAL.
+      IF io_statement->is_if_exists( ) = abap_true.
+        RETURN.
+      ENDIF.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |no such view: { lv_name }|.
+    ENDIF.
+
+    APPEND ls_view-name TO lt_names.
     zcl_sqlite_catalog=>remove(
       io_pager = mo_pager
       it_names = lt_names ).
@@ -4771,11 +4899,22 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA ls_table        TYPE zcl_sqlite_schema=>ty_table.
     DATA ls_table_column TYPE zcl_sqlite_schema=>ty_column.
     DATA ls_from_column  TYPE zcl_sqlite_join=>ty_column.
+    DATA ls_view         TYPE zcl_sqlite_schema=>ty_view.
     DATA ls_access       TYPE zcl_sqlite_planner=>ty_plan.
     DATA lv_table_name   TYPE string.
+    DATA lv_name         TYPE string.
 
-    ls_table = mo_schema->table( io_table_ref->get_name( ) ).
+    lv_name = strip_schema_name( io_table_ref->get_name( ) ).
+    ls_table = mo_schema->table( lv_name ).
     IF ls_table-name IS INITIAL.
+      ls_view = mo_schema->view( lv_name ).
+      IF ls_view-name IS NOT INITIAL.
+        rs_plan = build_view(
+          io_table_ref = io_table_ref
+          is_view      = ls_view
+          io_outer     = io_outer ).
+        RETURN.
+      ENDIF.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING iv_message = |no such table: { io_table_ref->get_name( ) }|.
     ENDIF.
@@ -4803,6 +4942,94 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
       ls_from_column-hidden = abap_false.
       APPEND ls_from_column TO rs_plan-columns.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD build_view.
+    DATA lo_select       TYPE REF TO zcl_sqlite_ast_select.
+    DATA lo_error        TYPE REF TO zcx_sqlite_error.
+    DATA rs_result       TYPE ty_result.
+    DATA ls_column       TYPE zcl_sqlite_join=>ty_column.
+    DATA lt_view_columns TYPE zcl_sqlite_ast_create_view=>ty_columns.
+    DATA lt_base_names   TYPE zcl_sqlite_ast_node=>ty_names.
+    DATA lv_view_name    TYPE string.
+    DATA lv_alias        TYPE string.
+    DATA lv_name         TYPE string.
+    DATA lv_base         TYPE string.
+    DATA lv_previous     TYPE string.
+    DATA lv_occurrence   TYPE i.
+    DATA lv_cycle        TYPE abap_bool.
+
+    lv_view_name = is_view-name.
+    lv_alias = io_table_ref->get_alias( ).
+    IF lv_alias IS INITIAL.
+      lv_alias = lv_view_name.
+    ENDIF.
+    lt_view_columns = is_view-columns.
+
+    LOOP AT mt_view_stack INTO lv_previous.
+      IF to_upper( lv_previous ) = to_upper( lv_view_name ).
+        lv_cycle = abap_true.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+    IF lv_cycle = abap_true.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_code    = zcx_sqlite_error=>sqlite_error
+          iv_message = |view { lv_view_name } is circularly defined|.
+    ENDIF.
+
+    APPEND lv_view_name TO mt_view_stack.
+    TRY.
+        IF is_view-statement IS NOT INSTANCE OF zcl_sqlite_ast_select.
+          RAISE EXCEPTION TYPE zcx_sqlite_error
+            EXPORTING iv_message = |unsupported view definition: { lv_view_name }|.
+        ENDIF.
+        lo_select ?= is_view-statement.
+        rs_result = query_select( lo_select ).
+
+        IF lines( lt_view_columns ) > 0
+            AND lines( lt_view_columns ) <> lines( rs_result-columns ).
+          RAISE EXCEPTION TYPE zcx_sqlite_error
+            EXPORTING
+              iv_code    = zcx_sqlite_error=>sqlite_error
+              iv_message = |expected { lines( lt_view_columns ) } columns for |
+                        && |'{ lv_view_name }' but got { lines( rs_result-columns ) }|.
+        ENDIF.
+
+        LOOP AT rs_result-columns INTO lv_name.
+          IF lines( lt_view_columns ) > 0.
+            READ TABLE lt_view_columns INTO lv_base INDEX sy-tabix.
+            lv_name = lv_base.
+          ELSE.
+            lv_base = lv_name.
+            lv_occurrence = 0.
+            LOOP AT lt_base_names INTO lv_previous.
+              IF lv_previous = lv_base.
+                lv_occurrence = lv_occurrence + 1.
+              ENDIF.
+            ENDLOOP.
+            APPEND lv_base TO lt_base_names.
+            IF lv_occurrence > 0.
+              lv_name = |{ lv_base }:{ lv_occurrence }|.
+            ENDIF.
+          ENDIF.
+
+          ls_column-name = lv_name.
+          ls_column-table_name = lv_alias.
+          ls_column-hidden = abap_false.
+          APPEND ls_column TO rs_plan-columns.
+        ENDLOOP.
+
+        rs_plan-operator = NEW zcl_sqlite_row_source(
+          it_columns = rs_plan-columns
+          it_rows    = rs_result-rows
+          io_outer   = io_outer ).
+        DELETE mt_view_stack INDEX lines( mt_view_stack ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        DELETE mt_view_stack INDEX lines( mt_view_stack ).
+        RAISE EXCEPTION lo_error.
+    ENDTRY.
   ENDMETHOD.
 
   METHOD build_join.

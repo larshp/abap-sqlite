@@ -1153,6 +1153,57 @@ async function verifyIndex(SQL, tempDir) {
   );
 }
 
+async function verifyViews(SQL, tempDir) {
+  const fileName = (await zcl_sqlite_scenario.views({rv_name: 1})).get();
+  const exported = await openExported(SQL, tempDir, fileName, "views.db");
+  const reference = new SQL.Database();
+  const statements = [
+    "CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT)",
+    "CREATE TABLE books (id INTEGER PRIMARY KEY, author_id INTEGER, title TEXT, price)",
+    "INSERT INTO authors VALUES (1, 'Ada'), (2, 'Grace')",
+    "INSERT INTO books VALUES (1, 1, 'Alpha', 10), (2, 1, 'Beta', 20), (3, 2, 'Gamma', NULL)",
+    "CREATE VIEW book_view AS SELECT a.id AS author_id, a.name AS author_name, b.id AS book_id, b.title FROM authors a JOIN books b ON a.id = b.author_id",
+    "CREATE VIEW book_names(book_id, title) AS SELECT id, title FROM books",
+    "CREATE VIEW pricey_books AS SELECT book_id, title FROM book_view WHERE book_id > 1",
+    "CREATE VIEW dropped AS SELECT 1",
+    "DROP VIEW dropped",
+  ];
+
+  try {
+    for (const sql of statements) {
+      reference.run(sql);
+    }
+
+    assert.equal(scalar(exported.db, "PRAGMA integrity_check"), "ok", "integrity_check failed");
+    assert.equal(
+      scalar(exported.db, "PRAGMA page_count"),
+      scalar(reference, "PRAGMA page_count"),
+      "views must not allocate pages",
+    );
+    assert.equal(scalar(exported.db, "PRAGMA freelist_count"), 0, "freelist_count mismatch");
+    assert.deepEqual(
+      rows(exported.db, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      rows(reference, "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema ORDER BY rowid"),
+      "sqlite_schema rows differ",
+    );
+    assert.deepEqual(tableNames(exported.db), tableNames(reference), "table list differs");
+    for (const sql of [
+      "SELECT author_id, author_name, book_id, title FROM book_view ORDER BY book_id",
+      "SELECT * FROM book_names ORDER BY book_id",
+      "SELECT * FROM pricey_books ORDER BY book_id",
+    ]) {
+      assert.deepEqual(rows(exported.db, sql), rows(reference, sql), `view query differs: ${sql}`);
+    }
+  } finally {
+    exported.db.close();
+    reference.close();
+  }
+
+  console.log(
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, views)`,
+  );
+}
+
 async function verifyDrop(SQL, tempDir) {
   const fileName = (await zcl_sqlite_scenario.drop_objects({rv_name: 1})).get();
   const exported = await openExported(SQL, tempDir, fileName, "drop.db");
@@ -1250,6 +1301,7 @@ try {
     ["insert-statements", verifyInsertStatements],
     ["constraints", verifyColumnConstraints],
     ["unique", verifyUniqueKeys],
+    ["views", verifyViews],
     ["conflict", verifyConflict],
     ["autoincrement", verifyAutoincrement],
     ["without-rowid", verifyWithoutRowid],

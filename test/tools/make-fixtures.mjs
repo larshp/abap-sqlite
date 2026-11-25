@@ -524,6 +524,34 @@ function joinsDatabase() {
       (1, 'UPS'),
       (2, 'DHL'),
       (5, 'FedEx')`);
+  db.run(`
+    CREATE VIEW active_authors AS
+      SELECT id, name FROM authors WHERE id < 4`);
+  db.run(`
+    CREATE VIEW author_books AS
+      SELECT a.id AS author_id, a.name AS author_name,
+             b.id AS book_id, b.title, b.price
+      FROM authors AS a
+      JOIN books AS b ON a.id = b.author_id`);
+  db.run(`
+    CREATE VIEW expensive_books(book_id, title, cost) AS
+      SELECT id, title, price FROM books WHERE price >= 10`);
+  db.run(`
+    CREATE VIEW pricey_books AS
+      SELECT book_id, title, price FROM author_books WHERE price > 10`);
+  db.run(`
+    CREATE VIEW author_counts AS
+      SELECT author_id, count(*) AS books
+      FROM books WHERE author_id IS NOT NULL
+      GROUP BY author_id`);
+  db.run(`
+    CREATE VIEW order_customers AS
+      SELECT o.customer_id, o.amount, s.carrier
+      FROM orders AS o
+      LEFT JOIN shipments AS s ON s.order_id = o.order_id`);
+  db.run(`
+    CREATE VIEW duplicate_columns AS
+      SELECT id AS x, title AS x, price AS x FROM books WHERE id < 3`);
   return db;
 }
 
@@ -1479,6 +1507,66 @@ const queryDefinitions = [
     name: "subquery.having",
     database: "joins.db",
     sql: "SELECT author_id, count(*) FROM books WHERE author_id IS NOT NULL GROUP BY author_id HAVING count(*) > (SELECT count(*) FROM books WHERE author_id = 1) ORDER BY author_id",
+  },
+  {
+    name: "views.select",
+    database: "joins.db",
+    sql: "SELECT author_id, author_name, book_id, title FROM author_books ORDER BY book_id",
+  },
+  {
+    name: "views.explicit_columns",
+    database: "joins.db",
+    sql: "SELECT book_id, title, cost FROM expensive_books ORDER BY book_id",
+  },
+  {
+    name: "views.explicit_where",
+    database: "joins.db",
+    sql: "SELECT book_id, title FROM expensive_books WHERE cost > 10 ORDER BY book_id",
+  },
+  {
+    name: "views.where",
+    database: "joins.db",
+    sql: "SELECT title, author_name FROM author_books WHERE price > 10 ORDER BY book_id",
+  },
+  {
+    name: "views.nested",
+    database: "joins.db",
+    sql: "SELECT book_id, title FROM pricey_books ORDER BY book_id",
+  },
+  {
+    name: "views.star",
+    database: "joins.db",
+    sql: "SELECT * FROM active_authors ORDER BY id",
+  },
+  {
+    name: "views.aggregate",
+    database: "joins.db",
+    sql: "SELECT author_id, books FROM author_counts ORDER BY author_id",
+  },
+  {
+    name: "views.left_join",
+    database: "joins.db",
+    sql: "SELECT customer_id, amount, carrier FROM order_customers ORDER BY customer_id, amount",
+  },
+  {
+    name: "views.alias",
+    database: "joins.db",
+    sql: "SELECT v.title FROM author_books AS v WHERE v.price >= 20 ORDER BY v.book_id",
+  },
+  {
+    name: "views.join",
+    database: "joins.db",
+    sql: "SELECT a.name, v.title FROM authors a JOIN author_books v ON v.author_id = a.id WHERE v.price > 10 ORDER BY v.book_id",
+  },
+  {
+    name: "views.scalar_subquery",
+    database: "joins.db",
+    sql: "SELECT a.id, (SELECT count(*) FROM author_books b WHERE b.author_id = a.id) AS books FROM authors a ORDER BY a.id",
+  },
+  {
+    name: "views.duplicate_names",
+    database: "joins.db",
+    sql: "SELECT * FROM duplicate_columns ORDER BY 1",
   },
   {
     name: "constraints.where_nocase",

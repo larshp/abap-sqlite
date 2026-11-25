@@ -29,6 +29,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS dml_returning FOR TESTING RAISING zcx_sqlite_error.
     METHODS autoincrement FOR TESTING RAISING zcx_sqlite_error.
     METHODS without_rowid_writes FOR TESTING RAISING zcx_sqlite_error.
+    METHODS views FOR TESTING RAISING zcx_sqlite_error.
 
     TYPES: BEGIN OF ty_abap_row,
              id      TYPE i,
@@ -3629,6 +3630,184 @@ CLASS ltcl_database IMPLEMENTATION.
       msg = 'without rowid delete row count' ).
 
     lo_database->execute( 'DROP TABLE wr' ).
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD views.
+    DATA lo_vfs      TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+    DATA lo_error    TYPE REF TO zcx_sqlite_error.
+    DATA lv_name     TYPE string.
+    DATA lv_column   TYPE string.
+    DATA rs_result   TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row      TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value    TYPE REF TO zcl_sqlite_value.
+
+    lv_name = 'test/m7_7_views.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT)' ).
+    lo_database->execute( 'CREATE TABLE books (id INTEGER PRIMARY KEY, author_id INTEGER, title TEXT, price)' ).
+    lo_database->execute( 'INSERT INTO authors VALUES (1, ''Ada''), (2, ''Grace'')' ).
+    lo_database->execute(
+      'INSERT INTO books VALUES (1, 1, ''Alpha'', 10), (2, 1, ''Beta'', 20), (3, 2, ''Gamma'', NULL)' ).
+
+    lo_database->execute(
+      'CREATE VIEW book_view AS' &&
+      ' SELECT a.id AS author_id, a.name AS author_name, b.id AS book_id, b.title' &&
+      ' FROM authors a JOIN books b ON a.id = b.author_id' ).
+
+    rs_result = lo_database->query( 'SELECT * FROM book_view ORDER BY book_id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-columns )
+      exp = 4
+      msg = 'view column count' ).
+    READ TABLE rs_result-columns INTO lv_column INDEX 3.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_column
+      exp = 'book_id'
+      msg = 'view column name' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'view row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 2.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'Ada'
+      msg = 'view projected value' ).
+
+    lo_database->execute( 'CREATE VIEW book_names(book_id, title) AS SELECT id, title FROM books' ).
+    rs_result = lo_database->query( 'SELECT * FROM book_names ORDER BY book_id' ).
+    READ TABLE rs_result-columns INTO lv_column INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_column
+      exp = 'book_id'
+      msg = 'explicit view column name' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 3.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'Gamma'
+      msg = 'explicit view column value' ).
+
+    lo_database->execute( 'CREATE VIEW pricey_books AS SELECT book_id, title FROM book_view WHERE book_id > 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT book_id FROM pricey_books' )
+      exp = 2
+      msg = 'nested view row count' ).
+
+    lo_database->execute( 'CREATE VIEW IF NOT EXISTS book_view AS SELECT 1' ).
+    lo_database->execute( 'CREATE TABLE IF NOT EXISTS book_view (x INTEGER)' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT book_id FROM book_view' )
+      exp = 3
+      msg = 'IF NOT EXISTS keeps view definition' ).
+
+    TRY.
+        lo_database->execute( 'CREATE VIEW book_view AS SELECT 1' ).
+        cl_abap_unit_assert=>fail( 'duplicate view was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'view book_view already exists'
+          msg = 'duplicate view error' ).
+    ENDTRY.
+    TRY.
+        lo_database->execute( 'CREATE VIEW books AS SELECT 1' ).
+        cl_abap_unit_assert=>fail( 'view over existing table was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'table books already exists'
+          msg = 'view table name conflict' ).
+    ENDTRY.
+    TRY.
+        lo_database->execute( 'CREATE TABLE book_view (x INTEGER)' ).
+        cl_abap_unit_assert=>fail( 'table over existing view was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'view book_view already exists'
+          msg = 'table view name conflict' ).
+    ENDTRY.
+    TRY.
+        lo_database->execute( 'DROP TABLE book_view' ).
+        cl_abap_unit_assert=>fail( 'DROP TABLE accepted a view' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'use DROP VIEW to delete view book_view'
+          msg = 'DROP TABLE view error' ).
+    ENDTRY.
+    TRY.
+        lo_database->execute( 'DROP VIEW books' ).
+        cl_abap_unit_assert=>fail( 'DROP VIEW accepted a table' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'use DROP TABLE to delete table books'
+          msg = 'DROP VIEW table error' ).
+    ENDTRY.
+    TRY.
+        lo_database->execute( 'CREATE TEMP VIEW temp_view AS SELECT 1' ).
+        cl_abap_unit_assert=>fail( 'temporary view was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'temporary views are not supported'
+          msg = 'temporary view error' ).
+    ENDTRY.
+
+    lo_database->execute( 'CREATE VIEW too_many(a, b) AS SELECT id FROM books' ).
+    TRY.
+        lo_database->query( 'SELECT * FROM too_many' ).
+        cl_abap_unit_assert=>fail( 'view with mismatched columns was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'expected 2 columns for ''too_many'' but got 1'
+          msg = 'view column count error' ).
+    ENDTRY.
+
+    lo_database->execute( 'CREATE VIEW loop AS SELECT * FROM loop' ).
+    TRY.
+        lo_database->query( 'SELECT * FROM loop' ).
+        cl_abap_unit_assert=>fail( 'circular view was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'view loop is circularly defined'
+          msg = 'circular view error' ).
+    ENDTRY.
+
+    lo_database->execute( 'DROP VIEW pricey_books' ).
+    TRY.
+        lo_database->query( 'SELECT * FROM pricey_books' ).
+        cl_abap_unit_assert=>fail( 'dropped view is still visible' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'no such table: pricey_books'
+          msg = 'dropped view error' ).
+    ENDTRY.
+    lo_database->execute( 'DROP VIEW IF EXISTS pricey_books' ).
+    TRY.
+        lo_database->execute( 'DROP VIEW pricey_books' ).
+        cl_abap_unit_assert=>fail( 'missing view drop was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'no such view: pricey_books'
+          msg = 'missing view drop error' ).
+    ENDTRY.
+
     lo_database->close( ).
     lo_vfs->zif_sqlite_vfs~delete( lv_name ).
   ENDMETHOD.

@@ -76,6 +76,15 @@ CLASS zcl_sqlite_schema DEFINITION
       END OF ty_table,
       ty_tables TYPE STANDARD TABLE OF ty_table WITH DEFAULT KEY.
 
+    TYPES:
+      BEGIN OF ty_view,
+        name      TYPE string,
+        sql       TYPE string,
+        columns   TYPE zcl_sqlite_ast_node=>ty_names,
+        statement TYPE REF TO zcl_sqlite_ast_node,
+      END OF ty_view,
+      ty_views TYPE STANDARD TABLE OF ty_view WITH DEFAULT KEY.
+
     CLASS-METHODS read
       IMPORTING io_pager         TYPE REF TO zcl_sqlite_pager
       RETURNING VALUE(ro_schema) TYPE REF TO zcl_sqlite_schema
@@ -112,6 +121,13 @@ CLASS zcl_sqlite_schema DEFINITION
       IMPORTING iv_name           TYPE string
       RETURNING VALUE(rt_indexes) TYPE ty_indexes.
 
+    METHODS views
+      RETURNING VALUE(rt_views) TYPE ty_views.
+
+    METHODS view
+      IMPORTING iv_name        TYPE string
+      RETURNING VALUE(rs_view) TYPE ty_view.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
     TYPES:
@@ -124,6 +140,7 @@ CLASS zcl_sqlite_schema DEFINITION
 
     DATA mt_tables  TYPE ty_tables.
     DATA mt_indexes TYPE ty_indexes.
+    DATA mt_views   TYPE ty_views.
 
     METHODS add_table
       IMPORTING is_entry     TYPE zcl_sqlite_catalog=>ty_entry
@@ -134,6 +151,10 @@ CLASS zcl_sqlite_schema DEFINITION
     METHODS add_index
       IMPORTING is_entry     TYPE zcl_sqlite_catalog=>ty_entry
                 io_statement TYPE REF TO zcl_sqlite_ast_create_index.
+
+    METHODS add_view
+      IMPORTING is_entry     TYPE zcl_sqlite_catalog=>ty_entry
+                io_statement TYPE REF TO zcl_sqlite_ast_create_view.
 
     METHODS finish.
 
@@ -255,6 +276,7 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_create_table TYPE REF TO zcl_sqlite_ast_create_table.
     DATA lo_create_index TYPE REF TO zcl_sqlite_ast_create_index.
+    DATA lo_create_view TYPE REF TO zcl_sqlite_ast_create_view.
 
     ro_schema = NEW zcl_sqlite_schema( ).
 
@@ -280,6 +302,16 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
               ro_schema->add_index(
                 is_entry     = ls_entry
                 io_statement = lo_create_index ).
+            ENDIF.
+          ENDIF.
+        WHEN 'view'.
+          IF ls_entry-sql_is_null = abap_false.
+            lo_statement = zcl_sqlite_parser=>parse_statement( ls_entry-sql ).
+            IF lo_statement IS INSTANCE OF zcl_sqlite_ast_create_view.
+              lo_create_view ?= lo_statement.
+              ro_schema->add_view(
+                is_entry     = ls_entry
+                io_statement = lo_create_view ).
             ENDIF.
           ENDIF.
       ENDCASE.
@@ -378,6 +410,21 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
     LOOP AT mt_indexes INTO ls_index.
       IF to_upper( ls_index-tbl_name ) = to_upper( iv_name ).
         APPEND ls_index TO rt_indexes.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD views.
+    rt_views = mt_views.
+  ENDMETHOD.
+
+  METHOD view.
+    DATA ls_view TYPE ty_view.
+
+    LOOP AT mt_views INTO ls_view.
+      IF to_upper( ls_view-name ) = to_upper( iv_name ).
+        rs_view = ls_view.
+        RETURN.
       ENDIF.
     ENDLOOP.
   ENDMETHOD.
@@ -782,6 +829,16 @@ CLASS zcl_sqlite_schema IMPLEMENTATION.
     ENDLOOP.
 
     APPEND ls_index TO mt_indexes.
+  ENDMETHOD.
+
+  METHOD add_view.
+    DATA ls_view TYPE ty_view.
+
+    ls_view-name = is_entry-name.
+    ls_view-sql = is_entry-sql.
+    ls_view-columns = io_statement->get_columns( ).
+    ls_view-statement = io_statement->get_statement( ).
+    APPEND ls_view TO mt_views.
   ENDMETHOD.
 
   METHOD finish.

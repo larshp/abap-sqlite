@@ -402,10 +402,22 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_parse(
       iv_sql      = |DROP INDEX idx;|
       iv_expected = |DROP INDEX idx| ).
+    assert_statement_parse(
+      iv_sql      = |CREATE VIEW IF NOT EXISTS v (a, b) AS SELECT id, name FROM t WHERE id > 0|
+      iv_expected = |CREATE VIEW IF NOT EXISTS v (a, b) AS SELECT COLUMN(id), COLUMN(name) FROM t | &&
+                    |WHERE BINARY(>, COLUMN(id), INTEGER(0))| ).
+    assert_statement_parse(
+      iv_sql      = |CREATE TEMP VIEW v AS SELECT 1|
+      iv_expected = |CREATE TEMP VIEW v AS SELECT INTEGER(1)| ).
+    assert_statement_parse(
+      iv_sql      = |DROP VIEW IF EXISTS main.v|
+      iv_expected = |DROP VIEW IF EXISTS main.v| ).
   ENDMETHOD.
 
   METHOD ddl_errors.
-    assert_statement_error( |CREATE VIEW v AS SELECT 1| ).
+    assert_statement_error( |CREATE VIEW| ).
+    assert_statement_error( |CREATE VIEW v| ).
+    assert_statement_error( |CREATE VIEW v AS| ).
     assert_statement_error( |CREATE TABLE| ).
     assert_statement_error( |CREATE TABLE t ()| ).
     assert_statement_error( |CREATE TABLE t (a INTEGER PRIMARY)| ).
@@ -415,7 +427,6 @@ CLASS ltcl_parser IMPLEMENTATION.
     assert_statement_error( |CREATE INDEX idx t(a)| ).
     assert_statement_error( |CREATE INDEX idx ON t ()| ).
     assert_statement_error( |DROP TABLE| ).
-    assert_statement_error( |DROP VIEW v| ).
     assert_statement_error( |CREATE TABLE t (a INTEGER) WITH ROWID| ).
     assert_statement_error( |CREATE TABLE t (a INTEGER) WITHOUT| ).
     assert_statement_error( |CREATE TABLE t (a INTEGER) EXTRA| ).

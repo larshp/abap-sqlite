@@ -25,6 +25,7 @@ CLASS zcl_sqlite_scenario DEFINITION
     CONSTANTS c_split_database TYPE string VALUE 'compat/split.db'.
     CONSTANTS c_update_database TYPE string VALUE 'compat/update.db'.
     CONSTANTS c_unique_database TYPE string VALUE 'compat/unique.db'.
+    CONSTANTS c_views_database TYPE string VALUE 'compat/views.db'.
     CONSTANTS c_without_rowid_database TYPE string VALUE 'compat/without-rowid.db'.
 
     CLASS-METHODS create_empty
@@ -88,6 +89,10 @@ CLASS zcl_sqlite_scenario DEFINITION
       RAISING   zcx_sqlite_error.
 
     CLASS-METHODS unique_keys
+      RETURNING VALUE(rv_name) TYPE string
+      RAISING   zcx_sqlite_error.
+
+    CLASS-METHODS views
       RETURNING VALUE(rv_name) TYPE string
       RAISING   zcx_sqlite_error.
 
@@ -267,6 +272,35 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_database->close( ).
 
     rv_name = c_autoincrement_database.
+  ENDMETHOD.
+
+  METHOD views.
+    DATA lo_vfs      TYPE REF TO zif_sqlite_vfs.
+    DATA lo_database TYPE REF TO zcl_sqlite_database.
+
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->delete( c_views_database ).
+
+    lo_database = zcl_sqlite_database=>open( c_views_database ).
+    lo_database->execute( 'CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT)' ).
+    lo_database->execute( 'CREATE TABLE books (id INTEGER PRIMARY KEY, author_id INTEGER, title TEXT, price)' ).
+    lo_database->execute( 'INSERT INTO authors VALUES (1, ''Ada''), (2, ''Grace'')' ).
+    lo_database->execute(
+      'INSERT INTO books VALUES (1, 1, ''Alpha'', 10), (2, 1, ''Beta'', 20),' &&
+      ' (3, 2, ''Gamma'', NULL)' ).
+    lo_database->execute(
+      'CREATE VIEW book_view AS' &&
+      ' SELECT a.id AS author_id, a.name AS author_name, b.id AS book_id, b.title' &&
+      ' FROM authors a JOIN books b ON a.id = b.author_id' ).
+    lo_database->execute( 'CREATE VIEW book_names(book_id, title) AS SELECT id, title FROM books' ).
+    lo_database->execute(
+      'CREATE VIEW pricey_books AS' &&
+      ' SELECT book_id, title FROM book_view WHERE book_id > 1' ).
+    lo_database->execute( 'CREATE VIEW dropped AS SELECT 1' ).
+    lo_database->execute( 'DROP VIEW dropped' ).
+    lo_database->close( ).
+
+    rv_name = c_views_database.
   ENDMETHOD.
 
   METHOD without_rowid_writes.

@@ -6781,6 +6781,452 @@
       "rows": []
     },
     {
+      "name": "views.select",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT author_id, author_name, book_id, title FROM author_books ORDER BY book_id",
+      "columns": [
+        "author_id",
+        "author_name",
+        "book_id",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Grace"
+          },
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "Gamma"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.explicit_columns",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT book_id, title, cost FROM expensive_books ORDER BY book_id",
+      "columns": [
+        "book_id",
+        "title",
+        "cost"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          },
+          {
+            "type": "integer",
+            "value": "20"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.explicit_where",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT book_id, title FROM expensive_books WHERE cost > 10 ORDER BY book_id",
+      "columns": [
+        "book_id",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.where",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT title, author_name FROM author_books WHERE price > 10 ORDER BY book_id",
+      "columns": [
+        "title",
+        "author_name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Beta"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.nested",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT book_id, title FROM pricey_books ORDER BY book_id",
+      "columns": [
+        "book_id",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.star",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT * FROM active_authors ORDER BY id",
+      "columns": [
+        "id",
+        "name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Grace"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "Linus"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.aggregate",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT author_id, books FROM author_counts ORDER BY author_id",
+      "columns": [
+        "author_id",
+        "books"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "99"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.left_join",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT customer_id, amount, carrier FROM order_customers ORDER BY customer_id, amount",
+      "columns": [
+        "customer_id",
+        "amount",
+        "carrier"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "50"
+          },
+          {
+            "type": "text",
+            "value": "DHL"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "10"
+          },
+          {
+            "type": "integer",
+            "value": "100"
+          },
+          {
+            "type": "text",
+            "value": "UPS"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "20"
+          },
+          {
+            "type": "integer",
+            "value": "75"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "30"
+          },
+          {
+            "type": "integer",
+            "value": "25"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.alias",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT v.title FROM author_books AS v WHERE v.price >= 20 ORDER BY v.book_id",
+      "columns": [
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.join",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.name, v.title FROM authors a JOIN author_books v ON v.author_id = a.id WHERE v.price > 10 ORDER BY v.book_id",
+      "columns": [
+        "name",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "text",
+            "value": "Ada"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.scalar_subquery",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT a.id, (SELECT count(*) FROM author_books b WHERE b.author_id = a.id) AS books FROM authors a ORDER BY a.id",
+      "columns": [
+        "id",
+        "books"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "integer",
+            "value": "0"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "views.duplicate_names",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT * FROM duplicate_columns ORDER BY 1",
+      "columns": [
+        "x",
+        "x:1",
+        "x:2"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          },
+          {
+            "type": "integer",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          },
+          {
+            "type": "integer",
+            "value": "20"
+          }
+        ]
+      ]
+    },
+    {
       "name": "constraints.where_nocase",
       "database": "fixtures/constraints.db",
       "sql": "SELECT id FROM constrained WHERE code = 'ALPHA' ORDER BY id",

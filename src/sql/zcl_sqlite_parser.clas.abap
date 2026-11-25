@@ -170,6 +170,11 @@ CLASS zcl_sqlite_parser DEFINITION
       RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_create_index
       RAISING   zcx_sqlite_error.
 
+    METHODS parse_create_view
+      IMPORTING iv_temporary        TYPE abap_bool
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_create_view
+      RAISING   zcx_sqlite_error.
+
     METHODS parse_drop
       RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_drop
       RAISING   zcx_sqlite_error.
@@ -762,19 +767,24 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     ENDIF.
 
     IF lv_temporary = abap_true.
-      IF is_keyword( 'TABLE' ) = abap_false.
-        fail( 'expected TABLE after TEMP' ).
+      IF is_keyword( 'TABLE' ) = abap_true.
+        ro_statement = parse_create_table( lv_temporary ).
+      ELSEIF is_keyword( 'VIEW' ) = abap_true.
+        ro_statement = parse_create_view( lv_temporary ).
+      ELSE.
+        fail( 'expected TABLE or VIEW after TEMP' ).
       ENDIF.
-      ro_statement = parse_create_table( lv_temporary ).
     ELSEIF is_keyword( 'TABLE' ) = abap_true.
       ro_statement = parse_create_table( lv_temporary ).
+    ELSEIF is_keyword( 'VIEW' ) = abap_true.
+      ro_statement = parse_create_view( lv_temporary ).
     ELSEIF is_keyword( 'UNIQUE' ) = abap_true.
       advance( ).
       ro_statement = parse_create_index( abap_true ).
     ELSEIF is_keyword( 'INDEX' ) = abap_true.
       ro_statement = parse_create_index( abap_false ).
     ELSE.
-      fail( 'expected TABLE or INDEX' ).
+      fail( 'expected TABLE, VIEW or INDEX' ).
     ENDIF.
   ENDMETHOD.
 
@@ -839,6 +849,37 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
       iv_strict        = lv_strict ).
   ENDMETHOD.
 
+  METHOD parse_create_view.
+    DATA lv_name          TYPE string.
+    DATA lv_if_not_exists TYPE abap_bool.
+    DATA lt_columns       TYPE zcl_sqlite_ast_create_view=>ty_columns.
+    DATA lo_statement     TYPE REF TO zcl_sqlite_ast_node.
+
+    expect_keyword( 'VIEW' ).
+    IF is_keyword( 'IF' ) = abap_true.
+      advance( ).
+      expect_keyword( 'NOT' ).
+      expect_keyword( 'EXISTS' ).
+      lv_if_not_exists = abap_true.
+    ENDIF.
+    lv_name = parse_object_name( ).
+    IF is_kind( zcl_sqlite_tokenizer=>c_lparen ) = abap_true.
+      advance( ).
+      lt_columns = parse_name_list( ).
+      expect_kind( iv_kind     = zcl_sqlite_tokenizer=>c_rparen
+                   iv_expected = ')' ).
+    ENDIF.
+    expect_keyword( 'AS' ).
+    lo_statement = parse_select_statement( ).
+
+    ro_statement = NEW zcl_sqlite_ast_create_view(
+      iv_name          = lv_name
+      iv_temporary     = iv_temporary
+      iv_if_not_exists = lv_if_not_exists
+      it_columns       = lt_columns
+      io_statement     = lo_statement ).
+  ENDMETHOD.
+
   METHOD parse_create_index.
     DATA lv_name          TYPE string.
     DATA lv_table_name    TYPE string.
@@ -882,11 +923,13 @@ CLASS zcl_sqlite_parser IMPLEMENTATION.
     DATA lv_if_exists   TYPE abap_bool.
 
     expect_keyword( 'DROP' ).
-    IF is_keyword( 'TABLE' ) = abap_true OR is_keyword( 'INDEX' ) = abap_true.
+    IF is_keyword( 'TABLE' ) = abap_true
+        OR is_keyword( 'INDEX' ) = abap_true
+        OR is_keyword( 'VIEW' ) = abap_true.
       lv_object_type = current( )-value.
       advance( ).
     ELSE.
-      fail( 'expected TABLE or INDEX' ).
+      fail( 'expected TABLE, INDEX or VIEW' ).
     ENDIF.
 
     IF is_keyword( 'IF' ) = abap_true.

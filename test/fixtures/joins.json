@@ -1,7 +1,7 @@
 {
   "pragmas": {
     "page_size": 1024,
-    "page_count": 5,
+    "page_count": 7,
     "encoding": "UTF-8",
     "freelist_count": 0,
     "schema_version": 1,
@@ -239,6 +239,55 @@
       "tbl_name": "shipments",
       "rootpage": 5,
       "sql": "CREATE TABLE shipments (\n      order_id INTEGER NOT NULL,\n      carrier TEXT\n    )"
+    },
+    {
+      "type": "view",
+      "name": "active_authors",
+      "tbl_name": "active_authors",
+      "rootpage": 0,
+      "sql": "CREATE VIEW active_authors AS\n      SELECT id, name FROM authors WHERE id < 4"
+    },
+    {
+      "type": "view",
+      "name": "author_books",
+      "tbl_name": "author_books",
+      "rootpage": 0,
+      "sql": "CREATE VIEW author_books AS\n      SELECT a.id AS author_id, a.name AS author_name,\n             b.id AS book_id, b.title, b.price\n      FROM authors AS a\n      JOIN books AS b ON a.id = b.author_id"
+    },
+    {
+      "type": "view",
+      "name": "expensive_books",
+      "tbl_name": "expensive_books",
+      "rootpage": 0,
+      "sql": "CREATE VIEW expensive_books(book_id, title, cost) AS\n      SELECT id, title, price FROM books WHERE price >= 10"
+    },
+    {
+      "type": "view",
+      "name": "pricey_books",
+      "tbl_name": "pricey_books",
+      "rootpage": 0,
+      "sql": "CREATE VIEW pricey_books AS\n      SELECT book_id, title, price FROM author_books WHERE price > 10"
+    },
+    {
+      "type": "view",
+      "name": "author_counts",
+      "tbl_name": "author_counts",
+      "rootpage": 0,
+      "sql": "CREATE VIEW author_counts AS\n      SELECT author_id, count(*) AS books\n      FROM books WHERE author_id IS NOT NULL\n      GROUP BY author_id"
+    },
+    {
+      "type": "view",
+      "name": "order_customers",
+      "tbl_name": "order_customers",
+      "rootpage": 0,
+      "sql": "CREATE VIEW order_customers AS\n      SELECT o.customer_id, o.amount, s.carrier\n      FROM orders AS o\n      LEFT JOIN shipments AS s ON s.order_id = o.order_id"
+    },
+    {
+      "type": "view",
+      "name": "duplicate_columns",
+      "tbl_name": "duplicate_columns",
+      "rootpage": 0,
+      "sql": "CREATE VIEW duplicate_columns AS\n      SELECT id AS x, title AS x, price AS x FROM books WHERE id < 3"
     }
   ]
 }

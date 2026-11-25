@@ -625,7 +625,7 @@ The order in this phase is flexible. Each milestone adds its cases to the differ
 | ✅ M7.4 AUTOINCREMENT | `sqlite_sequence` table |
 | ✅ M7.5 WITHOUT ROWID writes | Insert/update/delete on index-organized tables |
 | ✅ M7.6 Subqueries | Scalar, `IN`, `EXISTS`, correlated, subqueries in `FROM` |
-| M7.7 Views | `CREATE VIEW` / `DROP VIEW`, expanded at plan time |
+| ✅ M7.7 Views | `CREATE VIEW` / `DROP VIEW`, expanded at plan time |
 | M7.8 Compound selects | `UNION [ALL]`, `INTERSECT`, `EXCEPT` with `ORDER BY` / `LIMIT` |
 | M7.9 CTEs | `WITH`, `WITH RECURSIVE` |
 | M7.10 ALTER TABLE | `RENAME TO`, `RENAME COLUMN`, `ADD COLUMN`, `DROP COLUMN` |
