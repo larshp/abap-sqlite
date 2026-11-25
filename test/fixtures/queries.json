@@ -7227,6 +7227,580 @@
       ]
     },
     {
+      "name": "views.compound",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id FROM all_ids ORDER BY 1",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.union",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id FROM authors UNION SELECT id FROM books ORDER BY 1",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.union_rows",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id, name FROM authors UNION SELECT id, title FROM books ORDER BY id",
+      "columns": [
+        "id",
+        "name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Alpha"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Grace"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "Gamma"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "Linus"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "Nobody"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "Orphan"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          },
+          {
+            "type": "text",
+            "value": "Ghost"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.union_all",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id FROM authors UNION ALL SELECT id FROM books ORDER BY 1",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.intersect",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id FROM authors INTERSECT SELECT id FROM books ORDER BY 1",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.except",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id FROM books EXCEPT SELECT id FROM authors ORDER BY 1",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.limit",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id FROM authors UNION SELECT id FROM books LIMIT 3",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.order_alias_desc",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id AS author_id FROM authors UNION SELECT 99 ORDER BY author_id DESC",
+      "columns": [
+        "author_id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "99"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.offset",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id FROM authors UNION SELECT id FROM books ORDER BY 1 DESC LIMIT 2 OFFSET 2",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.limit_comma",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id FROM authors UNION SELECT id FROM books ORDER BY id LIMIT 2, 2",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.values_union_all",
+      "database": "fixtures/small.db",
+      "sql": "VALUES (1), (2) UNION ALL VALUES (2)",
+      "columns": [
+        "column1"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.expression_union",
+      "database": "fixtures/small.db",
+      "sql": "SELECT 3 AS n UNION SELECT 1 UNION SELECT 2 ORDER BY n",
+      "columns": [
+        "n"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.null_order",
+      "database": "fixtures/small.db",
+      "sql": "SELECT NULL AS n UNION SELECT 1 ORDER BY 1",
+      "columns": [
+        "n"
+      ],
+      "rows": [
+        [
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.scalar_subquery",
+      "database": "fixtures/small.db",
+      "sql": "SELECT (SELECT 3 AS n UNION SELECT 1 ORDER BY 1) AS n",
+      "columns": [
+        "n"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.in_subquery",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id FROM authors WHERE id IN (SELECT id FROM books EXCEPT SELECT 5) ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "compound.from_subquery",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT * FROM (SELECT id FROM authors UNION SELECT id FROM books) ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ]
+      ]
+    },
+    {
       "name": "constraints.where_nocase",
       "database": "fixtures/constraints.db",
       "sql": "SELECT id FROM constrained WHERE code = 'ALPHA' ORDER BY id",

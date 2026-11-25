@@ -552,6 +552,9 @@ function joinsDatabase() {
   db.run(`
     CREATE VIEW duplicate_columns AS
       SELECT id AS x, title AS x, price AS x FROM books WHERE id < 3`);
+  db.run(`
+    CREATE VIEW all_ids AS
+      SELECT id FROM authors UNION SELECT id FROM books`);
   return db;
 }
 
@@ -1567,6 +1570,86 @@ const queryDefinitions = [
     name: "views.duplicate_names",
     database: "joins.db",
     sql: "SELECT * FROM duplicate_columns ORDER BY 1",
+  },
+  {
+    name: "views.compound",
+    database: "joins.db",
+    sql: "SELECT id FROM all_ids ORDER BY 1",
+  },
+  {
+    name: "compound.union",
+    database: "joins.db",
+    sql: "SELECT id FROM authors UNION SELECT id FROM books ORDER BY 1",
+  },
+  {
+    name: "compound.union_rows",
+    database: "joins.db",
+    sql: "SELECT id, name FROM authors UNION SELECT id, title FROM books ORDER BY id",
+  },
+  {
+    name: "compound.union_all",
+    database: "joins.db",
+    sql: "SELECT id FROM authors UNION ALL SELECT id FROM books ORDER BY 1",
+  },
+  {
+    name: "compound.intersect",
+    database: "joins.db",
+    sql: "SELECT id FROM authors INTERSECT SELECT id FROM books ORDER BY 1",
+  },
+  {
+    name: "compound.except",
+    database: "joins.db",
+    sql: "SELECT id FROM books EXCEPT SELECT id FROM authors ORDER BY 1",
+  },
+  {
+    name: "compound.limit",
+    database: "joins.db",
+    sql: "SELECT id FROM authors UNION SELECT id FROM books LIMIT 3",
+  },
+  {
+    name: "compound.order_alias_desc",
+    database: "joins.db",
+    sql: "SELECT id AS author_id FROM authors UNION SELECT 99 ORDER BY author_id DESC",
+  },
+  {
+    name: "compound.offset",
+    database: "joins.db",
+    sql: "SELECT id FROM authors UNION SELECT id FROM books ORDER BY 1 DESC LIMIT 2 OFFSET 2",
+  },
+  {
+    name: "compound.limit_comma",
+    database: "joins.db",
+    sql: "SELECT id FROM authors UNION SELECT id FROM books ORDER BY id LIMIT 2, 2",
+  },
+  {
+    name: "compound.values_union_all",
+    database: "small.db",
+    sql: "VALUES (1), (2) UNION ALL VALUES (2)",
+  },
+  {
+    name: "compound.expression_union",
+    database: "small.db",
+    sql: "SELECT 3 AS n UNION SELECT 1 UNION SELECT 2 ORDER BY n",
+  },
+  {
+    name: "compound.null_order",
+    database: "small.db",
+    sql: "SELECT NULL AS n UNION SELECT 1 ORDER BY 1",
+  },
+  {
+    name: "compound.scalar_subquery",
+    database: "small.db",
+    sql: "SELECT (SELECT 3 AS n UNION SELECT 1 ORDER BY 1) AS n",
+  },
+  {
+    name: "compound.in_subquery",
+    database: "joins.db",
+    sql: "SELECT id FROM authors WHERE id IN (SELECT id FROM books EXCEPT SELECT 5) ORDER BY id",
+  },
+  {
+    name: "compound.from_subquery",
+    database: "joins.db",
+    sql: "SELECT * FROM (SELECT id FROM authors UNION SELECT id FROM books) ORDER BY id",
   },
   {
     name: "constraints.where_nocase",

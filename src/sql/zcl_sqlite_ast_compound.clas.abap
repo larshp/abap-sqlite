@@ -23,6 +23,27 @@ CLASS zcl_sqlite_ast_compound DEFINITION
                 io_offset          TYPE REF TO zcl_sqlite_ast_node OPTIONAL
       RETURNING VALUE(ro_compound) TYPE REF TO zcl_sqlite_ast_compound.
 
+    METHODS get_left
+      RETURNING VALUE(ro_left) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_operator
+      RETURNING VALUE(rv_operator) TYPE string.
+
+    METHODS is_all
+      RETURNING VALUE(rv_all) TYPE abap_bool.
+
+    METHODS get_right
+      RETURNING VALUE(ro_right) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_order_by
+      RETURNING VALUE(rt_order_by) TYPE ty_order_by.
+
+    METHODS get_limit
+      RETURNING VALUE(ro_limit) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_offset
+      RETURNING VALUE(ro_offset) TYPE REF TO zcl_sqlite_ast_node.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -62,6 +83,34 @@ CLASS zcl_sqlite_ast_compound IMPLEMENTATION.
       it_order_by = it_order_by
       io_limit    = io_limit
       io_offset   = io_offset ).
+  ENDMETHOD.
+
+  METHOD get_left.
+    ro_left = mo_left.
+  ENDMETHOD.
+
+  METHOD get_operator.
+    rv_operator = mv_operator.
+  ENDMETHOD.
+
+  METHOD is_all.
+    rv_all = mv_all.
+  ENDMETHOD.
+
+  METHOD get_right.
+    ro_right = mo_right.
+  ENDMETHOD.
+
+  METHOD get_order_by.
+    rt_order_by = mt_order_by.
+  ENDMETHOD.
+
+  METHOD get_limit.
+    ro_limit = mo_limit.
+  ENDMETHOD.
+
+  METHOD get_offset.
+    ro_offset = mo_offset.
   ENDMETHOD.
 
   METHOD dump.

@@ -288,6 +288,13 @@
       "tbl_name": "duplicate_columns",
       "rootpage": 0,
       "sql": "CREATE VIEW duplicate_columns AS\n      SELECT id AS x, title AS x, price AS x FROM books WHERE id < 3"
+    },
+    {
+      "type": "view",
+      "name": "all_ids",
+      "tbl_name": "all_ids",
+      "rootpage": 0,
+      "sql": "CREATE VIEW all_ids AS\n      SELECT id FROM authors UNION SELECT id FROM books"
     }
   ]
 }

@@ -24,6 +24,15 @@ CLASS zcl_sqlite_ast_values DEFINITION
     METHODS get_rows
       RETURNING VALUE(rt_rows) TYPE ty_rows.
 
+    METHODS get_order_by
+      RETURNING VALUE(rt_order_by) TYPE ty_order_by.
+
+    METHODS get_limit
+      RETURNING VALUE(ro_limit) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_offset
+      RETURNING VALUE(ro_offset) TYPE REF TO zcl_sqlite_ast_node.
+
     METHODS dump REDEFINITION.
 
   PRIVATE SECTION.
@@ -58,6 +67,18 @@ CLASS zcl_sqlite_ast_values IMPLEMENTATION.
 
   METHOD get_rows.
     rt_rows = mt_rows.
+  ENDMETHOD.
+
+  METHOD get_order_by.
+    rt_order_by = mt_order_by.
+  ENDMETHOD.
+
+  METHOD get_limit.
+    ro_limit = mo_limit.
+  ENDMETHOD.
+
+  METHOD get_offset.
+    ro_offset = mo_offset.
   ENDMETHOD.
 
   METHOD dump.

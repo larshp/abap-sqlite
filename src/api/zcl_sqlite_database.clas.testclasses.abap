@@ -30,6 +30,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS autoincrement FOR TESTING RAISING zcx_sqlite_error.
     METHODS without_rowid_writes FOR TESTING RAISING zcx_sqlite_error.
     METHODS views FOR TESTING RAISING zcx_sqlite_error.
+    METHODS compound_selects FOR TESTING RAISING zcx_sqlite_error.
 
     TYPES: BEGIN OF ty_abap_row,
              id      TYPE i,
@@ -3806,6 +3807,183 @@ CLASS ltcl_database IMPLEMENTATION.
           act = lo_error->message
           exp = 'no such view: pricey_books'
           msg = 'missing view drop error' ).
+    ENDTRY.
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD compound_selects.
+    DATA lo_vfs       TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database  TYPE REF TO zcl_sqlite_database.
+    DATA lo_statement TYPE REF TO zif_sqlite_statement.
+    DATA lo_error     TYPE REF TO zcx_sqlite_error.
+    DATA lv_name      TYPE string.
+    DATA lv_column    TYPE string.
+    DATA lv_found     TYPE abap_bool.
+    DATA rs_result    TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row       TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value     TYPE REF TO zcl_sqlite_value.
+
+    lv_name = 'test/m7_8_compound.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'CREATE TABLE left_t (id INTEGER, label TEXT)' ).
+    lo_database->execute( 'CREATE TABLE right_t (id INTEGER, label TEXT)' ).
+    lo_database->execute( 'INSERT INTO left_t VALUES (1, ''a''), (2, ''b''), (2, ''b''), (3, NULL)' ).
+    lo_database->execute( 'INSERT INTO right_t VALUES (2, ''b''), (3, ''c''), (4, ''d''), (4, ''d'')' ).
+
+    rs_result = lo_database->query( 'SELECT id FROM left_t UNION SELECT id FROM right_t ORDER BY 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 4
+      msg = 'UNION removes duplicates' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 4.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 4
+      msg = 'UNION is sorted' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM left_t UNION ALL SELECT id FROM right_t' )
+      exp = 8
+      msg = 'UNION ALL keeps duplicates' ).
+
+    rs_result = lo_database->query( 'SELECT id FROM left_t INTERSECT SELECT id FROM right_t ORDER BY 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'INTERSECT row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'INTERSECT keeps common rows' ).
+
+    rs_result = lo_database->query( 'SELECT id FROM left_t EXCEPT SELECT id FROM right_t ORDER BY 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'EXCEPT row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 1
+      msg = 'EXCEPT keeps only left rows' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM right_t EXCEPT SELECT id FROM left_t' )
+      exp = 1
+      msg = 'EXCEPT is not symmetric' ).
+
+    rs_result = lo_database->query( 'SELECT NULL AS n UNION SELECT NULL' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'UNION treats NULLs as equal' ).
+
+    rs_result = lo_database->query( 'SELECT 1 AS n UNION SELECT 2 INTERSECT SELECT 2 ORDER BY 1' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'compound operators are left associative' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'left associative compound value' ).
+
+    rs_result = lo_database->query( 'VALUES (1, ''a''), (2, ''b'')' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-columns )
+      exp = 2
+      msg = 'VALUES column count' ).
+    READ TABLE rs_result-columns INTO lv_column INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_column
+      exp = 'column1'
+      msg = 'VALUES column name' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'VALUES row count' ).
+
+    lo_database->execute( 'CREATE VIEW combined AS SELECT id FROM left_t UNION SELECT id FROM right_t' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM combined' )
+      exp = 4
+      msg = 'compound view row count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM (SELECT id FROM left_t' &&
+                                      ' UNION SELECT id FROM right_t)' )
+      exp = 4
+      msg = 'compound FROM subquery' ).
+    rs_result = lo_database->query( 'SELECT (SELECT 3 AS n UNION SELECT 1 ORDER BY 1) AS n' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 1
+      msg = 'compound scalar subquery' ).
+
+    lo_database->execute( 'CREATE TABLE target (id INTEGER)' ).
+    lo_database->execute( 'INSERT INTO target SELECT id FROM left_t UNION ALL SELECT id FROM right_t' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT id FROM target' )
+      exp = 8
+      msg = 'INSERT SELECT compound row count' ).
+
+    lo_statement = lo_database->prepare( 'SELECT id FROM left_t UNION SELECT id FROM right_t ORDER BY 1' ).
+    lv_found = lo_statement->step( ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lv_found
+      exp = abap_true
+      msg = 'prepared compound returns rows' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_statement->column_count( )
+      exp = 1
+      msg = 'prepared compound column count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_statement->column_value( 1 )->as_integer( )
+      exp = 1
+      msg = 'prepared compound first row' ).
+
+    TRY.
+        lo_database->query( 'SELECT 1 UNION SELECT 1, 2' ).
+        cl_abap_unit_assert=>fail( 'compound with mismatched columns was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'SELECTs to the left and right of UNION do not have the same number of result columns'
+          msg = 'compound column mismatch error' ).
+    ENDTRY.
+    TRY.
+        lo_database->query( 'SELECT 1 AS n UNION SELECT 2 ORDER BY 2' ).
+        cl_abap_unit_assert=>fail( 'compound ORDER BY out of range was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = '1st ORDER BY term out of range - should be between 1 and 1'
+          msg = 'compound ORDER BY range error' ).
+    ENDTRY.
+    TRY.
+        lo_database->query( 'SELECT 1 AS n UNION SELECT 2 ORDER BY missing' ).
+        cl_abap_unit_assert=>fail( 'compound ORDER BY unknown column was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = '1st ORDER BY term does not match any column in the result set'
+          msg = 'compound ORDER BY column error' ).
     ENDTRY.
 
     lo_database->close( ).

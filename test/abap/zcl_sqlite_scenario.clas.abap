@@ -296,6 +296,7 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
     lo_database->execute(
       'CREATE VIEW pricey_books AS' &&
       ' SELECT book_id, title FROM book_view WHERE book_id > 1' ).
+    lo_database->execute( 'CREATE VIEW all_ids AS' && ' SELECT id FROM authors UNION SELECT id FROM books' ).
     lo_database->execute( 'CREATE VIEW dropped AS SELECT 1' ).
     lo_database->execute( 'DROP VIEW dropped' ).
     lo_database->close( ).

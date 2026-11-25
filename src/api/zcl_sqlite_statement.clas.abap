@@ -96,7 +96,10 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
     DATA lo_update TYPE REF TO zcl_sqlite_ast_update.
     DATA lo_delete TYPE REF TO zcl_sqlite_ast_delete.
 
-    IF io_statement IS INSTANCE OF zcl_sqlite_ast_select.
+    IF io_statement IS INSTANCE OF zcl_sqlite_ast_select
+        OR io_statement IS INSTANCE OF zcl_sqlite_ast_values
+        OR io_statement IS INSTANCE OF zcl_sqlite_ast_compound
+        OR io_statement IS INSTANCE OF zcl_sqlite_ast_subquery_ref.
       rv_rows = abap_true.
     ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_insert.
       lo_insert ?= io_statement.

@@ -1165,6 +1165,7 @@ async function verifyViews(SQL, tempDir) {
     "CREATE VIEW book_view AS SELECT a.id AS author_id, a.name AS author_name, b.id AS book_id, b.title FROM authors a JOIN books b ON a.id = b.author_id",
     "CREATE VIEW book_names(book_id, title) AS SELECT id, title FROM books",
     "CREATE VIEW pricey_books AS SELECT book_id, title FROM book_view WHERE book_id > 1",
+    "CREATE VIEW all_ids AS SELECT id FROM authors UNION SELECT id FROM books",
     "CREATE VIEW dropped AS SELECT 1",
     "DROP VIEW dropped",
   ];
@@ -1191,6 +1192,10 @@ async function verifyViews(SQL, tempDir) {
       "SELECT author_id, author_name, book_id, title FROM book_view ORDER BY book_id",
       "SELECT * FROM book_names ORDER BY book_id",
       "SELECT * FROM pricey_books ORDER BY book_id",
+      "SELECT id FROM all_ids ORDER BY 1",
+      "SELECT id FROM authors UNION SELECT id FROM books ORDER BY 1",
+      "SELECT id FROM authors INTERSECT SELECT id FROM books ORDER BY 1",
+      "SELECT id FROM authors EXCEPT SELECT id FROM books ORDER BY 1",
     ]) {
       assert.deepEqual(rows(exported.db, sql), rows(reference, sql), `view query differs: ${sql}`);
     }
@@ -1200,7 +1205,7 @@ async function verifyViews(SQL, tempDir) {
   }
 
   console.log(
-    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, views)`,
+    `export-and-verify: ${fileName} ok (${exported.bytes.length} bytes, ${exported.blocks} blocks, views/compound)`,
   );
 }
 

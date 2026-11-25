@@ -190,6 +190,66 @@ CLASS zcl_sqlite_database DEFINITION
       RETURNING VALUE(rs_result) TYPE ty_result
       RAISING   zcx_sqlite_error.
 
+    METHODS query_any
+      IMPORTING io_statement     TYPE REF TO zcl_sqlite_ast_node
+                io_outer         TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(rs_result) TYPE ty_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS query_component
+      IMPORTING io_statement     TYPE REF TO zcl_sqlite_ast_node
+                io_outer         TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(rs_result) TYPE ty_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS query_values_internal
+      IMPORTING io_values        TYPE REF TO zcl_sqlite_ast_values
+      RETURNING VALUE(rs_result) TYPE ty_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS query_compound_internal
+      IMPORTING io_compound      TYPE REF TO zcl_sqlite_ast_compound
+                io_outer         TYPE REF TO zif_sqlite_eval_context OPTIONAL
+      RETURNING VALUE(rs_result) TYPE ty_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS has_result_row
+      IMPORTING it_rows         TYPE ty_rows
+                is_row          TYPE ty_row
+      RETURNING VALUE(rv_found) TYPE abap_bool
+      RAISING   zcx_sqlite_error.
+
+    METHODS sort_result_rows
+      IMPORTING is_result        TYPE ty_result
+                it_terms         TYPE zcl_sqlite_sort=>ty_terms
+      RETURNING VALUE(rs_result) TYPE ty_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS limit_result_rows
+      IMPORTING is_result        TYPE ty_result
+                io_limit         TYPE REF TO zcl_sqlite_ast_node OPTIONAL
+                io_offset        TYPE REF TO zcl_sqlite_ast_node OPTIONAL
+      RETURNING VALUE(rs_result) TYPE ty_result
+      RAISING   zcx_sqlite_error.
+
+    METHODS resolve_result_order_terms
+      IMPORTING it_order_by     TYPE zcl_sqlite_ast_order_by=>ty_list
+                it_columns      TYPE ty_column_names
+      RETURNING VALUE(rt_terms) TYPE zcl_sqlite_sort=>ty_terms
+      RAISING   zcx_sqlite_error.
+
+    METHODS build_result_sort_terms
+      IMPORTING iv_column_count TYPE i
+      RETURNING VALUE(rt_terms) TYPE zcl_sqlite_sort=>ty_terms.
+
+    CLASS-METHODS ordinal
+      IMPORTING iv_number      TYPE i
+      RETURNING VALUE(rv_text) TYPE string.
+
+    CLASS-METHODS is_query_statement
+      IMPORTING io_statement     TYPE REF TO zcl_sqlite_ast_node
+      RETURNING VALUE(rv_result) TYPE abap_bool.
+
     METHODS classify_statement
       IMPORTING io_statement        TYPE REF TO zcl_sqlite_ast_node
       RETURNING VALUE(rs_statement) TYPE ty_statement
@@ -870,14 +930,12 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
   METHOD query.
     DATA lo_statement TYPE REF TO zcl_sqlite_ast_node.
-    DATA lo_select    TYPE REF TO zcl_sqlite_ast_select.
     DATA ls_statement TYPE ty_statement.
 
     check_open( ).
     lo_statement = zcl_sqlite_parser=>parse_statement( iv_sql ).
-    IF lo_statement IS INSTANCE OF zcl_sqlite_ast_select.
-      lo_select ?= lo_statement.
-      rs_result = query_select( lo_select ).
+    IF is_query_statement( lo_statement ) = abap_true.
+      rs_result = query_any( lo_statement ).
       RETURN.
     ENDIF.
 
@@ -892,34 +950,439 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_sqlite_subquery_runner~run.
-    DATA lo_select TYPE REF TO zcl_sqlite_ast_select.
-
-    IF io_statement IS NOT INSTANCE OF zcl_sqlite_ast_select.
+    IF is_query_statement( io_statement ) = abap_false.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING iv_message = 'unsupported subquery'.
     ENDIF.
-    lo_select ?= io_statement.
 
-    rs_result = query_select(
-      io_select = lo_select
-      io_outer  = io_outer ).
+    rs_result = query_any(
+      io_statement = io_statement
+      io_outer     = io_outer ).
   ENDMETHOD.
 
   METHOD query_select.
+    rs_result = query_any(
+      io_statement = io_select
+      io_outer     = io_outer ).
+  ENDMETHOD.
+
+  METHOD query_any.
     DATA lo_previous TYPE REF TO zif_sqlite_subquery_runner.
     DATA lo_error    TYPE REF TO zcx_sqlite_error.
 
     lo_previous = zcl_sqlite_expr_eval=>get_subquery_runner( ).
     zcl_sqlite_expr_eval=>set_subquery_runner( me ).
     TRY.
-        rs_result = query_select_internal(
-          io_select = io_select
-          io_outer  = io_outer ).
+        rs_result = query_component(
+          io_statement = io_statement
+          io_outer     = io_outer ).
         zcl_sqlite_expr_eval=>set_subquery_runner( lo_previous ).
       CATCH zcx_sqlite_error INTO lo_error.
         zcl_sqlite_expr_eval=>set_subquery_runner( lo_previous ).
         RAISE EXCEPTION lo_error.
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD query_component.
+    DATA lo_select       TYPE REF TO zcl_sqlite_ast_select.
+    DATA lo_values       TYPE REF TO zcl_sqlite_ast_values.
+    DATA lo_compound     TYPE REF TO zcl_sqlite_ast_compound.
+    DATA lo_subquery_ref TYPE REF TO zcl_sqlite_ast_subquery_ref.
+
+    IF io_statement IS INSTANCE OF zcl_sqlite_ast_select.
+      lo_select ?= io_statement.
+      rs_result = query_select_internal(
+        io_select = lo_select
+        io_outer  = io_outer ).
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_values.
+      lo_values ?= io_statement.
+      rs_result = query_values_internal( lo_values ).
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_compound.
+      lo_compound ?= io_statement.
+      rs_result = query_compound_internal(
+        io_compound = lo_compound
+        io_outer    = io_outer ).
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_subquery_ref.
+      lo_subquery_ref ?= io_statement.
+      rs_result = query_component(
+        io_statement = lo_subquery_ref->get_statement( )
+        io_outer     = io_outer ).
+    ELSE.
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING iv_message = 'unsupported query statement'.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD query_values_internal.
+    DATA lo_row          TYPE REF TO zcl_sqlite_ast_values_row.
+    DATA lo_expression   TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_value        TYPE REF TO zcl_sqlite_value.
+    DATA lt_expressions  TYPE zcl_sqlite_ast_node=>ty_nodes.
+    DATA lt_row          TYPE zcl_sqlite_record=>ty_values.
+    DATA lv_column_count TYPE i.
+    DATA lv_index        TYPE i.
+
+    check_open( ).
+
+    LOOP AT io_values->get_rows( ) INTO lo_row.
+      lt_expressions = lo_row->get_values( ).
+      IF lv_column_count = 0.
+        lv_column_count = lines( lt_expressions ).
+      ELSEIF lines( lt_expressions ) <> lv_column_count.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING iv_message = 'all VALUES must have the same number of terms'.
+      ENDIF.
+
+      CLEAR lt_row.
+      LOOP AT lt_expressions INTO lo_expression.
+        lo_value = zcl_sqlite_expr_eval=>evaluate( lo_expression ).
+        APPEND lo_value TO lt_row.
+      ENDLOOP.
+      APPEND lt_row TO rs_result-rows.
+    ENDLOOP.
+
+    DO lv_column_count TIMES.
+      lv_index = sy-index.
+      APPEND |column{ lv_index }| TO rs_result-columns.
+    ENDDO.
+
+    IF lines( io_values->get_order_by( ) ) > 0.
+      rs_result = sort_result_rows(
+        is_result = rs_result
+        it_terms  = resolve_result_order_terms(
+          it_order_by = io_values->get_order_by( )
+          it_columns  = rs_result-columns ) ).
+    ENDIF.
+    rs_result = limit_result_rows(
+      is_result = rs_result
+      io_limit  = io_values->get_limit( )
+      io_offset = io_values->get_offset( ) ).
+  ENDMETHOD.
+
+  METHOD query_compound_internal.
+    DATA rs_left         TYPE ty_result.
+    DATA rs_right        TYPE ty_result.
+    DATA lt_terms        TYPE zcl_sqlite_sort=>ty_terms.
+    DATA ls_row          TYPE ty_row.
+    DATA lv_operator     TYPE string.
+    DATA lv_distinct     TYPE abap_bool.
+    DATA lv_auto_sort    TYPE abap_bool.
+
+    rs_left = query_component(
+      io_statement = io_compound->get_left( )
+      io_outer     = io_outer ).
+    rs_right = query_component(
+      io_statement = io_compound->get_right( )
+      io_outer     = io_outer ).
+
+    lv_operator = io_compound->get_operator( ).
+    IF io_compound->is_all( ) = abap_true.
+      lv_operator = lv_operator && ' ALL'.
+    ENDIF.
+    IF lines( rs_left-columns ) <> lines( rs_right-columns ).
+      RAISE EXCEPTION TYPE zcx_sqlite_error
+        EXPORTING
+          iv_message = |SELECTs to the left and right of { lv_operator } do not have| &&
+                       | the same number of result columns|.
+    ENDIF.
+
+    rs_result-columns = rs_left-columns.
+    lv_distinct = boolc( io_compound->is_all( ) = abap_false ).
+    lv_auto_sort = lv_distinct.
+
+    CASE io_compound->get_operator( ).
+      WHEN 'UNION'.
+        IF lv_distinct = abap_false.
+          rs_result-rows = rs_left-rows.
+          APPEND LINES OF rs_right-rows TO rs_result-rows.
+        ELSE.
+          LOOP AT rs_left-rows INTO ls_row.
+            IF has_result_row( it_rows = rs_result-rows
+                               is_row  = ls_row ) = abap_false.
+              APPEND ls_row TO rs_result-rows.
+            ENDIF.
+          ENDLOOP.
+          LOOP AT rs_right-rows INTO ls_row.
+            IF has_result_row( it_rows = rs_result-rows
+                               is_row  = ls_row ) = abap_false.
+              APPEND ls_row TO rs_result-rows.
+            ENDIF.
+          ENDLOOP.
+        ENDIF.
+      WHEN 'INTERSECT'.
+        LOOP AT rs_left-rows INTO ls_row.
+          IF has_result_row( it_rows = rs_result-rows
+                             is_row  = ls_row ) = abap_true.
+            CONTINUE.
+          ENDIF.
+          IF has_result_row( it_rows = rs_right-rows
+                             is_row  = ls_row ) = abap_true.
+            APPEND ls_row TO rs_result-rows.
+          ENDIF.
+        ENDLOOP.
+      WHEN 'EXCEPT'.
+        LOOP AT rs_left-rows INTO ls_row.
+          IF has_result_row( it_rows = rs_result-rows
+                             is_row  = ls_row ) = abap_true.
+            CONTINUE.
+          ENDIF.
+          IF has_result_row( it_rows = rs_right-rows
+                             is_row  = ls_row ) = abap_false.
+            APPEND ls_row TO rs_result-rows.
+          ENDIF.
+        ENDLOOP.
+      WHEN OTHERS.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING iv_message = |unsupported compound operator: { io_compound->get_operator( ) }|.
+    ENDCASE.
+
+    IF lv_auto_sort = abap_true.
+      rs_result = sort_result_rows(
+        is_result = rs_result
+        it_terms  = build_result_sort_terms( lines( rs_result-columns ) ) ).
+    ENDIF.
+
+    IF lines( io_compound->get_order_by( ) ) > 0.
+      lt_terms = resolve_result_order_terms(
+        it_order_by = io_compound->get_order_by( )
+        it_columns  = rs_result-columns ).
+      rs_result = sort_result_rows(
+        is_result = rs_result
+        it_terms  = lt_terms ).
+    ENDIF.
+
+    rs_result = limit_result_rows(
+      is_result = rs_result
+      io_limit  = io_compound->get_limit( )
+      io_offset = io_compound->get_offset( ) ).
+  ENDMETHOD.
+
+  METHOD has_result_row.
+    DATA ls_existing TYPE ty_row.
+    DATA lo_left     TYPE REF TO zcl_sqlite_value.
+    DATA lo_right    TYPE REF TO zcl_sqlite_value.
+    DATA lv_index    TYPE i.
+    DATA lv_match    TYPE abap_bool.
+
+    LOOP AT it_rows INTO ls_existing.
+      lv_match = abap_true.
+      DO lines( is_row ) TIMES.
+        lv_index = sy-index.
+        READ TABLE ls_existing INTO lo_left INDEX lv_index.
+        READ TABLE is_row INTO lo_right INDEX lv_index.
+        IF lo_left->is_null( ) = abap_true AND lo_right->is_null( ) = abap_true.
+          CONTINUE.
+        ENDIF.
+        IF lo_left->is_null( ) = abap_true OR lo_right->is_null( ) = abap_true.
+          lv_match = abap_false.
+          EXIT.
+        ENDIF.
+        IF zcl_sqlite_expr_eval=>compare_values(
+            io_left      = lo_left
+            io_right     = lo_right
+            iv_collation = 'BINARY' ) <> 0.
+          lv_match = abap_false.
+          EXIT.
+        ENDIF.
+      ENDDO.
+      IF lv_match = abap_true.
+        rv_found = abap_true.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD sort_result_rows.
+    DATA ls_column TYPE zcl_sqlite_join=>ty_column.
+    DATA lt_columns TYPE zcl_sqlite_join=>ty_columns.
+    DATA lo_source TYPE REF TO zif_sqlite_operator.
+    DATA lo_sort   TYPE REF TO zif_sqlite_operator.
+    DATA lo_row    TYPE REF TO zcl_sqlite_row.
+    DATA lv_name   TYPE string.
+
+    rs_result = is_result.
+    IF lines( is_result-rows ) < 2 OR lines( it_terms ) = 0.
+      RETURN.
+    ENDIF.
+
+    LOOP AT is_result-columns INTO lv_name.
+      CLEAR ls_column.
+      ls_column-name = lv_name.
+      APPEND ls_column TO lt_columns.
+    ENDLOOP.
+    lo_source = NEW zcl_sqlite_row_source(
+      it_columns = lt_columns
+      it_rows    = is_result-rows ).
+    lo_sort = NEW zcl_sqlite_sort(
+      io_source = lo_source
+      it_terms  = it_terms ).
+    lo_sort->open( ).
+    CLEAR rs_result-rows.
+    WHILE lo_sort->next( ) = abap_true.
+      lo_row = lo_sort->row( ).
+      APPEND lo_row->values( ) TO rs_result-rows.
+    ENDWHILE.
+  ENDMETHOD.
+
+  METHOD limit_result_rows.
+    DATA ls_column TYPE zcl_sqlite_join=>ty_column.
+    DATA lt_columns TYPE zcl_sqlite_join=>ty_columns.
+    DATA lo_source TYPE REF TO zif_sqlite_operator.
+    DATA lo_limit  TYPE REF TO zif_sqlite_operator.
+    DATA lo_row    TYPE REF TO zcl_sqlite_row.
+    DATA lv_name   TYPE string.
+
+    rs_result = is_result.
+    IF io_limit IS NOT BOUND AND io_offset IS NOT BOUND.
+      RETURN.
+    ENDIF.
+
+    LOOP AT is_result-columns INTO lv_name.
+      CLEAR ls_column.
+      ls_column-name = lv_name.
+      APPEND ls_column TO lt_columns.
+    ENDLOOP.
+    lo_source = NEW zcl_sqlite_row_source(
+      it_columns = lt_columns
+      it_rows    = is_result-rows ).
+    lo_limit = NEW zcl_sqlite_limit(
+      io_source = lo_source
+      io_limit  = io_limit
+      io_offset = io_offset ).
+    lo_limit->open( ).
+    CLEAR rs_result-rows.
+    WHILE lo_limit->next( ) = abap_true.
+      lo_row = lo_limit->row( ).
+      APPEND lo_row->values( ) TO rs_result-rows.
+    ENDWHILE.
+  ENDMETHOD.
+
+  METHOD resolve_result_order_terms.
+    DATA lo_order_by  TYPE REF TO zcl_sqlite_ast_order_by.
+    DATA lo_expression TYPE REF TO zcl_sqlite_ast_node.
+    DATA lo_literal   TYPE REF TO zcl_sqlite_ast_literal.
+    DATA lo_name      TYPE REF TO zcl_sqlite_ast_name.
+    DATA lo_value     TYPE REF TO zcl_sqlite_value.
+    DATA ls_term       TYPE zcl_sqlite_sort=>ty_term.
+    DATA lv_position   TYPE i.
+    DATA lv_term_index TYPE i.
+    DATA lv_offset     TYPE i.
+    DATA lv_column     TYPE string.
+    DATA lv_text       TYPE string.
+    DATA lv_number     TYPE int8.
+
+    LOOP AT it_order_by INTO lo_order_by.
+      lv_term_index = sy-tabix.
+      lv_position = 0.
+      lo_expression = lo_order_by->get_expression( ).
+
+      IF lo_expression IS INSTANCE OF zcl_sqlite_ast_literal.
+        lo_literal ?= lo_expression.
+        IF lo_literal->get_kind( ) = 'INTEGER'.
+          lo_value = zcl_sqlite_expr_eval=>evaluate( lo_expression ).
+          lv_number = zcl_sqlite_expr_eval=>value_to_integer( lo_value ).
+          IF lv_number < 1 OR lv_number > lines( it_columns ).
+            RAISE EXCEPTION TYPE zcx_sqlite_error
+              EXPORTING
+                iv_message = |{ ordinal( lv_term_index ) } ORDER BY term out of range - should be| &&
+                             | between 1 and { lines( it_columns ) }|.
+          ENDIF.
+          lv_position = lv_number.
+        ENDIF.
+      ENDIF.
+
+      IF lv_position = 0 AND lo_expression IS INSTANCE OF zcl_sqlite_ast_name.
+        lo_name ?= lo_expression.
+        lv_text = lo_name->get_text( ).
+        lv_offset = 0.
+        WHILE lv_offset < strlen( lv_text ).
+          IF substring( val = lv_text
+                        off = lv_offset
+                        len = 1 ) = '.'.
+            lv_text = substring( val = lv_text
+                                 off = lv_offset + 1 ).
+            EXIT.
+          ENDIF.
+          lv_offset = lv_offset + 1.
+        ENDWHILE.
+        LOOP AT it_columns INTO lv_column.
+          IF to_upper( lv_column ) = to_upper( lv_text ).
+            lv_position = sy-tabix.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+      ENDIF.
+
+      IF lv_position = 0.
+        RAISE EXCEPTION TYPE zcx_sqlite_error
+          EXPORTING
+            iv_message = |{ ordinal( lv_term_index ) } ORDER BY term does not match any column| &&
+                         | in the result set|.
+      ENDIF.
+
+      CLEAR ls_term.
+      ls_term-position = lv_position.
+      ls_term-direction = lo_order_by->get_direction( ).
+      IF ls_term-direction IS INITIAL.
+        ls_term-direction = 'ASC'.
+      ENDIF.
+      ls_term-nulls = lo_order_by->get_nulls( ).
+      IF ls_term-nulls IS INITIAL.
+        IF ls_term-direction = 'DESC'.
+          ls_term-nulls = 'LAST'.
+        ELSE.
+          ls_term-nulls = 'FIRST'.
+        ENDIF.
+      ENDIF.
+      ls_term-collation = 'BINARY'.
+      APPEND ls_term TO rt_terms.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD build_result_sort_terms.
+    DATA ls_term TYPE zcl_sqlite_sort=>ty_term.
+
+    DO iv_column_count TIMES.
+      CLEAR ls_term.
+      ls_term-position = sy-index.
+      ls_term-direction = 'ASC'.
+      ls_term-nulls = 'FIRST'.
+      ls_term-collation = 'BINARY'.
+      APPEND ls_term TO rt_terms.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD ordinal.
+    DATA lv_last_two TYPE i.
+    DATA lv_last_one TYPE i.
+    DATA lv_suffix   TYPE string.
+
+    lv_last_two = iv_number MOD 100.
+    IF lv_last_two >= 11 AND lv_last_two <= 13.
+      lv_suffix = 'th'.
+    ELSE.
+      lv_last_one = iv_number MOD 10.
+      CASE lv_last_one.
+        WHEN 1.
+          lv_suffix = 'st'.
+        WHEN 2.
+          lv_suffix = 'nd'.
+        WHEN 3.
+          lv_suffix = 'rd'.
+        WHEN OTHERS.
+          lv_suffix = 'th'.
+      ENDCASE.
+    ENDIF.
+    rv_text = |{ iv_number }{ lv_suffix }|.
+  ENDMETHOD.
+
+  METHOD is_query_statement.
+    IF io_statement IS INSTANCE OF zcl_sqlite_ast_select
+        OR io_statement IS INSTANCE OF zcl_sqlite_ast_values
+        OR io_statement IS INSTANCE OF zcl_sqlite_ast_compound
+        OR io_statement IS INSTANCE OF zcl_sqlite_ast_subquery_ref.
+      rv_result = abap_true.
+    ENDIF.
   ENDMETHOD.
 
   METHOD query_select_internal.
@@ -1080,7 +1543,7 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     lt_statements = split_script( iv_sql ).
     LOOP AT lt_statements INTO lv_sql.
       lo_statement = zcl_sqlite_parser=>parse_statement( lv_sql ).
-      IF lo_statement IS INSTANCE OF zcl_sqlite_ast_select.
+      IF is_query_statement( lo_statement ) = abap_true.
         query( lv_sql ).
       ELSE.
         execute( lv_sql ).
@@ -2361,7 +2824,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
     DATA lo_expression TYPE REF TO zcl_sqlite_ast_node.
     DATA lo_row TYPE REF TO zcl_sqlite_ast_values_row.
     DATA lo_select TYPE REF TO zcl_sqlite_ast_node.
-    DATA lo_ast_select TYPE REF TO zcl_sqlite_ast_select.
     DATA lt_expressions TYPE zcl_sqlite_ast_node=>ty_nodes.
     DATA rs_select TYPE ty_result.
     DATA lv_source_count TYPE i.
@@ -2441,14 +2903,13 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
         ENDLOOP.
       ELSE.
         lo_select = io_statement->get_select( ).
-        IF lo_select IS NOT INSTANCE OF zcl_sqlite_ast_select.
+        IF is_query_statement( lo_select ) = abap_false.
           RAISE EXCEPTION TYPE zcx_sqlite_error
             EXPORTING
               iv_code    = zcx_sqlite_error=>sqlite_error
               iv_message = 'unsupported INSERT source'.
         ENDIF.
-        lo_ast_select ?= lo_select.
-        rs_select = query_select( lo_ast_select ).
+        rs_select = query_any( lo_select ).
         IF lines( rs_select-columns ) <> lv_source_count.
           RAISE EXCEPTION TYPE zcx_sqlite_error
             EXPORTING
@@ -4867,19 +5328,19 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_subquery.
-    DATA lo_select  TYPE REF TO zcl_sqlite_ast_select.
     DATA rs_result  TYPE ty_result.
     DATA ls_column  TYPE zcl_sqlite_join=>ty_column.
     DATA lv_alias   TYPE string.
     DATA lv_name    TYPE string.
 
-    IF io_subquery_ref->get_statement( ) IS NOT INSTANCE OF zcl_sqlite_ast_select.
+    IF is_query_statement( io_subquery_ref->get_statement( ) ) = abap_false.
       RAISE EXCEPTION TYPE zcx_sqlite_error
         EXPORTING iv_message = 'unsupported subquery in FROM'.
     ENDIF.
-    lo_select ?= io_subquery_ref->get_statement( ).
 
-    rs_result = query_select( lo_select ).
+    rs_result = query_any(
+      io_statement = io_subquery_ref->get_statement( )
+      io_outer     = io_outer ).
     lv_alias = io_subquery_ref->get_alias( ).
 
     LOOP AT rs_result-columns INTO lv_name.
@@ -4945,7 +5406,6 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_view.
-    DATA lo_select       TYPE REF TO zcl_sqlite_ast_select.
     DATA lo_error        TYPE REF TO zcx_sqlite_error.
     DATA rs_result       TYPE ty_result.
     DATA ls_column       TYPE zcl_sqlite_join=>ty_column.
@@ -4981,12 +5441,11 @@ CLASS zcl_sqlite_database IMPLEMENTATION.
 
     APPEND lv_view_name TO mt_view_stack.
     TRY.
-        IF is_view-statement IS NOT INSTANCE OF zcl_sqlite_ast_select.
+        IF is_query_statement( is_view-statement ) = abap_false.
           RAISE EXCEPTION TYPE zcx_sqlite_error
             EXPORTING iv_message = |unsupported view definition: { lv_view_name }|.
         ENDIF.
-        lo_select ?= is_view-statement.
-        rs_result = query_select( lo_select ).
+        rs_result = query_any( is_view-statement ).
 
         IF lines( lt_view_columns ) > 0
             AND lines( lt_view_columns ) <> lines( rs_result-columns ).
