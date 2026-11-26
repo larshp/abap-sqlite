@@ -1,0 +1,51 @@
+* A parenthesized select used in FROM or as a compound operand.
+CLASS zcl_sqlite_ast_subquery_ref DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC
+  INHERITING FROM zcl_sqlite_ast_node.
+
+  PUBLIC SECTION.
+    METHODS constructor
+      IMPORTING io_statement TYPE REF TO zcl_sqlite_ast_node
+                iv_alias     TYPE string OPTIONAL.
+
+    METHODS dump REDEFINITION.
+
+    METHODS get_statement
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_alias
+      RETURNING VALUE(rv_alias) TYPE string.
+
+  PRIVATE SECTION.
+    DATA mo_statement TYPE REF TO zcl_sqlite_ast_node.
+    DATA mv_alias     TYPE string.
+
+ENDCLASS.
+
+
+CLASS zcl_sqlite_ast_subquery_ref IMPLEMENTATION.
+
+  METHOD constructor.
+    super->constructor( ).
+    mo_statement = io_statement.
+    mv_alias = iv_alias.
+  ENDMETHOD.
+
+  METHOD get_statement.
+    ro_statement = mo_statement.
+  ENDMETHOD.
+
+  METHOD get_alias.
+    rv_alias = mv_alias.
+  ENDMETHOD.
+
+  METHOD dump.
+    rv_text = |(| && mo_statement->dump( ) && |)|.
+    IF mv_alias IS NOT INITIAL.
+      rv_text = rv_text && | AS | && mv_alias.
+    ENDIF.
+  ENDMETHOD.
+
+ENDCLASS.

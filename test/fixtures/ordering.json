@@ -1,0 +1,149 @@
+{
+  "pragmas": {
+    "page_size": 512,
+    "page_count": 2,
+    "encoding": "UTF-8",
+    "freelist_count": 0,
+    "schema_version": 1,
+    "user_version": 0,
+    "application_id": 0,
+    "auto_vacuum": 0,
+    "journal_mode": "delete"
+  },
+  "tables": [
+    {
+      "name": "ordering",
+      "sql": "CREATE TABLE ordering (\n      id INTEGER NOT NULL,\n      grp TEXT,\n      val,\n      label TEXT\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": true,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 1,
+          "name": "grp",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 2,
+          "name": "val",
+          "type": "",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        },
+        {
+          "cid": 3,
+          "name": "label",
+          "type": "TEXT",
+          "notnull": false,
+          "default": null,
+          "primary_key": 0
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "a",
+          2,
+          "Beta"
+        ],
+        [
+          2,
+          "a",
+          null,
+          "alpha"
+        ],
+        [
+          3,
+          "a",
+          10,
+          "gamma"
+        ],
+        [
+          4,
+          "b",
+          1,
+          "Alpha"
+        ],
+        [
+          5,
+          "b",
+          1,
+          "beta"
+        ],
+        [
+          6,
+          "b",
+          null,
+          "ALPHA"
+        ],
+        [
+          7,
+          "c",
+          "2",
+          "delta"
+        ],
+        [
+          8,
+          "c",
+          2,
+          "Delta"
+        ],
+        [
+          9,
+          null,
+          3,
+          "epsilon"
+        ],
+        [
+          10,
+          "c",
+          3.5,
+          "zeta"
+        ],
+        [
+          11,
+          "a",
+          2,
+          "alpha"
+        ],
+        [
+          12,
+          "d",
+          0,
+          "same"
+        ],
+        [
+          13,
+          "d",
+          0,
+          "same "
+        ],
+        [
+          14,
+          "b",
+          null,
+          "omega"
+        ]
+      ]
+    }
+  ],
+  "indexes": [],
+  "schema": [
+    {
+      "type": "table",
+      "name": "ordering",
+      "tbl_name": "ordering",
+      "rootpage": 2,
+      "sql": "CREATE TABLE ordering (\n      id INTEGER NOT NULL,\n      grp TEXT,\n      val,\n      label TEXT\n    )"
+    }
+  ]
+}
