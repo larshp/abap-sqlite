@@ -295,6 +295,13 @@
       "tbl_name": "all_ids",
       "rootpage": 0,
       "sql": "CREATE VIEW all_ids AS\n      SELECT id FROM authors UNION SELECT id FROM books"
+    },
+    {
+      "type": "view",
+      "name": "cte_books",
+      "tbl_name": "cte_books",
+      "rootpage": 0,
+      "sql": "CREATE VIEW cte_books AS\n      WITH c AS (SELECT id, title FROM books WHERE price > 10)\n      SELECT * FROM c"
     }
   ]
 }

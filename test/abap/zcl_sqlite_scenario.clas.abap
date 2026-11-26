@@ -297,6 +297,24 @@ CLASS zcl_sqlite_scenario IMPLEMENTATION.
       'CREATE VIEW pricey_books AS' &&
       ' SELECT book_id, title FROM book_view WHERE book_id > 1' ).
     lo_database->execute( 'CREATE VIEW all_ids AS' && ' SELECT id FROM authors UNION SELECT id FROM books' ).
+    lo_database->execute(
+      'CREATE VIEW cte_books AS' &&
+      ' WITH c AS (SELECT id, title FROM books WHERE price > 10)' &&
+      ' SELECT * FROM c' ).
+    lo_database->execute( 'CREATE TABLE cte_target (id INTEGER PRIMARY KEY, title TEXT)' ).
+    lo_database->execute(
+      'WITH c AS (SELECT id, title FROM books WHERE price > 10)' &&
+      ' INSERT INTO cte_target SELECT * FROM c' ).
+    lo_database->execute(
+      'WITH c AS (SELECT 2 AS id)' &&
+      ' UPDATE cte_target SET title = ''changed'' WHERE id IN (SELECT id FROM c)' ).
+    lo_database->execute(
+      'WITH c AS (SELECT 2 AS id)' &&
+      ' DELETE FROM cte_target WHERE id IN (SELECT id FROM c)' ).
+    lo_database->execute(
+      'WITH RECURSIVE cnt(x) AS (VALUES(10) UNION ALL' &&
+      ' SELECT x + 1 FROM cnt WHERE x < 12)' &&
+      ' INSERT INTO cte_target SELECT x, ''r'' FROM cnt' ).
     lo_database->execute( 'CREATE VIEW dropped AS SELECT 1' ).
     lo_database->execute( 'DROP VIEW dropped' ).
     lo_database->close( ).

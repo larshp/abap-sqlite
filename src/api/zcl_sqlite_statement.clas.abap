@@ -95,6 +95,7 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
     DATA lo_insert TYPE REF TO zcl_sqlite_ast_insert.
     DATA lo_update TYPE REF TO zcl_sqlite_ast_update.
     DATA lo_delete TYPE REF TO zcl_sqlite_ast_delete.
+    DATA lo_with   TYPE REF TO zcl_sqlite_ast_with.
 
     IF io_statement IS INSTANCE OF zcl_sqlite_ast_select
         OR io_statement IS INSTANCE OF zcl_sqlite_ast_values
@@ -110,6 +111,9 @@ CLASS zcl_sqlite_statement IMPLEMENTATION.
     ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_delete.
       lo_delete ?= io_statement.
       rv_rows = boolc( lines( lo_delete->get_returning( ) ) > 0 ).
+    ELSEIF io_statement IS INSTANCE OF zcl_sqlite_ast_with.
+      lo_with ?= io_statement.
+      rv_rows = statement_returns_rows( lo_with->get_statement( ) ).
     ENDIF.
   ENDMETHOD.
 

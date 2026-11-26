@@ -31,6 +31,7 @@ CLASS ltcl_database DEFINITION FINAL FOR TESTING
     METHODS without_rowid_writes FOR TESTING RAISING zcx_sqlite_error.
     METHODS views FOR TESTING RAISING zcx_sqlite_error.
     METHODS compound_selects FOR TESTING RAISING zcx_sqlite_error.
+    METHODS ctes FOR TESTING RAISING zcx_sqlite_error.
 
     TYPES: BEGIN OF ty_abap_row,
              id      TYPE i,
@@ -3984,6 +3985,232 @@ CLASS ltcl_database IMPLEMENTATION.
           act = lo_error->message
           exp = '1st ORDER BY term does not match any column in the result set'
           msg = 'compound ORDER BY column error' ).
+    ENDTRY.
+
+    lo_database->close( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+  ENDMETHOD.
+
+  METHOD ctes.
+    DATA lo_vfs       TYPE REF TO zcl_sqlite_vfs_table.
+    DATA lo_database  TYPE REF TO zcl_sqlite_database.
+    DATA lo_statement TYPE REF TO zif_sqlite_statement.
+    DATA lo_error     TYPE REF TO zcx_sqlite_error.
+    DATA lv_name      TYPE string.
+    DATA rs_result    TYPE zcl_sqlite_database=>ty_result.
+    DATA ls_row       TYPE zcl_sqlite_record=>ty_values.
+    DATA lo_value     TYPE REF TO zcl_sqlite_value.
+
+    lv_name = 'test/m7_9_ctes.db'.
+    lo_vfs = NEW zcl_sqlite_vfs_table( ).
+    lo_vfs->zif_sqlite_vfs~delete( lv_name ).
+
+    lo_database = zcl_sqlite_database=>open( lv_name ).
+    lo_database->execute( 'CREATE TABLE items (id INTEGER, label TEXT)' ).
+    lo_database->execute( 'INSERT INTO items VALUES (1, ''a''), (2, ''b''), (3, ''c'')' ).
+
+    rs_result = lo_database->query(
+      'WITH c AS (SELECT id, label FROM items WHERE id < 3)' &&
+      ' SELECT * FROM c ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 2
+      msg = 'basic CTE row count' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = rs_result-columns[ 1 ]
+      exp = 'id'
+      msg = 'basic CTE column name' ).
+
+    rs_result = lo_database->query(
+      'WITH c(x, y) AS (SELECT id, label FROM items)' &&
+      ' SELECT * FROM c ORDER BY x' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = rs_result-columns[ 1 ]
+      exp = 'x'
+      msg = 'CTE explicit column name' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 3.
+    READ TABLE ls_row INTO lo_value INDEX 2.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_text( )
+      exp = 'c'
+      msg = 'CTE explicit column row' ).
+
+    rs_result = lo_database->query( 'WITH c AS (SELECT * FROM d), d AS (SELECT 1 AS x) SELECT * FROM c' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 1
+      msg = 'CTE forward reference' ).
+
+    rs_result = lo_database->query(
+      'WITH c AS (SELECT id FROM items), d AS (SELECT id + 10 AS id FROM c)' &&
+      ' SELECT * FROM d ORDER BY id' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 11
+      msg = 'CTE references earlier CTE' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'WITH c AS (SELECT * FROM missing) SELECT 1' )
+      exp = 1
+      msg = 'unused CTE is not evaluated' ).
+
+    lo_database->execute( 'CREATE TABLE target (id INTEGER, label TEXT)' ).
+    lo_database->execute(
+      'WITH c AS (SELECT id, label FROM items WHERE id > 1)' &&
+      ' INSERT INTO target SELECT * FROM c' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database iv_sql = 'SELECT * FROM target' )
+      exp = 2
+      msg = 'CTE INSERT SELECT row count' ).
+
+    lo_database->execute(
+      'WITH c AS (SELECT 9 AS id) UPDATE target SET id = (SELECT id FROM c) WHERE label = ''b''' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database
+                        iv_sql      = 'SELECT * FROM target WHERE id = 9' )
+      exp = 1
+      msg = 'CTE UPDATE' ).
+
+    lo_database->execute( 'WITH c AS (SELECT 9 AS id) DELETE FROM target WHERE id = (SELECT id FROM c)' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database iv_sql = 'SELECT * FROM target' )
+      exp = 1
+      msg = 'CTE DELETE row count' ).
+
+    rs_result = lo_database->query( 'WITH c AS (SELECT 2 AS x) SELECT (SELECT x FROM c) AS y' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'CTE in scalar subquery' ).
+
+    rs_result = lo_database->query(
+      'WITH c AS (SELECT 1 AS x) SELECT * FROM (WITH d AS' &&
+      ' (SELECT x + 1 AS x FROM c) SELECT * FROM d)' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 2
+      msg = 'nested WITH reads outer CTE' ).
+
+    lo_database->execute(
+      'CREATE VIEW cte_view AS WITH c AS (SELECT id FROM items WHERE id > 1)' &&
+      ' SELECT * FROM c' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = count_rows( io_database = lo_database iv_sql = 'SELECT * FROM cte_view' )
+      exp = 2
+      msg = 'CTE in view' ).
+
+    rs_result = lo_database->query( 'WITH items AS (SELECT 5 AS id) SELECT * FROM items' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 1
+      msg = 'CTE shadows table' ).
+
+    rs_result = lo_database->query(
+      'WITH RECURSIVE cnt(x) AS (VALUES(1) UNION ALL' &&
+      ' SELECT x + 1 FROM cnt WHERE x < 5) SELECT * FROM cnt' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 5
+      msg = 'recursive CTE row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 5.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 5
+      msg = 'recursive CTE last row' ).
+
+    rs_result = lo_database->query(
+      'WITH RECURSIVE c(x) AS (VALUES(3), (2) UNION SELECT 1)' &&
+      ' SELECT * FROM c' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'recursive UNION distinct row count' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 1
+      msg = 'recursive UNION distinct is sorted' ).
+
+    rs_result = lo_database->query(
+      'WITH RECURSIVE c(x) AS (VALUES(3), (2) UNION ALL SELECT 1)' &&
+      ' SELECT * FROM c' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 1.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 3
+      msg = 'recursive UNION ALL keeps generation order' ).
+
+    rs_result = lo_database->query(
+      'WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL' &&
+      ' SELECT x + 1 FROM cnt WHERE x < 10 LIMIT 3) SELECT * FROM cnt' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lines( rs_result-rows )
+      exp = 3
+      msg = 'recursive CTE LIMIT' ).
+    READ TABLE rs_result-rows INTO ls_row INDEX 3.
+    READ TABLE ls_row INTO lo_value INDEX 1.
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_value->as_integer( )
+      exp = 3
+      msg = 'recursive CTE LIMIT last row' ).
+
+    lo_statement = lo_database->prepare( 'WITH c AS (SELECT id FROM items) SELECT * FROM c ORDER BY id' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_statement->step( )
+      exp = abap_true
+      msg = 'prepared CTE returns rows' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = lo_statement->column_value( 1 )->as_integer( )
+      exp = 1
+      msg = 'prepared CTE first row' ).
+
+    TRY.
+        lo_database->query( 'WITH c AS (SELECT 1), c AS (SELECT 2) SELECT * FROM c' ).
+        cl_abap_unit_assert=>fail( 'duplicate CTE name was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'duplicate WITH table name: c'
+          msg = 'duplicate CTE name error' ).
+    ENDTRY.
+    TRY.
+        lo_database->query( 'WITH c(x) AS (SELECT id, label FROM items) SELECT * FROM c' ).
+        cl_abap_unit_assert=>fail( 'CTE column count mismatch was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'table c has 2 values for 1 columns'
+          msg = 'CTE column count error' ).
+    ENDTRY.
+    TRY.
+        lo_database->query( 'WITH c AS (SELECT * FROM c) SELECT * FROM c' ).
+        cl_abap_unit_assert=>fail( 'circular CTE was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'circular reference: c'
+          msg = 'circular CTE error' ).
+    ENDTRY.
+    TRY.
+        lo_database->query( 'WITH RECURSIVE c(x) AS (SELECT * FROM c) SELECT * FROM c' ).
+        cl_abap_unit_assert=>fail( 'recursive CTE without UNION was accepted' ).
+      CATCH zcx_sqlite_error INTO lo_error.
+        cl_abap_unit_assert=>assert_equals(
+          act = lo_error->message
+          exp = 'circular reference: c'
+          msg = 'recursive CTE shape error' ).
     ENDTRY.
 
     lo_database->close( ).

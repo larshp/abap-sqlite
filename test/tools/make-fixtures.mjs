@@ -555,6 +555,10 @@ function joinsDatabase() {
   db.run(`
     CREATE VIEW all_ids AS
       SELECT id FROM authors UNION SELECT id FROM books`);
+  db.run(`
+    CREATE VIEW cte_books AS
+      WITH c AS (SELECT id, title FROM books WHERE price > 10)
+      SELECT * FROM c`);
   return db;
 }
 
@@ -1650,6 +1654,91 @@ const queryDefinitions = [
     name: "compound.from_subquery",
     database: "joins.db",
     sql: "SELECT * FROM (SELECT id FROM authors UNION SELECT id FROM books) ORDER BY id",
+  },
+  {
+    name: "ctes.basic",
+    database: "joins.db",
+    sql: "WITH c AS (SELECT id, name FROM authors WHERE id < 3) SELECT * FROM c ORDER BY id",
+  },
+  {
+    name: "ctes.explicit_columns",
+    database: "joins.db",
+    sql: "WITH c(author_id, author_name) AS (SELECT id, name FROM authors) SELECT * FROM c ORDER BY author_id",
+  },
+  {
+    name: "ctes.forward_reference",
+    database: "small.db",
+    sql: "WITH c AS (SELECT * FROM d), d AS (SELECT 1 AS x) SELECT * FROM c",
+  },
+  {
+    name: "ctes.chain",
+    database: "joins.db",
+    sql: "WITH c AS (SELECT id FROM books WHERE price > 10), d AS (SELECT id + 100 AS id FROM c) SELECT * FROM d ORDER BY id",
+  },
+  {
+    name: "ctes.shadow_table",
+    database: "joins.db",
+    sql: "WITH authors AS (SELECT 99 AS id) SELECT * FROM authors",
+  },
+  {
+    name: "ctes.scalar_subquery",
+    database: "small.db",
+    sql: "WITH c AS (SELECT 2 AS x) SELECT (SELECT x FROM c) AS y",
+  },
+  {
+    name: "ctes.nested_with",
+    database: "small.db",
+    sql: "WITH c AS (SELECT 1 AS x) SELECT * FROM (WITH d AS (SELECT x + 1 AS x FROM c) SELECT * FROM d)",
+  },
+  {
+    name: "ctes.in_subquery",
+    database: "joins.db",
+    sql: "WITH c AS (SELECT id FROM books WHERE id < 5) SELECT id FROM authors WHERE id IN (SELECT id FROM c) ORDER BY id",
+  },
+  {
+    name: "ctes.compound",
+    database: "joins.db",
+    sql: "WITH c AS (SELECT id FROM authors UNION SELECT id FROM books) SELECT * FROM c ORDER BY id",
+  },
+  {
+    name: "ctes.view",
+    database: "joins.db",
+    sql: "SELECT id, title FROM cte_books ORDER BY id",
+  },
+  {
+    name: "ctes.unused_invalid",
+    database: "small.db",
+    sql: "WITH c AS (SELECT * FROM missing) SELECT 1",
+  },
+  {
+    name: "ctes.recursive_counter",
+    database: "small.db",
+    sql: "WITH RECURSIVE cnt(x) AS (VALUES(1) UNION ALL SELECT x + 1 FROM cnt WHERE x < 5) SELECT * FROM cnt",
+  },
+  {
+    name: "ctes.recursive_distinct",
+    database: "small.db",
+    sql: "WITH RECURSIVE c(x) AS (VALUES(3), (2) UNION SELECT 1) SELECT * FROM c",
+  },
+  {
+    name: "ctes.recursive_all_order",
+    database: "small.db",
+    sql: "WITH RECURSIVE c(x) AS (VALUES(3), (2) UNION ALL SELECT 1) SELECT * FROM c",
+  },
+  {
+    name: "ctes.recursive_limit",
+    database: "small.db",
+    sql: "WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM cnt WHERE x < 10 LIMIT 4) SELECT * FROM cnt",
+  },
+  {
+    name: "ctes.recursive_offset",
+    database: "small.db",
+    sql: "WITH RECURSIVE cnt(x) AS (VALUES(1) UNION ALL SELECT x + 1 FROM cnt WHERE x < 10 LIMIT 3 OFFSET 2) SELECT * FROM cnt",
+  },
+  {
+    name: "ctes.recursive_double",
+    database: "small.db",
+    sql: "WITH RECURSIVE c(x) AS (VALUES(1) UNION ALL SELECT x * 2 FROM c WHERE x < 20) SELECT * FROM c",
   },
   {
     name: "constraints.where_nocase",

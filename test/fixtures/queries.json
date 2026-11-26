@@ -7801,6 +7801,483 @@
       ]
     },
     {
+      "name": "ctes.basic",
+      "database": "fixtures/joins.db",
+      "sql": "WITH c AS (SELECT id, name FROM authors WHERE id < 3) SELECT * FROM c ORDER BY id",
+      "columns": [
+        "id",
+        "name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Grace"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.explicit_columns",
+      "database": "fixtures/joins.db",
+      "sql": "WITH c(author_id, author_name) AS (SELECT id, name FROM authors) SELECT * FROM c ORDER BY author_id",
+      "columns": [
+        "author_id",
+        "author_name"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          },
+          {
+            "type": "text",
+            "value": "Ada"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Grace"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          },
+          {
+            "type": "text",
+            "value": "Linus"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          },
+          {
+            "type": "text",
+            "value": "Nobody"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.forward_reference",
+      "database": "fixtures/small.db",
+      "sql": "WITH c AS (SELECT * FROM d), d AS (SELECT 1 AS x) SELECT * FROM c",
+      "columns": [
+        "x"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.chain",
+      "database": "fixtures/joins.db",
+      "sql": "WITH c AS (SELECT id FROM books WHERE price > 10), d AS (SELECT id + 100 AS id FROM c) SELECT * FROM d ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "102"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.shadow_table",
+      "database": "fixtures/joins.db",
+      "sql": "WITH authors AS (SELECT 99 AS id) SELECT * FROM authors",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "99"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.scalar_subquery",
+      "database": "fixtures/small.db",
+      "sql": "WITH c AS (SELECT 2 AS x) SELECT (SELECT x FROM c) AS y",
+      "columns": [
+        "y"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.nested_with",
+      "database": "fixtures/small.db",
+      "sql": "WITH c AS (SELECT 1 AS x) SELECT * FROM (WITH d AS (SELECT x + 1 AS x FROM c) SELECT * FROM d)",
+      "columns": [
+        "x"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.in_subquery",
+      "database": "fixtures/joins.db",
+      "sql": "WITH c AS (SELECT id FROM books WHERE id < 5) SELECT id FROM authors WHERE id IN (SELECT id FROM c) ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.compound",
+      "database": "fixtures/joins.db",
+      "sql": "WITH c AS (SELECT id FROM authors UNION SELECT id FROM books) SELECT * FROM c ORDER BY id",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.view",
+      "database": "fixtures/joins.db",
+      "sql": "SELECT id, title FROM cte_books ORDER BY id",
+      "columns": [
+        "id",
+        "title"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          },
+          {
+            "type": "text",
+            "value": "Beta"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.unused_invalid",
+      "database": "fixtures/small.db",
+      "sql": "WITH c AS (SELECT * FROM missing) SELECT 1",
+      "columns": [
+        "1"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.recursive_counter",
+      "database": "fixtures/small.db",
+      "sql": "WITH RECURSIVE cnt(x) AS (VALUES(1) UNION ALL SELECT x + 1 FROM cnt WHERE x < 5) SELECT * FROM cnt",
+      "columns": [
+        "x"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.recursive_distinct",
+      "database": "fixtures/small.db",
+      "sql": "WITH RECURSIVE c(x) AS (VALUES(3), (2) UNION SELECT 1) SELECT * FROM c",
+      "columns": [
+        "x"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.recursive_all_order",
+      "database": "fixtures/small.db",
+      "sql": "WITH RECURSIVE c(x) AS (VALUES(3), (2) UNION ALL SELECT 1) SELECT * FROM c",
+      "columns": [
+        "x"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.recursive_limit",
+      "database": "fixtures/small.db",
+      "sql": "WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM cnt WHERE x < 10 LIMIT 4) SELECT * FROM cnt",
+      "columns": [
+        "x"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.recursive_offset",
+      "database": "fixtures/small.db",
+      "sql": "WITH RECURSIVE cnt(x) AS (VALUES(1) UNION ALL SELECT x + 1 FROM cnt WHERE x < 10 LIMIT 3 OFFSET 2) SELECT * FROM cnt",
+      "columns": [
+        "x"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "5"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "ctes.recursive_double",
+      "database": "fixtures/small.db",
+      "sql": "WITH RECURSIVE c(x) AS (VALUES(1) UNION ALL SELECT x * 2 FROM c WHERE x < 20) SELECT * FROM c",
+      "columns": [
+        "x"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": "1"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "2"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "8"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "16"
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": "32"
+          }
+        ]
+      ]
+    },
+    {
       "name": "constraints.where_nocase",
       "database": "fixtures/constraints.db",
       "sql": "SELECT id FROM constrained WHERE code = 'ALPHA' ORDER BY id",

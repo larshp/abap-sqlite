@@ -1166,6 +1166,12 @@ async function verifyViews(SQL, tempDir) {
     "CREATE VIEW book_names(book_id, title) AS SELECT id, title FROM books",
     "CREATE VIEW pricey_books AS SELECT book_id, title FROM book_view WHERE book_id > 1",
     "CREATE VIEW all_ids AS SELECT id FROM authors UNION SELECT id FROM books",
+    "CREATE VIEW cte_books AS WITH c AS (SELECT id, title FROM books WHERE price > 10) SELECT * FROM c",
+    "CREATE TABLE cte_target (id INTEGER PRIMARY KEY, title TEXT)",
+    "WITH c AS (SELECT id, title FROM books WHERE price > 10) INSERT INTO cte_target SELECT * FROM c",
+    "WITH c AS (SELECT 2 AS id) UPDATE cte_target SET title = 'changed' WHERE id IN (SELECT id FROM c)",
+    "WITH c AS (SELECT 2 AS id) DELETE FROM cte_target WHERE id IN (SELECT id FROM c)",
+    "WITH RECURSIVE cnt(x) AS (VALUES(10) UNION ALL SELECT x + 1 FROM cnt WHERE x < 12) INSERT INTO cte_target SELECT x, 'r' FROM cnt",
     "CREATE VIEW dropped AS SELECT 1",
     "DROP VIEW dropped",
   ];
@@ -1196,6 +1202,9 @@ async function verifyViews(SQL, tempDir) {
       "SELECT id FROM authors UNION SELECT id FROM books ORDER BY 1",
       "SELECT id FROM authors INTERSECT SELECT id FROM books ORDER BY 1",
       "SELECT id FROM authors EXCEPT SELECT id FROM books ORDER BY 1",
+      "SELECT id, title FROM cte_books ORDER BY id",
+      "SELECT id, title FROM cte_target ORDER BY id",
+      "WITH RECURSIVE cnt(x) AS (VALUES(1) UNION ALL SELECT x + 1 FROM cnt WHERE x < 3) SELECT * FROM cnt",
     ]) {
       assert.deepEqual(rows(exported.db, sql), rows(reference, sql), `view query differs: ${sql}`);
     }

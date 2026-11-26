@@ -15,6 +15,15 @@ CLASS zcl_sqlite_ast_with DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS is_recursive
+      RETURNING VALUE(rv_recursive) TYPE abap_bool.
+
+    METHODS get_ctes
+      RETURNING VALUE(rt_ctes) TYPE ty_ctes.
+
+    METHODS get_statement
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node.
+
   PRIVATE SECTION.
     DATA mv_recursive TYPE abap_bool.
     DATA mt_ctes      TYPE ty_ctes.
@@ -41,6 +50,18 @@ CLASS zcl_sqlite_ast_with IMPLEMENTATION.
       rv_text = rv_text && |RECURSIVE |.
     ENDIF.
     rv_text = rv_text && dump_ctes( ) && | | && mo_statement->dump( ).
+  ENDMETHOD.
+
+  METHOD is_recursive.
+    rv_recursive = mv_recursive.
+  ENDMETHOD.
+
+  METHOD get_ctes.
+    rt_ctes = mt_ctes.
+  ENDMETHOD.
+
+  METHOD get_statement.
+    ro_statement = mo_statement.
   ENDMETHOD.
 
   METHOD dump_ctes.

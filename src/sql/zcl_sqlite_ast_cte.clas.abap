@@ -16,6 +16,18 @@ CLASS zcl_sqlite_ast_cte DEFINITION
 
     METHODS dump REDEFINITION.
 
+    METHODS get_name
+      RETURNING VALUE(rv_name) TYPE string.
+
+    METHODS get_columns
+      RETURNING VALUE(rt_columns) TYPE zcl_sqlite_ast_node=>ty_names.
+
+    METHODS get_statement
+      RETURNING VALUE(ro_statement) TYPE REF TO zcl_sqlite_ast_node.
+
+    METHODS get_materialized
+      RETURNING VALUE(rv_materialized) TYPE string.
+
   PRIVATE SECTION.
     DATA mv_name         TYPE string.
     DATA mt_columns      TYPE zcl_sqlite_ast_node=>ty_names.
@@ -33,6 +45,22 @@ CLASS zcl_sqlite_ast_cte IMPLEMENTATION.
     mt_columns = it_columns.
     mo_statement = io_statement.
     mv_materialized = iv_materialized.
+  ENDMETHOD.
+
+  METHOD get_name.
+    rv_name = mv_name.
+  ENDMETHOD.
+
+  METHOD get_columns.
+    rt_columns = mt_columns.
+  ENDMETHOD.
+
+  METHOD get_statement.
+    ro_statement = mo_statement.
+  ENDMETHOD.
+
+  METHOD get_materialized.
+    rv_materialized = mv_materialized.
   ENDMETHOD.
 
   METHOD dump.
